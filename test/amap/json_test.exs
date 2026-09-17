@@ -1,21 +1,25 @@
 defmodule Amap.JSONTest do
   use ExUnit.Case, async: false
 
+  # `alias Amap.JSON` would be `JSON`, but the standard library owns that name and
+  # the first test below asserts against it directly, so the alias is renamed.
+  alias Amap.JSON, as: JSONModule
+
   describe "with the default library" do
     test "defaults to the built-in JSON module" do
-      assert Amap.JSON.json_library() == JSON
+      assert JSONModule.json_library() == JSON
     end
 
     test "decodes" do
-      assert Amap.JSON.decode(~s({"a":1})) == {:ok, %{"a" => 1}}
+      assert JSONModule.decode(~s({"a":1})) == {:ok, %{"a" => 1}}
     end
 
     test "returns an error tuple rather than raising on malformed input" do
-      assert {:error, _} = Amap.JSON.decode("{not json")
+      assert {:error, _} = JSONModule.decode("{not json")
     end
 
     test "encodes" do
-      assert Amap.JSON.encode!(%{"a" => 1}) == ~s({"a":1})
+      assert JSONModule.encode!(%{"a" => 1}) == ~s({"a":1})
     end
   end
 
@@ -26,9 +30,9 @@ defmodule Amap.JSONTest do
     end
 
     test "routes both directions through the configured module" do
-      assert Amap.JSON.json_library() == Amap.StubJSON
-      assert Amap.JSON.decode("{}") == {:error, :stub}
-      assert Amap.JSON.encode!(%{}) == "stubbed"
+      assert JSONModule.json_library() == Amap.StubJSON
+      assert JSONModule.decode("{}") == {:error, :stub}
+      assert JSONModule.encode!(%{}) == "stubbed"
     end
   end
 end

@@ -81,17 +81,19 @@ defmodule Amap.Request do
       |> build(family, method, path, params)
       |> Finch.request(client.pool, receive_timeout: client.timeout)
 
-    case result do
-      {:ok, %Finch.Response{status: 200} = response} ->
-        {:ok, response}
+    outcome =
+      case result do
+        {:ok, %Finch.Response{status: 200} = response} ->
+          {:ok, response}
 
-      {:ok, %Finch.Response{} = response} ->
-        {:error, Error.unexpected_response(response.status, response.body)}
+        {:ok, %Finch.Response{} = response} ->
+          {:error, Error.unexpected_response(response.status, response.body)}
 
-      {:error, exception} ->
-        {:error, Error.from_transport(exception)}
-    end
-    |> with_request_context(method, path, params)
+        {:error, exception} ->
+          {:error, Error.from_transport(exception)}
+      end
+
+    with_request_context(outcome, method, path, params)
   end
 
   defp with_request_context({:error, %Error{} = error}, method, path, params) do

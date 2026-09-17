@@ -24,7 +24,7 @@ defmodule Amap.Param do
 
   @doc "Formats a list of points separated by `;`."
   @spec locations([{number(), number()}]) :: String.t()
-  def locations(points), do: points |> Enum.map(&location/1) |> Enum.join(";")
+  def locations(points), do: Enum.map_join(points, ";", &location/1)
 
   @doc "Joins a list with `|`, as used by search `types` and similar."
   @spec pipe([String.t()]) :: String.t()

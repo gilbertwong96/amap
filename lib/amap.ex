@@ -8,6 +8,13 @@ defmodule Amap do
   error, so status codes are never used to detect failures.
   """
 
+  alias Amap.Client
+  alias Amap.Error
+  alias Amap.Limiter
+  alias Amap.Request
+  alias Amap.Response
+  alias Amap.Telemetry
+
   @options [:key, :private_key, :pool, :limiter, :timeout, :retry, :base_urls]
   @retry_options [:max, :base_delay]
 
@@ -17,7 +24,7 @@ defmodule Amap do
   Options fall back to `config :amap`, so a key set once in config does not need
   to be repeated at every call site.
   """
-  @spec new(keyword()) :: Amap.Client.t()
+  @spec new(keyword()) :: Client.t()
   def new(opts \\ []) do
     opts =
       config()
@@ -57,13 +64,13 @@ defmodule Amap do
   would no longer be the one the server reads.
   """
   @spec request(
-          Amap.Client.t(),
-          Amap.Client.family(),
+          Client.t(),
+          Client.family(),
           :get | :post,
           String.t(),
           map() | keyword()
         ) ::
-          {:ok, map() | nil} | {:error, Amap.Error.t()}
+          {:ok, map() | nil} | {:error, Error.t()}
   def request(%Amap.Client{} = client, family, method, path, params)
       when family in [:restapi, :tsapi] do
     attempt(client, family, method, path, params, 0)
@@ -85,12 +92,11 @@ defmodule Amap do
   # has no catch-all clause.
   defp attempt(client, family, method, path, params, attempt) do
     result =
-      Amap.Telemetry.span(client, family, method, path, fn ->
+      Telemetry.span(client, family, method, path, fn ->
         with :ok <- acquire(client, family, path),
-             {:ok, response} <- Amap.Request.send(client, family, method, path, params),
-             {:ok, payload} <- decode(response.body, response.status),
-             {:ok, data} <- Amap.Response.normalize(family, payload, response.status) do
-          {:ok, data}
+             {:ok, response} <- Request.send(client, family, method, path, params),
+             {:ok, payload} <- decode(response.body, response.status) do
+          Response.normalize(family, payload, response.status)
         end
       end)
 
@@ -171,9 +177,9 @@ defmodule Amap do
     started = System.monotonic_time()
 
     result =
-      case Amap.Limiter.acquire(limiter, timeout) do
+      case Limiter.acquire(limiter, timeout) do
         :ok -> :ok
-        {:error, :timeout} -> {:error, Amap.Error.limiter_timeout()}
+        {:error, :timeout} -> {:error, Error.limiter_timeout()}
       end
 
     report_queue_wait(started, family, path)
@@ -204,17 +210,19 @@ defmodule Amap do
   end
 
   defp decode(body, status) do
-    case Amap.Response.decode(body) do
+    case Response.decode(body) do
       {:ok, payload} -> {:ok, payload}
-      {:error, raw} -> {:error, Amap.Error.invalid_json(status, raw)}
+      {:error, raw} -> {:error, Error.invalid_json(status, raw)}
     end
   end
 
   defp config do
     # Drop nil values before falling back, so a key that is present but nil
     # counts as unset and does not mask the top-level shorthand.
+    configured = Application.get_env(:amap, :client, [])
+
     from_client =
-      Application.get_env(:amap, :client, [])
+      configured
       |> Keyword.take(@options)
       |> Keyword.reject(fn {_k, v} -> is_nil(v) end)
 
@@ -235,7 +243,7 @@ defmodule Amap do
         opts
 
       preset when preset in [:personal, :enterprise] ->
-        Keyword.put(opts, :limiter, start_limiter(Amap.Limiter.preset(preset)))
+        Keyword.put(opts, :limiter, start_limiter(Limiter.preset(preset)))
 
       values when is_list(values) ->
         Keyword.put(opts, :limiter, start_limiter(values))
@@ -248,7 +256,7 @@ defmodule Amap do
   end
 
   defp start_limiter(values) do
-    case Amap.Limiter.start(values) do
+    case Limiter.start(values) do
       {:ok, pid} ->
         pid
 

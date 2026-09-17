@@ -1,8 +1,10 @@
 defmodule Amap.PipelineTest do
   use ExUnit.Case, async: true
 
+  alias Amap.TestServer
+
   setup do
-    server = Amap.TestServer.start!()
+    server = TestServer.start!()
 
     client =
       Amap.new(
@@ -17,7 +19,7 @@ defmodule Amap.PipelineTest do
   end
 
   test "returns the payload for a Web service call", %{server: server, client: client} do
-    Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+    TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
       {200, ~s({"status":"1","info":"OK","infocode":"10000","province":"北京市"})}
     end)
 
@@ -26,7 +28,7 @@ defmodule Amap.PipelineTest do
   end
 
   test "returns the payload for a Falcon call", %{server: server, client: client} do
-    Amap.TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
+    TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
       {200, ~s({"errcode":0,"errmsg":"OK","data":{"services":[]}})}
     end)
 
@@ -35,7 +37,7 @@ defmodule Amap.PipelineTest do
   end
 
   test "surfaces a Falcon error with its detail", %{server: server, client: client} do
-    Amap.TestServer.expect_once(server, "GET", "/v1/track/terminal/add", fn _req ->
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/add", fn _req ->
       {200,
        ~s({"errcode":20001,"errmsg":"MISSING_REQUIRED_PARAMS","errdetail":"sid is required"})}
     end)
@@ -48,7 +50,7 @@ defmodule Amap.PipelineTest do
   test "sends the key and signature on the wire", %{server: server} do
     parent = self()
 
-    Amap.TestServer.expect_once(server, "GET", "/v3/geocode/geo", fn req ->
+    TestServer.expect_once(server, "GET", "/v3/geocode/geo", fn req ->
       send(parent, {:query, req.query})
 
       {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
@@ -72,11 +74,11 @@ defmodule Amap.PipelineTest do
 
     assert params["key"] == "test-key"
     assert params["address"] == "beijing"
-    assert params["sig"] == Amap.Signature.sign(URI.decode_query(query) |> Map.to_list(), "priv")
+    assert params["sig"] == Amap.Signature.sign(Map.to_list(URI.decode_query(query)), "priv")
   end
 
   test "reports malformed JSON without raising", %{server: server, client: client} do
-    Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+    TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
       {200, "<html>gateway</html>"}
     end)
 
@@ -101,7 +103,7 @@ defmodule Amap.PipelineTest do
     # request consumed it and the second got a 404 (mapped to
     # `:unexpected_response`). `Amap.TestServer.expect/4` stays armed, so both
     # requests are served.
-    Amap.TestServer.expect(server, "GET", "/v3/ip", fn _req ->
+    TestServer.expect(server, "GET", "/v3/ip", fn _req ->
       {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
     end)
 
@@ -120,7 +122,7 @@ defmodule Amap.PipelineTest do
 
     drain = Amap.new(key: "test-key", limiter: [rate: 1, burst: 1], base_urls: base_urls)
 
-    Amap.TestServer.expect(server, "GET", "/v3/ip", fn _req ->
+    TestServer.expect(server, "GET", "/v3/ip", fn _req ->
       {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
     end)
 
@@ -154,7 +156,7 @@ defmodule Amap.PipelineTest do
     server: server,
     client: client
   } do
-    Amap.TestServer.expect_once(server, "GET", "/v1/track/terminal/delete", fn _req ->
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/delete", fn _req ->
       {200, ~s({"errcode":0,"errmsg":"OK"})}
     end)
 

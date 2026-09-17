@@ -1,6 +1,8 @@
 defmodule Amap.ErrorTest do
   use ExUnit.Case, async: true
 
+  alias Amap.Error
+
   @restapi_body %{"status" => "0", "info" => "INVALID_USER_KEY", "infocode" => "10001"}
   @tsapi_body %{
     "errcode" => 10001,
@@ -10,7 +12,7 @@ defmodule Amap.ErrorTest do
 
   describe "from_restapi/2" do
     test "reads info and infocode" do
-      error = Amap.Error.from_restapi(@restapi_body, 200)
+      error = Error.from_restapi(@restapi_body, 200)
 
       assert error.code == 10001
       assert error.message == "INVALID_USER_KEY"
@@ -22,7 +24,7 @@ defmodule Amap.ErrorTest do
     end
 
     test "keeps the raw envelope" do
-      error = Amap.Error.from_restapi(@restapi_body, 200)
+      error = Error.from_restapi(@restapi_body, 200)
 
       assert error.raw == @restapi_body
     end
@@ -30,7 +32,7 @@ defmodule Amap.ErrorTest do
 
   describe "from_tsapi/2" do
     test "reads errmsg and errdetail" do
-      error = Amap.Error.from_tsapi(@tsapi_body, 200)
+      error = Error.from_tsapi(@tsapi_body, 200)
 
       assert error.code == 10001
       assert error.message == "INVALID_USER_KEY"
@@ -40,14 +42,14 @@ defmodule Amap.ErrorTest do
     end
 
     test "accepts a string errcode" do
-      error = Amap.Error.from_tsapi(%{"errcode" => "10001", "errmsg" => "x"}, 200)
+      error = Error.from_tsapi(%{"errcode" => "10001", "errmsg" => "x"}, 200)
 
       assert error.code == 10001
     end
 
     test "classifies quota failures for backoff with a wait window" do
       body = %{"errcode" => 10004, "errmsg" => "ACCESS_TOO_FREQUENT"}
-      error = Amap.Error.from_tsapi(body, 200)
+      error = Error.from_tsapi(body, 200)
 
       assert error.reason == :access_too_frequent
       assert error.retry == :backoff
@@ -57,13 +59,13 @@ defmodule Amap.ErrorTest do
     test "classifies transient failures for immediate retry" do
       body = %{"errcode" => 10016, "errmsg" => "SERVER_IS_BUSY"}
 
-      assert Amap.Error.from_tsapi(body, 200).retry == :immediate
+      assert Error.from_tsapi(body, 200).retry == :immediate
     end
   end
 
   describe "client-side failures" do
     test "wraps a transport error" do
-      error = Amap.Error.from_transport(%Mint.TransportError{reason: :econnrefused})
+      error = Error.from_transport(%Mint.TransportError{reason: :econnrefused})
 
       assert error.reason == :transport
       assert error.code == nil
@@ -72,7 +74,7 @@ defmodule Amap.ErrorTest do
     end
 
     test "wraps malformed JSON" do
-      error = Amap.Error.invalid_json(200, "<html>gateway</html>")
+      error = Error.invalid_json(200, "<html>gateway</html>")
 
       assert error.reason == :invalid_json
       assert error.response.body == "<html>gateway</html>"
@@ -80,14 +82,14 @@ defmodule Amap.ErrorTest do
     end
 
     test "wraps an envelope that matches neither family" do
-      error = Amap.Error.unexpected_response(200, %{"weird" => true})
+      error = Error.unexpected_response(200, %{"weird" => true})
 
       assert error.reason == :unexpected_response
       assert error.retry == :no
     end
 
     test "wraps a limiter timeout" do
-      error = Amap.Error.limiter_timeout()
+      error = Error.limiter_timeout()
 
       assert error.reason == :limiter_timeout
       assert error.retry == :no
@@ -96,7 +98,7 @@ defmodule Amap.ErrorTest do
 
   describe "mask/1" do
     test "redacts credentials" do
-      masked = Amap.Error.mask(key: "secret-key", sid: 42, sig: "abc")
+      masked = Error.mask(key: "secret-key", sid: 42, sig: "abc")
 
       assert masked["key"] == "[FILTERED]"
       assert masked["sig"] == "[FILTERED]"
@@ -104,11 +106,11 @@ defmodule Amap.ErrorTest do
     end
 
     test "redacts the private key" do
-      assert Amap.Error.mask(private_key: "topsecret")["private_key"] == "[FILTERED]"
+      assert Error.mask(private_key: "topsecret")["private_key"] == "[FILTERED]"
     end
 
     test "does not redact unrelated parameters" do
-      assert Amap.Error.mask(address: "beijing") == %{"address" => "beijing"}
+      assert Error.mask(address: "beijing") == %{"address" => "beijing"}
     end
   end
 
@@ -116,8 +118,8 @@ defmodule Amap.ErrorTest do
     test "records the method and path with masked parameters" do
       error =
         %{"status" => "0", "info" => "INVALID_USER_KEY", "infocode" => "10001"}
-        |> Amap.Error.from_restapi(200)
-        |> Amap.Error.attach_request(:get, "/v3/geocode/geo", key: "secret", address: "beijing")
+        |> Error.from_restapi(200)
+        |> Error.attach_request(:get, "/v3/geocode/geo", key: "secret", address: "beijing")
 
       assert error.request.method == :get
       assert error.request.path == "/v3/geocode/geo"

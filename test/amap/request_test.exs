@@ -1,6 +1,9 @@
 defmodule Amap.RequestTest do
   use ExUnit.Case, async: true
 
+  alias Amap.Signature
+  alias Amap.TestServer
+
   alias Amap.{Client, Request}
 
   defp client(opts \\ []) do
@@ -42,7 +45,7 @@ defmodule Amap.RequestTest do
         Request.build(client(private_key: "priv"), :restapi, :get, "/v3/ip", %{"a" => "1"})
 
       expected =
-        Amap.Signature.sign([{"key", "test-key"}, {"a", "1"}], "priv")
+        Signature.sign([{"key", "test-key"}, {"a", "1"}], "priv")
 
       assert request.query =~ "sig=#{expected}"
     end
@@ -64,7 +67,7 @@ defmodule Amap.RequestTest do
           %{"keywords" => "a b"}
         )
 
-      raw_sig = Amap.Signature.sign([{"key", "test-key"}, {"keywords", "a b"}], "priv")
+      raw_sig = Signature.sign([{"key", "test-key"}, {"keywords", "a b"}], "priv")
 
       assert request.query =~ "sig=#{raw_sig}"
       assert request.query =~ "keywords=a+b"
@@ -131,7 +134,7 @@ defmodule Amap.RequestTest do
 
   describe "send/5" do
     setup do
-      server = Amap.TestServer.start!()
+      server = TestServer.start!()
 
       # These are unit tests for Request, so they provide their own pool rather
       # than depending on `Amap.Finch`, which the application tree only starts
@@ -153,7 +156,7 @@ defmodule Amap.RequestTest do
     end
 
     test "returns the response on success", %{server: server, client: client} do
-      Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+      TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
         {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
       end)
 
@@ -164,7 +167,7 @@ defmodule Amap.RequestTest do
     end
 
     test "reports a non-200 status as an unexpected response", %{server: server, client: client} do
-      Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+      TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
         {502, "<html>bad gateway</html>"}
       end)
 
@@ -174,7 +177,7 @@ defmodule Amap.RequestTest do
     end
 
     test "reports a connection failure as a transport error", %{server: server, client: client} do
-      Amap.TestServer.down(server)
+      TestServer.down(server)
 
       assert {:error, error} = Request.send(client, :restapi, :get, "/v3/ip", %{})
       assert error.reason == :transport
