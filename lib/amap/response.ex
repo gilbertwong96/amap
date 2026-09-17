@@ -9,6 +9,11 @@ defmodule Amap.Response do
   modules never have to care which family they are talking to.
   """
 
+  alias Amap.Client
+  alias Amap.Error
+  alias Amap.JSON
+  alias Amap.Numeric
+
   @envelope_restapi ~w(status info infocode)
   @partial_success 20100
 
@@ -18,7 +23,7 @@ defmodule Amap.Response do
   """
   @spec decode(binary()) :: {:ok, term()} | {:error, binary()}
   def decode(body) do
-    case Amap.JSON.decode(body) do
+    case JSON.decode(body) do
       {:ok, term} -> {:ok, term}
       {:error, _reason} -> {:error, body}
     end
@@ -31,15 +36,15 @@ defmodule Amap.Response do
   was accepted and some of the work succeeded, so reporting it as an error
   would discard the successful part. Use `partial?/2` to detect it.
   """
-  @spec normalize(Amap.Client.family(), term(), integer() | nil) ::
-          {:ok, map() | nil} | {:error, Amap.Error.t()}
+  @spec normalize(Client.family(), term(), integer() | nil) ::
+          {:ok, map() | nil} | {:error, Error.t()}
   def normalize(:tsapi, %{"errcode" => errcode} = body, http_status)
       when is_integer(errcode) or is_binary(errcode) do
-    case to_integer(errcode) do
+    case Numeric.to_integer(errcode) do
       0 -> {:ok, Map.get(body, "data")}
       @partial_success -> {:ok, Map.get(body, "data")}
-      nil -> {:error, Amap.Error.unexpected_response(http_status, body)}
-      _other -> {:error, Amap.Error.from_tsapi(body, http_status)}
+      nil -> {:error, Error.unexpected_response(http_status, body)}
+      _other -> {:error, Error.from_tsapi(body, http_status)}
     end
   end
 
@@ -48,28 +53,17 @@ defmodule Amap.Response do
   end
 
   def normalize(:restapi, %{"status" => "0"} = body, http_status) do
-    {:error, Amap.Error.from_restapi(body, http_status)}
+    {:error, Error.from_restapi(body, http_status)}
   end
 
   def normalize(family, body, http_status) when family in [:restapi, :tsapi] do
-    {:error, Amap.Error.unexpected_response(http_status, body)}
+    {:error, Error.unexpected_response(http_status, body)}
   end
 
   @doc "Whether a Falcon response reports partial success."
-  @spec partial?(Amap.Client.family(), term()) :: boolean()
-  def partial?(:tsapi, %{"errcode" => errcode}), do: to_integer(errcode) == @partial_success
+  @spec partial?(Client.family(), term()) :: boolean()
+  def partial?(:tsapi, %{"errcode" => errcode}),
+    do: Numeric.to_integer(errcode) == @partial_success
+
   def partial?(_family, _body), do: false
-
-  # Deliberately total, mirroring `Amap.Error.to_integer/1`: an unparseable value
-  # degrades to nil rather than raising. Do not swap this for `String.to_integer/1`.
-  defp to_integer(value) when is_integer(value), do: value
-
-  defp to_integer(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> int
-      _ -> nil
-    end
-  end
-
-  defp to_integer(_), do: nil
 end

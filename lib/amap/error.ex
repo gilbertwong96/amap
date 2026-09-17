@@ -9,6 +9,7 @@ defmodule Amap.Error do
   """
 
   alias Amap.Error.Code
+  alias Amap.Numeric
 
   @filtered "[FILTERED]"
   @sensitive ~w(key private_key sig)
@@ -42,7 +43,7 @@ defmodule Amap.Error do
   @doc "Builds an error from a Web service envelope."
   @spec from_restapi(map(), integer() | nil) :: t()
   def from_restapi(body, http_status) do
-    code = body |> Map.get("infocode") |> to_integer()
+    code = body |> Map.get("infocode") |> Numeric.to_integer()
 
     build(code, :restapi, http_status, body,
       message: body["info"],
@@ -53,7 +54,7 @@ defmodule Amap.Error do
   @doc "Builds an error from a Falcon envelope."
   @spec from_tsapi(map(), integer() | nil) :: t()
   def from_tsapi(body, http_status) do
-    code = body |> Map.get("errcode") |> to_integer()
+    code = body |> Map.get("errcode") |> Numeric.to_integer()
 
     build(code, :tsapi, http_status, body,
       message: body["errmsg"],
@@ -133,15 +134,4 @@ defmodule Amap.Error do
       raw: raw
     }
   end
-
-  defp to_integer(value) when is_integer(value), do: value
-
-  defp to_integer(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> int
-      _ -> nil
-    end
-  end
-
-  defp to_integer(_), do: nil
 end
