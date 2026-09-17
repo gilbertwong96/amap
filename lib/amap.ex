@@ -27,6 +27,62 @@ defmodule Amap do
     struct!(Amap.Client, opts)
   end
 
+  @doc """
+  Performs one Amap call.
+
+  This is the entry point every business module uses. It normalizes both API
+  families, so callers get the bare payload map regardless of which envelope
+  came back.
+
+  Returns `{:ok, nil}` for Falcon endpoints that answer without a `data` body.
+
+  Raises `ArgumentError` if `family` is neither `:restapi` nor `:tsapi`.
+  """
+  @spec request(
+          Amap.Client.t(),
+          Amap.Client.family(),
+          :get | :post,
+          String.t(),
+          map() | keyword()
+        ) ::
+          {:ok, map() | nil} | {:error, Amap.Error.t()}
+  def request(%Amap.Client{} = client, family, method, path, params)
+      when family in [:restapi, :tsapi] do
+    Amap.Telemetry.span(client, family, method, path, fn ->
+      with :ok <- acquire(client),
+           {:ok, response} <- Amap.Request.send(client, family, method, path, params),
+           {:ok, payload} <- decode(response.body, response.status),
+           {:ok, data} <- Amap.Response.normalize(family, payload, response.status) do
+        {:ok, data}
+      end
+    end)
+  end
+
+  # An unknown family would otherwise reach `client.base_urls[family]`, which is
+  # nil, and die with "construction of binary failed: ... got: nil" — naming
+  # neither the argument nor its valid values.
+  def request(%Amap.Client{}, family, _method, _path, _params) do
+    raise ArgumentError, "invalid family: #{inspect(family)}; expected :restapi or :tsapi"
+  end
+
+  # `Amap.Limiter.acquire/2` speaks `:ok | {:error, :timeout}`, but `request/5`
+  # promises `%Amap.Error{}` on every failure path, so the bare atom is wrapped.
+  defp acquire(%Amap.Client{limiter: nil}), do: :ok
+
+  defp acquire(%Amap.Client{limiter: limiter, timeout: timeout}) do
+    case Amap.Limiter.acquire(limiter, timeout) do
+      :ok -> :ok
+      {:error, :timeout} -> {:error, Amap.Error.limiter_timeout()}
+    end
+  end
+
+  defp decode(body, status) do
+    case Amap.Response.decode(body) do
+      {:ok, payload} -> {:ok, payload}
+      {:error, raw} -> {:error, Amap.Error.invalid_json(status, raw)}
+    end
+  end
+
   defp config do
     # Drop nil values before falling back, so a key that is present but nil
     # counts as unset and does not mask the top-level shorthand.
