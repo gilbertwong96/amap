@@ -22,12 +22,8 @@ defmodule Amap.MixProject do
 
   def application do
     [
-      extra_applications: [:logger]
-      # `mod: {Amap.Application, []}` is added in Task 11, once that callback
-      # module exists. Declaring `mod:` for a module that does not exist yet
-      # makes `mix test` fail to start the application:
-      #   ** (UndefinedFunctionError) function Amap.Application.start/2 is undefined
-      #   ** (Mix) Could not start application amap
+      extra_applications: [:logger],
+      mod: {Amap.Application, []}
     ]
   end
 
