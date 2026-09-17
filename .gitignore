@@ -1,3 +1,12 @@
+/_build/
+/cover/
+/deps/
+/doc/
+/.elixir_ls/
+erl_crash.dump
+*.ez
+amap-*.tar
+
 .worktrees
 /.worktrees
 /.worktrees/
