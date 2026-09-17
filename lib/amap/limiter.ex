@@ -226,7 +226,7 @@ defmodule Amap.Limiter do
 
     %{
       state
-      | tokens: min(state.capacity * 1.0, state.tokens + elapsed * state.per_ms),
+      | tokens: min(:erlang.float(state.capacity), state.tokens + elapsed * state.per_ms),
         last: now
     }
   end
