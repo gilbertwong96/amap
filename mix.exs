@@ -10,6 +10,7 @@ defmodule Amap.MixProject do
       version: @version,
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
+      elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
       name: "Amap",
       description: "Amap (高德地图) Web API client, including Falcon track service",
@@ -29,6 +30,9 @@ defmodule Amap.MixProject do
       #   ** (Mix) Could not start application amap
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp deps do
     [
