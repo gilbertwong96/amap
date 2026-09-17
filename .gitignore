@@ -10,3 +10,6 @@ amap-*.tar
 .worktrees
 /.worktrees
 /.worktrees/
+
+# `mix reach` writes an HTML report here; `mix reach.check` does not.
+/reach_report/

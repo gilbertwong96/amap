@@ -106,6 +106,27 @@ Both directions are needed: Falcon's `props` parameter carries a JSON object as
 a form value, so the SDK encodes request parameters as well as decoding
 responses.
 
+## Development
+
+`mix ci` runs everything CI runs:
+
+```
+compile --all-warnings --warnings-as-errors
+format --check-formatted
+credo --strict          # includes the ExSlop AI-slop checks
+deps.unlock --check-unused
+hex.audit
+xref graph --label compile-connected --fail-above 5
+dialyzer
+ex_dna                  # duplicate code
+reach.check --dead-code --smells
+test
+```
+
+`mix ci.fast` runs the same without the slow static analysis, for the inner loop.
+All of the tooling is `dev`/`test` scoped, so none of it reaches consumers of the
+package.
+
 ## License
 
 MIT

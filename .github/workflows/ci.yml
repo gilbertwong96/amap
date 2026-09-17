@@ -26,5 +26,26 @@ jobs:
           otp-version: ${{matrix.otp}}
       - run: mix deps.get
       - run: mix format --check-formatted
-      - run: mix compile --warnings-as-errors
+      - run: mix compile --all-warnings --warnings-as-errors
       - run: mix test
+
+  quality:
+    runs-on: ubuntu-latest
+    name: Quality
+    steps:
+      - uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+
+      # Dialyzer's PLT takes minutes to build from scratch, so it is cached
+      # against the toolchain and the lockfile. Casing on mix.lock means a
+      # dependency change rebuilds it rather than checking against a stale one.
+      - uses: actions/cache@v4
+        with:
+          path: _build/test/dialyxir_*.plt*
+          key: plt-${{runner.os}}-otp28-elixir1.19-${{hashFiles('mix.lock')}}
+
+      - run: mix deps.get
+      - run: mix ci

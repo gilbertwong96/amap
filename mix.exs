@@ -12,6 +12,8 @@ defmodule Amap.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
+      aliases: aliases(),
+      dialyzer: dialyzer(),
       name: "Amap",
       description: "Amap (高德地图) Web API client, including Falcon track service",
       source_url: @source_url,
@@ -27,13 +29,63 @@ defmodule Amap.MixProject do
     ]
   end
 
+  # Both CI aliases run in the test environment: `mix test` refuses to run from
+  # inside another Mix command while the environment is not `:test`, and the
+  # compile/format/credo steps behave identically either way.
+  def cli do
+    [preferred_envs: [ci: :test, "ci.fast": :test]]
+  end
+
+  # `mix ci.fast` is the inner loop: fast enough to run on every save. `mix ci`
+  # adds the slow static analysis and is what CI runs.
+  defp aliases do
+    [
+      "ci.fast": [
+        "cmd mix compile --all-warnings --warnings-as-errors",
+        "format --check-formatted",
+        "credo --strict",
+        "test --warnings-as-errors"
+      ],
+      ci: [
+        "cmd mix compile --all-warnings --warnings-as-errors",
+        "format --check-formatted",
+        "credo --strict",
+        "deps.unlock --check-unused",
+        "cmd mix hex.audit",
+        "xref graph --label compile-connected --fail-above 5",
+        "dialyzer",
+        "ex_dna",
+        "reach.check --dead-code --smells",
+        "test --warnings-as-errors"
+      ]
+    ]
+  end
+
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
+
+  # `test/support` is compiled into the app in the test environment, and Dialyzer
+  # checks it there along with `lib`. Its ExUnit calls only resolve if `ex_unit`
+  # is in the PLT, which it is not by default: it is part of Elixir, not a
+  # dependency. Without this, dialyzer reports three unknown_function errors in
+  # the test HTTP server.
+  defp dialyzer do
+    [plt_add_apps: [:ex_unit]]
+  end
 
   defp deps do
     [
       {:finch, "~> 0.19"},
       {:telemetry, "~> 1.0"},
+
+      # Quality only. None of these ship with the library: they are dev/test
+      # scoped and `runtime: false`, so a consumer's dependency tree never sees
+      # them.
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
+      {:reach, "~> 2.8", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
