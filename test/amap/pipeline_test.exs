@@ -2,49 +2,42 @@ defmodule Amap.PipelineTest do
   use ExUnit.Case, async: true
 
   setup do
-    bypass = Bypass.open()
+    server = Amap.TestServer.start!()
 
     client =
       Amap.new(
         key: "test-key",
         base_urls: %{
-          restapi: "http://localhost:#{bypass.port}",
-          tsapi: "http://localhost:#{bypass.port}"
+          restapi: "http://localhost:#{server.port}",
+          tsapi: "http://localhost:#{server.port}"
         }
       )
 
-    {:ok, bypass: bypass, client: client}
+    {:ok, server: server, client: client}
   end
 
-  test "returns the payload for a Web service call", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/v3/ip", fn conn ->
-      Plug.Conn.send_resp(
-        conn,
-        200,
-        ~s({"status":"1","info":"OK","infocode":"10000","province":"北京市"})
-      )
+  test "returns the payload for a Web service call", %{server: server, client: client} do
+    Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+      {200, ~s({"status":"1","info":"OK","infocode":"10000","province":"北京市"})}
     end)
 
     assert {:ok, %{"province" => "北京市"}} =
              Amap.request(client, :restapi, :get, "/v3/ip", %{})
   end
 
-  test "returns the payload for a Falcon call", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/v1/track/service/list", fn conn ->
-      Plug.Conn.send_resp(conn, 200, ~s({"errcode":0,"errmsg":"OK","data":{"services":[]}}))
+  test "returns the payload for a Falcon call", %{server: server, client: client} do
+    Amap.TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
+      {200, ~s({"errcode":0,"errmsg":"OK","data":{"services":[]}})}
     end)
 
     assert {:ok, %{"services" => []}} =
              Amap.request(client, :tsapi, :get, "/v1/track/service/list", %{})
   end
 
-  test "surfaces a Falcon error with its detail", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/v1/track/terminal/add", fn conn ->
-      Plug.Conn.send_resp(
-        conn,
-        200,
-        ~s({"errcode":20001,"errmsg":"MISSING_REQUIRED_PARAMS","errdetail":"sid is required"})
-      )
+  test "surfaces a Falcon error with its detail", %{server: server, client: client} do
+    Amap.TestServer.expect_once(server, "GET", "/v1/track/terminal/add", fn _req ->
+      {200,
+       ~s({"errcode":20001,"errmsg":"MISSING_REQUIRED_PARAMS","errdetail":"sid is required"})}
     end)
 
     assert {:error, error} = Amap.request(client, :tsapi, :get, "/v1/track/terminal/add", %{})
@@ -52,13 +45,13 @@ defmodule Amap.PipelineTest do
     assert error.detail == "sid is required"
   end
 
-  test "sends the key and signature on the wire", %{bypass: bypass} do
+  test "sends the key and signature on the wire", %{server: server} do
     parent = self()
 
-    Bypass.expect_once(bypass, "GET", "/v3/geocode/geo", fn conn ->
-      send(parent, {:query, conn.query_string})
+    Amap.TestServer.expect_once(server, "GET", "/v3/geocode/geo", fn req ->
+      send(parent, {:query, req.query})
 
-      Plug.Conn.send_resp(conn, 200, ~s({"status":"1","info":"OK","infocode":"10000"}))
+      {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
     end)
 
     client =
@@ -66,8 +59,8 @@ defmodule Amap.PipelineTest do
         key: "test-key",
         private_key: "priv",
         base_urls: %{
-          restapi: "http://localhost:#{bypass.port}",
-          tsapi: "http://localhost:#{bypass.port}"
+          restapi: "http://localhost:#{server.port}",
+          tsapi: "http://localhost:#{server.port}"
         }
       )
 
@@ -82,33 +75,34 @@ defmodule Amap.PipelineTest do
     assert params["sig"] == Amap.Signature.sign(URI.decode_query(query) |> Map.to_list(), "priv")
   end
 
-  test "reports malformed JSON without raising", %{bypass: bypass, client: client} do
-    Bypass.expect_once(bypass, "GET", "/v3/ip", fn conn ->
-      Plug.Conn.send_resp(conn, 200, "<html>gateway</html>")
+  test "reports malformed JSON without raising", %{server: server, client: client} do
+    Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+      {200, "<html>gateway</html>"}
     end)
 
     assert {:error, error} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
     assert error.reason == :invalid_json
   end
 
-  test "waits for the limiter before issuing the request", %{bypass: bypass} do
+  test "waits for the limiter before issuing the request", %{server: server} do
     client =
       Amap.new(
         key: "test-key",
         limiter: [rate: 1, burst: 1],
         base_urls: %{
-          restapi: "http://localhost:#{bypass.port}",
-          tsapi: "http://localhost:#{bypass.port}"
+          restapi: "http://localhost:#{server.port}",
+          tsapi: "http://localhost:#{server.port}"
         }
       )
 
-    # `Bypass.expect_once/4` keeps a single expectation per route and replaces it
-    # when called again, it does not queue them. The brief registered it in a
-    # `for _ <- 1..2` loop, which armed only one handler: the first request
-    # consumed it and the second got a 404 (mapped to `:unexpected_response`).
-    # `Bypass.expect/4` stays armed, so both requests are served.
-    Bypass.expect(bypass, "GET", "/v3/ip", fn conn ->
-      Plug.Conn.send_resp(conn, 200, ~s({"status":"1","info":"OK","infocode":"10000"}))
+    # `Amap.TestServer.expect_once/4` keeps a single expectation per route and
+    # replaces it when called again, it does not queue them. The brief registered
+    # it in a `for _ <- 1..2` loop, which armed only one handler: the first
+    # request consumed it and the second got a 404 (mapped to
+    # `:unexpected_response`). `Amap.TestServer.expect/4` stays armed, so both
+    # requests are served.
+    Amap.TestServer.expect(server, "GET", "/v3/ip", fn _req ->
+      {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
     end)
 
     assert {:ok, _} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
@@ -118,16 +112,16 @@ defmodule Amap.PipelineTest do
     assert System.monotonic_time(:millisecond) - started >= 500
   end
 
-  test "routes a limiter timeout through the error struct", %{bypass: bypass} do
+  test "routes a limiter timeout through the error struct", %{server: server} do
     base_urls = %{
-      restapi: "http://localhost:#{bypass.port}",
-      tsapi: "http://localhost:#{bypass.port}"
+      restapi: "http://localhost:#{server.port}",
+      tsapi: "http://localhost:#{server.port}"
     }
 
     drain = Amap.new(key: "test-key", limiter: [rate: 1, burst: 1], base_urls: base_urls)
 
-    Bypass.expect(bypass, "GET", "/v3/ip", fn conn ->
-      Plug.Conn.send_resp(conn, 200, ~s({"status":"1","info":"OK","infocode":"10000"}))
+    Amap.TestServer.expect(server, "GET", "/v3/ip", fn _req ->
+      {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
     end)
 
     # The one token in the bucket goes here.
@@ -157,11 +151,11 @@ defmodule Amap.PipelineTest do
   end
 
   test "returns an empty payload for a Falcon call with no data body", %{
-    bypass: bypass,
+    server: server,
     client: client
   } do
-    Bypass.expect_once(bypass, "GET", "/v1/track/terminal/delete", fn conn ->
-      Plug.Conn.send_resp(conn, 200, ~s({"errcode":0,"errmsg":"OK"}))
+    Amap.TestServer.expect_once(server, "GET", "/v1/track/terminal/delete", fn _req ->
+      {200, ~s({"errcode":0,"errmsg":"OK"})}
     end)
 
     assert {:ok, nil} = Amap.request(client, :tsapi, :get, "/v1/track/terminal/delete", %{})

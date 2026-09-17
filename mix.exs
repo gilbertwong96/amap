@@ -34,7 +34,6 @@ defmodule Amap.MixProject do
     [
       {:finch, "~> 0.19"},
       {:telemetry, "~> 1.0"},
-      {:bypass, "~> 2.1", only: :test},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end

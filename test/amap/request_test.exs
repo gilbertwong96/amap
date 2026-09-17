@@ -131,7 +131,7 @@ defmodule Amap.RequestTest do
 
   describe "send/5" do
     setup do
-      bypass = Bypass.open()
+      server = Amap.TestServer.start!()
 
       # These are unit tests for Request, so they provide their own pool rather
       # than depending on `Amap.Finch`, which the application tree only starts
@@ -144,17 +144,17 @@ defmodule Amap.RequestTest do
         client(
           pool: pool,
           base_urls: %{
-            restapi: "http://localhost:#{bypass.port}",
-            tsapi: "http://localhost:#{bypass.port}"
+            restapi: "http://localhost:#{server.port}",
+            tsapi: "http://localhost:#{server.port}"
           }
         )
 
-      {:ok, bypass: bypass, client: client}
+      {:ok, server: server, client: client}
     end
 
-    test "returns the response on success", %{bypass: bypass, client: client} do
-      Bypass.expect_once(bypass, "GET", "/v3/ip", fn conn ->
-        Plug.Conn.send_resp(conn, 200, ~s({"status":"1","info":"OK","infocode":"10000"}))
+    test "returns the response on success", %{server: server, client: client} do
+      Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+        {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
       end)
 
       assert {:ok, %Finch.Response{status: 200} = response} =
@@ -163,9 +163,9 @@ defmodule Amap.RequestTest do
       assert response.body =~ "OK"
     end
 
-    test "reports a non-200 status as an unexpected response", %{bypass: bypass, client: client} do
-      Bypass.expect_once(bypass, "GET", "/v3/ip", fn conn ->
-        Plug.Conn.send_resp(conn, 502, "<html>bad gateway</html>")
+    test "reports a non-200 status as an unexpected response", %{server: server, client: client} do
+      Amap.TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+        {502, "<html>bad gateway</html>"}
       end)
 
       assert {:error, error} = Request.send(client, :restapi, :get, "/v3/ip", %{})
@@ -173,8 +173,8 @@ defmodule Amap.RequestTest do
       assert error.http_status == 502
     end
 
-    test "reports a connection failure as a transport error", %{bypass: bypass, client: client} do
-      Bypass.down(bypass)
+    test "reports a connection failure as a transport error", %{server: server, client: client} do
+      Amap.TestServer.down(server)
 
       assert {:error, error} = Request.send(client, :restapi, :get, "/v3/ip", %{})
       assert error.reason == :transport

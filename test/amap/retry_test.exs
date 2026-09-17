@@ -2,14 +2,14 @@ defmodule Amap.RetryTest do
   use ExUnit.Case, async: true
 
   setup do
-    bypass = Bypass.open()
+    server = Amap.TestServer.start!()
 
     base_urls = %{
-      restapi: "http://localhost:#{bypass.port}",
-      tsapi: "http://localhost:#{bypass.port}"
+      restapi: "http://localhost:#{server.port}",
+      tsapi: "http://localhost:#{server.port}"
     }
 
-    {:ok, bypass: bypass, base_urls: base_urls}
+    {:ok, server: server, base_urls: base_urls}
   end
 
   @busy ~s({"status":"0","info":"SERVER_IS_BUSY","infocode":"10016"})
@@ -20,9 +20,9 @@ defmodule Amap.RetryTest do
   # Arms a single handler for the route and returns a counter of how many
   # requests it served.
   #
-  # Bypass keys expectations by `{method, path}`, so registering a second
-  # expectation for one route *replaces* the first instead of queueing behind
-  # it. A `for` loop around `expect_once/4` therefore leaves only the last
+  # `Amap.TestServer` keys expectations by `{method, path}`, so registering a
+  # second expectation for one route *replaces* the first instead of queueing
+  # behind it. A `for` loop around `expect_once/4` therefore leaves only the last
   # expectation armed, and two sequential `expect_once/4` calls leave only the
   # second — which is how a test can pass without exercising retry at all.
   # One always-answering handler is what lets a route serve every attempt.
@@ -30,15 +30,14 @@ defmodule Amap.RetryTest do
   # `bodies` is consumed left to right and the last entry repeats, so
   # `[@busy, @ok]` answers the first attempt with a failure and the rest with
   # success, while `[@busy]` never stops failing.
-  defp arm(bypass, bodies) do
+  defp arm(server, bodies) do
     counter = :counters.new(1, [])
 
-    Bypass.expect(bypass, "GET", "/v3/ip", fn conn ->
+    Amap.TestServer.expect(server, "GET", "/v3/ip", fn _req ->
       n = :counters.get(counter, 1)
       :counters.add(counter, 1, 1)
 
-      conn
-      |> Plug.Conn.send_resp(200, Enum.at(bodies, n) || List.last(bodies))
+      {200, Enum.at(bodies, n) || List.last(bodies)}
     end)
 
     counter
@@ -55,7 +54,7 @@ defmodule Amap.RetryTest do
   #
   # `base_delay: 0` is a *usable* value, so it makes the identical call with no
   # delay — the control the relative assertion below is built on.
-  defp time_backoff_retry(bypass, base_urls, base_delay) do
+  defp time_backoff_retry(server, base_urls, base_delay) do
     client =
       struct!(Amap.Client,
         key: "k",
@@ -63,7 +62,7 @@ defmodule Amap.RetryTest do
         retry: [max: 1, base_delay: base_delay]
       )
 
-    counter = arm(bypass, [@qps, @ok])
+    counter = arm(server, [@qps, @ok])
     started = System.monotonic_time(:millisecond)
 
     assert {:ok, %{"province" => "北京市"}} =
@@ -76,18 +75,18 @@ defmodule Amap.RetryTest do
     elapsed
   end
 
-  test "does not retry by default", %{bypass: bypass, base_urls: base_urls} do
+  test "does not retry by default", %{server: server, base_urls: base_urls} do
     client = Amap.new(key: "k", base_urls: base_urls)
-    counter = arm(bypass, [@busy])
+    counter = arm(server, [@busy])
 
     assert {:error, error} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
     assert error.reason == :server_is_busy
     assert requests(counter) == 1
   end
 
-  test "retries a retryable failure when enabled", %{bypass: bypass, base_urls: base_urls} do
+  test "retries a retryable failure when enabled", %{server: server, base_urls: base_urls} do
     client = Amap.new(key: "k", base_urls: base_urls, retry: [max: 2])
-    counter = arm(bypass, [@busy, @ok])
+    counter = arm(server, [@busy, @ok])
 
     assert {:ok, %{"province" => "北京市"}} =
              Amap.request(client, :restapi, :get, "/v3/ip", %{})
@@ -95,18 +94,18 @@ defmodule Amap.RetryTest do
     assert requests(counter) == 2
   end
 
-  test "does not retry a configuration error", %{bypass: bypass, base_urls: base_urls} do
+  test "does not retry a configuration error", %{server: server, base_urls: base_urls} do
     client = Amap.new(key: "k", base_urls: base_urls, retry: [max: 3])
-    counter = arm(bypass, [@invalid_key])
+    counter = arm(server, [@invalid_key])
 
     assert {:error, error} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
     assert error.reason == :invalid_key
     assert requests(counter) == 1
   end
 
-  test "gives up after max attempts", %{bypass: bypass, base_urls: base_urls} do
+  test "gives up after max attempts", %{server: server, base_urls: base_urls} do
     client = Amap.new(key: "k", base_urls: base_urls, retry: [max: 2])
-    counter = arm(bypass, [@busy])
+    counter = arm(server, [@busy])
 
     assert {:error, error} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
     assert error.reason == :server_is_busy
@@ -121,7 +120,7 @@ defmodule Amap.RetryTest do
   # non-nil value that test would cost a minute of wall clock. What is cheap is
   # the *fallback* arm, via a `:backoff`-classified code with no window at all.
   test "backs off by base_delay when Amap documents no window", %{
-    bypass: bypass,
+    server: server,
     base_urls: base_urls
   } do
     # Pin the precondition. Without this the test would keep passing if 10014
@@ -132,7 +131,7 @@ defmodule Amap.RetryTest do
     assert Amap.Error.Code.retry_after(:qps_exceeded) == nil
 
     client = Amap.new(key: "k", base_urls: base_urls, retry: [max: 1, base_delay: 20])
-    counter = arm(bypass, [@qps, @ok])
+    counter = arm(server, [@qps, @ok])
 
     started = System.monotonic_time(:millisecond)
 
@@ -232,12 +231,12 @@ defmodule Amap.RetryTest do
   describe "a client built directly as a struct" do
     @tag timeout: 5_000
     test "a non-integer :max degrades to no retry instead of looping", %{
-      bypass: bypass,
+      server: server,
       base_urls: base_urls
     } do
       for bad <- [nil, "2"] do
         client = struct!(Amap.Client, key: "k", base_urls: base_urls, retry: [max: bad])
-        counter = arm(bypass, [@busy])
+        counter = arm(server, [@busy])
 
         assert {:error, error} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
         assert error.reason == :server_is_busy
@@ -247,12 +246,12 @@ defmodule Amap.RetryTest do
 
     @tag timeout: 5_000
     test "a non-list :retry degrades to no retry instead of raising", %{
-      bypass: bypass,
+      server: server,
       base_urls: base_urls
     } do
       for bad <- [5, nil, %{max: 2}] do
         client = struct!(Amap.Client, key: "k", base_urls: base_urls, retry: bad)
-        counter = arm(bypass, [@busy])
+        counter = arm(server, [@busy])
 
         assert {:error, error} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
         assert error.reason == :server_is_busy
@@ -278,7 +277,7 @@ defmodule Amap.RetryTest do
     # control. The control is still read twice and the faster kept, so a stalled
     # run cannot inflate the relative bar into a false failure.
     test "an unusable :base_delay falls back to the default delay, not to none", %{
-      bypass: bypass,
+      server: server,
       base_urls: base_urls
     } do
       # Pin the precondition, as the sibling test does. Without it, a reclassified
@@ -292,10 +291,10 @@ defmodule Amap.RetryTest do
       default_delay_ms = 100
 
       control_ms =
-        min(time_backoff_retry(bypass, base_urls, 0), time_backoff_retry(bypass, base_urls, 0))
+        min(time_backoff_retry(server, base_urls, 0), time_backoff_retry(server, base_urls, 0))
 
       for unusable <- [nil, "50", -100] do
-        elapsed_ms = time_backoff_retry(bypass, base_urls, unusable)
+        elapsed_ms = time_backoff_retry(server, base_urls, unusable)
 
         assert elapsed_ms >= default_delay_ms,
                "base_delay: #{inspect(unusable)} must fall back to the #{default_delay_ms}ms " <>
