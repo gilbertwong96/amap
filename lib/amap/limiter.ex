@@ -36,7 +36,13 @@ defmodule Amap.Limiter do
     %{id: __MODULE__, start: {__MODULE__, :start_link, [opts]}, restart: :temporary}
   end
 
-  @doc "Named quotas. Values come from Amap's published rate limits and may change."
+  @doc """
+  Named quotas. Values come from Amap's published rate limits and may change.
+
+  An unknown name raises `KeyError`. `Amap.new/1` checks the name against
+  `:personal` and `:enterprise` before calling this, so its own error names the
+  offending `:limiter` option instead.
+  """
   @spec preset(:personal | :enterprise) :: keyword()
   def preset(name), do: Map.fetch!(@presets, name)
 
