@@ -44,7 +44,13 @@ defmodule Amap.Limiter do
     GenServer.start_link(__MODULE__, opts)
   end
 
-  @doc "Starts a bucket under `Amap.Limiter.Supervisor`."
+  @doc """
+  Starts a bucket under `Amap.Limiter.Supervisor`.
+
+  Returns `{:error, {:invalid_rate, rate}}` or `{:error, {:invalid_burst, burst}}`
+  for a non-positive `:rate` or `:burst`, rather than starting a bucket that
+  cannot serve a request.
+  """
   @spec start(keyword()) :: {:ok, pid()} | {:error, term()}
   def start(opts), do: Supervisor.start_bucket(opts)
 
@@ -72,24 +78,36 @@ defmodule Amap.Limiter do
     rate = Keyword.fetch!(opts, :rate)
     burst = Keyword.fetch!(opts, :burst)
 
-    if rate <= 0 do
-      # Rejected rather than clamped or defaulted; neither case is recoverable.
-      # Zero makes `per_ms` zero and `schedule/1` divides by it, so the
-      # `:badarith` arrives as an exit `acquire/2` does not match: it kills the
-      # caller and the bucket with it. Negative divides cleanly, but makes
-      # `refill/1` *subtract* tokens, so no token is ever available again and
-      # `schedule/1` re-arms a 1ms tick and spins.
-      {:stop, {:invalid_rate, rate}}
-    else
-      {:ok,
-       %{
-         capacity: burst,
-         tokens: burst * 1.0,
-         per_ms: rate / 1000,
-         last: now(),
-         waiters: :queue.new(),
-         timer: nil
-       }}
+    cond do
+      rate <= 0 ->
+        # Rejected rather than clamped or defaulted; neither case is recoverable.
+        # Zero makes `per_ms` zero and `schedule/1` divides by it, so the
+        # `:badarith` arrives as an exit `acquire/2` does not match: it kills the
+        # caller and the bucket with it. Negative divides cleanly, but makes
+        # `refill/1` *subtract* tokens, so no token is ever available again and
+        # `schedule/1` re-arms a 1ms tick and spins.
+        {:stop, {:invalid_rate, rate}}
+
+      burst <= 0 ->
+        # Rejected for the same reason as `rate`, and equally unrecoverable.
+        # `burst` becomes both `capacity` and the starting `tokens`, and
+        # `refill/1` caps at `capacity * 1.0`, so a zero or negative burst clamps
+        # the bucket permanently shut: every `acquire/2` blocks its whole timeout
+        # and returns `{:error, :timeout}`, which the pipeline reports as
+        # `:limiter_timeout` — indistinguishable from genuinely being held at
+        # quota, and pointing at nothing in the caller's own config.
+        {:stop, {:invalid_burst, burst}}
+
+      true ->
+        {:ok,
+         %{
+           capacity: burst,
+           tokens: burst * 1.0,
+           per_ms: rate / 1000,
+           last: now(),
+           waiters: :queue.new(),
+           timer: nil
+         }}
     end
   end
 

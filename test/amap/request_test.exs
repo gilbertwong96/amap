@@ -87,6 +87,46 @@ defmodule Amap.RequestTest do
       # request has no query string, so coerce before matching.
       refute (request.query || "") =~ "name=car"
     end
+
+    test "rejects a caller-supplied key instead of sending two of them" do
+      # The client injects `key` itself. Before this guard the injection used an
+      # atom key while `Param.encode/1` produces string keys, so a caller's
+      # `"key"` was not replaced but joined: the wire carried two `key` values
+      # and server-side parsing kept the caller's.
+      assert_raise ArgumentError, ~r/request parameter "key"/, fn ->
+        Request.build(client(), :restapi, :get, "/v3/ip", %{"key" => "user-key"})
+      end
+    end
+
+    test "rejects a caller-supplied sig" do
+      assert_raise ArgumentError, ~r/request parameter "sig"/, fn ->
+        Request.build(
+          client(private_key: "priv"),
+          :restapi,
+          :get,
+          "/v3/ip",
+          %{"sig" => "user-sig"}
+        )
+      end
+    end
+
+    test "rejects a reserved parameter on the Falcon family too" do
+      # `sig` is never injected for `:tsapi`, but `key` always is, and the guard
+      # runs before the family is considered so both are rejected either way.
+      assert_raise ArgumentError, ~r/request parameter "key"/, fn ->
+        Request.build(client(), :tsapi, :post, "/v1/track/service/list", %{"key" => "user-key"})
+      end
+    end
+
+    test "still accepts a parameter that merely resembles a reserved name" do
+      # Guards against a substring check, which would reject `keys` and `sign`.
+      request =
+        Request.build(client(), :restapi, :get, "/v3/ip", %{"keys" => "1", "sign" => "2"})
+
+      assert request.query =~ "keys=1"
+      assert request.query =~ "sign=2"
+      assert request.query =~ "key=test-key"
+    end
   end
 
   describe "send/5" do

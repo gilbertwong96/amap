@@ -125,6 +125,18 @@ defmodule Amap.LimiterTest do
                    ~r/invalid :limiter option: \[rate: 5\].*:burst/,
                    fn -> Amap.new(key: "k", limiter: [rate: 5]) end
     end
+
+    test "rejects a non-positive burst" do
+      assert_raise ArgumentError,
+                   ~r/invalid :limiter option: \[rate: 5, burst: 0\].*positive :rate/,
+                   fn -> Amap.new(key: "k", limiter: [rate: 5, burst: 0]) end
+    end
+
+    test "rejects a negative burst" do
+      assert_raise ArgumentError,
+                   ~r/invalid :limiter option: \[rate: 5, burst: -1\]/,
+                   fn -> Amap.new(key: "k", limiter: [rate: 5, burst: -1]) end
+    end
   end
 
   describe "a non-positive rate" do
@@ -139,6 +151,32 @@ defmodule Amap.LimiterTest do
       sup = start_supervised!({DynamicSupervisor, strategy: :one_for_one})
 
       assert {:error, _reason} = DynamicSupervisor.start_child(sup, {Limiter, rate: 0, burst: 5})
+      assert DynamicSupervisor.count_children(sup).active == 0
+    end
+  end
+
+  describe "a non-positive burst" do
+    test "fails at construction instead of failing every acquire as if rate-limited" do
+      # `burst: 0` sets `capacity` and `tokens` to 0, and `refill/1`'s
+      # `min(capacity * 1.0, …)` then clamps the bucket permanently shut: every
+      # `acquire/2` blocks its whole timeout and returns `{:error, :timeout}`,
+      # which the pipeline reports as `:limiter_timeout` — indistinguishable
+      # from genuinely being held at quota, pointing at nothing in the caller's
+      # own config.
+      assert {:error, _reason} = Limiter.Supervisor.start_bucket(rate: 5, burst: 0)
+
+      sup = start_supervised!({DynamicSupervisor, strategy: :one_for_one})
+
+      assert {:error, _reason} = DynamicSupervisor.start_child(sup, {Limiter, rate: 5, burst: 0})
+      assert DynamicSupervisor.count_children(sup).active == 0
+    end
+
+    test "rejects a negative burst, which cannot refill past zero either" do
+      assert {:error, _reason} = Limiter.Supervisor.start_bucket(rate: 5, burst: -1)
+
+      sup = start_supervised!({DynamicSupervisor, strategy: :one_for_one})
+
+      assert {:error, _reason} = DynamicSupervisor.start_child(sup, {Limiter, rate: 5, burst: -1})
       assert DynamicSupervisor.count_children(sup).active == 0
     end
   end

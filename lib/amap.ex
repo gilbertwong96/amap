@@ -83,7 +83,7 @@ defmodule Amap do
   defp attempt(client, family, method, path, params, attempt) do
     result =
       Amap.Telemetry.span(client, family, method, path, fn ->
-        with :ok <- acquire(client),
+        with :ok <- acquire(client, family, path),
              {:ok, response} <- Amap.Request.send(client, family, method, path, params),
              {:ok, payload} <- decode(response.body, response.status),
              {:ok, data} <- Amap.Response.normalize(family, payload, response.status) do
@@ -162,12 +162,41 @@ defmodule Amap do
   # The wrapped error's reason is `:no` for retry, so a limiter timeout is never
   # retried — waiting longer for a token that never came is not a request that
   # failed for a transient reason.
-  defp acquire(%Amap.Client{limiter: nil}), do: :ok
+  defp acquire(%Amap.Client{limiter: nil}, _family, _path), do: :ok
 
-  defp acquire(%Amap.Client{limiter: limiter, timeout: timeout}) do
-    case Amap.Limiter.acquire(limiter, timeout) do
-      :ok -> :ok
-      {:error, :timeout} -> {:error, Amap.Error.limiter_timeout()}
+  defp acquire(%Amap.Client{limiter: limiter, timeout: timeout}, family, path) do
+    started = System.monotonic_time()
+
+    result =
+      case Amap.Limiter.acquire(limiter, timeout) do
+        :ok -> :ok
+        {:error, :timeout} -> {:error, Amap.Error.limiter_timeout()}
+      end
+
+    report_queue_wait(started, family, path)
+    result
+  end
+
+  # Emitted only when the caller actually waited: an acquire that finds a token
+  # returns in microseconds and measures 0ms, so it stays silent. The event's
+  # name means "queued", and firing on every call would make it noise.
+  #
+  # A timed-out acquire is reported too — it waited longest of all, and knowing
+  # that a call spent its whole budget queueing rather than talking to Amap is
+  # the difference between a quota problem and a transport one.
+  #
+  # Metadata is request shape only, as `Amap.Telemetry` does for requests.
+  defp report_queue_wait(started, family, path) do
+    wait_ms =
+      System.monotonic_time()
+      |> Kernel.-(started)
+      |> System.convert_time_unit(:native, :millisecond)
+
+    if wait_ms > 0 do
+      :telemetry.execute([:amap, :limiter, :queued], %{wait_ms: wait_ms}, %{
+        family: family,
+        path: path
+      })
     end
   end
 
@@ -223,8 +252,8 @@ defmodule Amap do
       {:error, reason} ->
         raise ArgumentError,
               "invalid :limiter option: #{inspect(values)}; expected a keyword list such as " <>
-                "[rate: 5, burst: 5] with a positive :rate; starting the bucket failed: " <>
-                format_start_failure(reason)
+                "[rate: 5, burst: 5] with a positive :rate and :burst; starting the bucket " <>
+                "failed: " <> format_start_failure(reason)
     end
   end
 
