@@ -9,6 +9,7 @@ defmodule Amap do
   """
 
   @options [:key, :private_key, :pool, :limiter, :timeout, :retry, :base_urls]
+  @retry_options [:max, :base_delay]
 
   @doc """
   Builds a client.
@@ -27,12 +28,26 @@ defmodule Amap do
     struct!(Amap.Client, opts)
   end
 
+  @default_retry [max: 0, base_delay: 100]
+
   @doc """
-  Performs one Amap call.
+  Performs one Amap call, retrying it when the failure says that is worth doing.
 
   This is the entry point every business module uses. It normalizes both API
   families, so callers get the bare payload map regardless of which envelope
   came back.
+
+  Retrying is off by default (`retry: [max: 0]`) and, when enabled, is driven by
+  the failure itself: `Amap.Error`'s `retry` field is `:immediate` for
+  server-side transients, `:backoff` for quota failures Amap suspends the caller
+  for, and `:no` for configuration and parameter errors. A reason classified
+  `:no` is never retried, however high `:max` is set, because retrying a bad key
+  or a missing parameter only spends quota.
+
+  A `:backoff` retry sleeps in the **calling** process, so one call can block it
+  for up to `:max` × the window Amap documents — with `max: 2` and the single
+  documented window (60_000ms, for `ACCESS_TOO_FREQUENT`) that is on the order
+  of two minutes. There is no total-deadline option; lower `:max` to bound it.
 
   Returns `{:ok, nil}` for Falcon endpoints that answer without a `data` body.
 
@@ -48,14 +63,7 @@ defmodule Amap do
           {:ok, map() | nil} | {:error, Amap.Error.t()}
   def request(%Amap.Client{} = client, family, method, path, params)
       when family in [:restapi, :tsapi] do
-    Amap.Telemetry.span(client, family, method, path, fn ->
-      with :ok <- acquire(client),
-           {:ok, response} <- Amap.Request.send(client, family, method, path, params),
-           {:ok, payload} <- decode(response.body, response.status),
-           {:ok, data} <- Amap.Response.normalize(family, payload, response.status) do
-        {:ok, data}
-      end
-    end)
+    attempt(client, family, method, path, params, 0)
   end
 
   # An unknown family would otherwise reach `client.base_urls[family]`, which is
@@ -65,8 +73,95 @@ defmodule Amap do
     raise ArgumentError, "invalid family: #{inspect(family)}; expected :restapi or :tsapi"
   end
 
+  # One attempt, plus at most `max_attempts/1` more. Each attempt gets its own
+  # telemetry span, so a retried call shows up as several spans rather than one
+  # long one, and the span that failed keeps its own error metadata.
+  #
+  # Exhaustion returns the last failure unchanged — same struct, same reason —
+  # because callers branch on `%Amap.Error{}` and `Amap.Telemetry.stop_meta/1`
+  # has no catch-all clause.
+  defp attempt(client, family, method, path, params, attempt) do
+    result =
+      Amap.Telemetry.span(client, family, method, path, fn ->
+        with :ok <- acquire(client),
+             {:ok, response} <- Amap.Request.send(client, family, method, path, params),
+             {:ok, payload} <- decode(response.body, response.status),
+             {:ok, data} <- Amap.Response.normalize(family, payload, response.status) do
+          {:ok, data}
+        end
+      end)
+
+    case result do
+      {:error, %Amap.Error{} = error} ->
+        if attempt < max_attempts(client) and error.retry != :no do
+          Process.sleep(delay(error, client, attempt))
+          attempt(client, family, method, path, params, attempt + 1)
+        else
+          result
+        end
+
+      other ->
+        other
+    end
+  end
+
+  defp max_attempts(%Amap.Client{retry: retry}), do: retry_option(retry, :max)
+
+  # `:immediate` waits nothing, so back-to-back attempts are the caller's
+  # choice. `:backoff` prefers the window Amap documents — code 10004 states a
+  # one-minute suspension — and falls back to exponential backoff for the
+  # quota reasons Amap does not document one for.
+  defp delay(%Amap.Error{} = error, %Amap.Client{} = client, attempt) do
+    case error.retry do
+      :backoff -> error.retry_after || backoff(client, attempt)
+      :immediate -> 0
+      :no -> 0
+    end
+  end
+
+  defp backoff(%Amap.Client{retry: retry}, attempt) do
+    retry_option(retry, :base_delay) * Integer.pow(2, attempt)
+  end
+
+  # `validate!/1` guards `Amap.new/1`, but `Amap.Client` is documented as a
+  # plain struct that callers build and pass around, so `struct!(Amap.Client, …)`
+  # is a supported path which never sees that validation. These reads must
+  # therefore be total for *any* `:retry` shape, or the shapes the constructor
+  # rejects return through the other door — each measured on a directly-built
+  # client: a non-list dies in `Keyword.get/3` with `FunctionClauseError`; a
+  # non-integer `:max` makes the retry guard permanently true (`attempt < nil` is
+  # true), and since `:immediate` failures sleep zero that looped at ~7,800
+  # requests/second and never returned; and a non-integer `:base_delay` raises
+  # `ArithmeticError` from inside `Amap.Telemetry.span/5`, whose `stop_meta/1`
+  # has no catch-all clause.
+  #
+  # One rule covers both keys: a usable value, else the module default. An absent
+  # key and an unusable one are the same case — `nil` is Elixir's canonical "not
+  # supplied", so `base_delay: nil` from the ordinary `System.get_env/1` idiom is
+  # the absent case wearing a present key.
+  #
+  # One rule rather than two is also what keeps `:base_delay` conservative. Its
+  # default is 100ms, and a `:backoff` failure means Amap asked the caller to slow
+  # down, so degrading an unusable delay to *no* delay would retry immediately
+  # against a server that just said "too frequent" — aggressive on the one axis
+  # that matters for a third-party API. For `:max` the default is 0, so a
+  # non-integer `:max` still means no retry beyond the first attempt: the total
+  # bound is unchanged, and the present-versus-absent distinction that this drops
+  # was only ever load-bearing for `:base_delay`, where it pointed the wrong way.
+  defp retry_option(retry, key) do
+    value = if Keyword.keyword?(retry), do: Keyword.get(retry, key)
+
+    case value do
+      value when is_integer(value) and value >= 0 -> value
+      _unusable -> @default_retry[key]
+    end
+  end
+
   # `Amap.Limiter.acquire/2` speaks `:ok | {:error, :timeout}`, but `request/5`
   # promises `%Amap.Error{}` on every failure path, so the bare atom is wrapped.
+  # The wrapped error's reason is `:no` for retry, so a limiter timeout is never
+  # retried — waiting longer for a token that never came is not a request that
+  # failed for a transient reason.
   defp acquire(%Amap.Client{limiter: nil}), do: :ok
 
   defp acquire(%Amap.Client{limiter: limiter, timeout: timeout}) do
@@ -153,5 +248,51 @@ defmodule Amap do
     unless Keyword.get(opts, :key) do
       raise ArgumentError, ":key is required, pass it to Amap.new/1 or set config :amap, :key"
     end
+
+    validate_retry!(Keyword.get(opts, :retry, []))
+  end
+
+  # Validating `:retry`'s *contents* matters more than its key, because every
+  # malformed shape here is silent rather than loud: a non-keyword list, an
+  # unknown key such as `mx: 2` (a typo for `:max`), or a non-integer value all
+  # mean "no retry" once read, so a caller who believes retry is configured gets
+  # none. Reading a limit from the environment is the ordinary idiom and
+  # `System.get_env/1` never returns an integer — `nil` when unset, a binary when
+  # set — so both outcomes arrive here as values to reject.
+  #
+  # Rejecting them makes all of them a named error at construction, which is what
+  # the rest of this module already does for top-level options. `retry_option/2`
+  # is the second layer, for clients built as structs directly.
+  defp validate_retry!(retry) do
+    unless Keyword.keyword?(retry) do
+      raise ArgumentError,
+            "invalid :retry option: expected a keyword list such as [max: 2, base_delay: 100], " <>
+              "got: #{inspect(retry)}"
+    end
+
+    case Keyword.keys(retry) -- @retry_options do
+      [] ->
+        :ok
+
+      unknown ->
+        raise ArgumentError,
+              "invalid :retry option: unknown key(s) #{inspect(unknown)}; " <>
+                "expected only #{inspect(@retry_options)}"
+    end
+
+    Enum.each(@retry_options, fn key ->
+      case Keyword.fetch(retry, key) do
+        :error ->
+          :ok
+
+        {:ok, value} when is_integer(value) and value >= 0 ->
+          :ok
+
+        {:ok, value} ->
+          raise ArgumentError,
+                "invalid :retry option: #{inspect(key)} must be a non-negative integer, " <>
+                  "got: #{inspect(value)}"
+      end
+    end)
   end
 end
