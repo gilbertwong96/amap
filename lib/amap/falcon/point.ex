@@ -46,7 +46,7 @@ defmodule Amap.Falcon.Point do
       sid: sid,
       tid: tid,
       trid: trid,
-      points: Amap.JSON.encode!(Enum.map(points, &encode_point/1))
+      points: Amap.JSON.encode!(Enum.map(points, &encode/1))
     ]
 
     case Amap.request(client, :tsapi, :post, @base <> "/upload", params) do
@@ -54,6 +54,28 @@ defmodule Amap.Falcon.Point do
       {:error, _} = error -> error
     end
   end
+
+  @doc """
+  Encodes one point into Amap's JSON shape.
+
+  Public because two endpoints take points: this one uploads them, and
+  `Amap.Falcon.Grasproad.roaddata/2` asks which roads they ran on.
+  """
+  @spec encode(map()) :: map()
+  def encode(point) when is_map(point) do
+    %{
+      "location" => Amap.Param.location(required!(point, :location)),
+      "locatetime" => unix_ms(required!(point, :locatetime))
+    }
+    |> put(point, "speed", :speed)
+    |> put(point, "direction", :direction)
+    |> put(point, "height", :height)
+    |> put(point, "accuracy", :accuracy)
+    |> put_props(point)
+  end
+
+  def encode(other),
+    do: raise(ArgumentError, "each point must be a map, got: #{inspect(other)}")
 
   @doc """
   Parses Amap's `"lon,lat"` point string into a tuple.
@@ -75,21 +97,6 @@ defmodule Amap.Falcon.Point do
   end
 
   def parse_location(_other), do: nil
-
-  defp encode_point(point) when is_map(point) do
-    %{
-      "location" => Amap.Param.location(required!(point, :location)),
-      "locatetime" => unix_ms(required!(point, :locatetime))
-    }
-    |> put(point, "speed", :speed)
-    |> put(point, "direction", :direction)
-    |> put(point, "height", :height)
-    |> put(point, "accuracy", :accuracy)
-    |> put_props(point)
-  end
-
-  defp encode_point(other),
-    do: raise(ArgumentError, "each point must be a map, got: #{inspect(other)}")
 
   defp required!(point, key) do
     case Map.get(point, key) do

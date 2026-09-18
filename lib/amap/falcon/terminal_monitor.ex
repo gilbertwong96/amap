@@ -66,19 +66,8 @@ defmodule Amap.Falcon.TerminalMonitor do
     }
   end
 
-  # Amap documents only "X,Y" here, with no example, so the order is inferred
-  # from the upload endpoint (longitude first). Task 9's live run settles it.
-  defp parse_location(nil), do: nil
-
-  defp parse_location(string) when is_binary(string) do
-    with [lon, lat] <- String.split(string, ","),
-         {lon, ""} <- Float.parse(lon),
-         {lat, ""} <- Float.parse(lat) do
-      {lon, lat}
-    else
-      _unparseable -> nil
-    end
-  end
-
-  defp parse_location(_other), do: nil
+  # Amap documents only "X,Y" here, with no example, so the order was inferred
+  # from the upload endpoint and then confirmed live (2026-09-17). The parser
+  # lives on `Amap.Falcon.Point`, which both endpoints' points go through.
+  defp parse_location(value), do: Amap.Falcon.Point.parse_location(value)
 end
