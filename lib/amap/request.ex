@@ -74,7 +74,8 @@ defmodule Amap.Request do
     # The key goes in the query string as well as the body. A live call with it only in
     # the JSON body answered 10001 INVALID_USER_KEY, so this service does not read it
     # from there -- which is what the 轨迹重合度分析 page says when it asks for the key to be
-    # appended to the URL, a note that turned out not to hold for form POSTs.
+    # appended to the URL, a note that turned out not to hold for form POSTs. Collected
+    # with the other page-versus-service differences in
     url = client.base_urls[:tsapi] <> path <> "?" <> URI.encode_query(key: client.key)
 
     Finch.build(method, url, @json_headers, body)

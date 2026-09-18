@@ -75,7 +75,9 @@ defmodule Amap.Response do
   # pages say so: 当返回值不存在时，则以数组类型返回 — and it wraps a single object in an
   # array the same way. The analysis endpoints answered `data: [%{…}]` live on
   # 2026-09-17 while their own tables describe an object, so an array is read as a
-  # wrapper: one element is that element, none is no data.
+  # wrapper: one element is that element, none is no data. Collected with the other
+  # page-versus-service differences in
+  # data. Collected with the other page-versus-service differences on 2026-09-17.
   defp unwrap_data(%{"data" => []}), do: nil
   defp unwrap_data(%{"data" => [single]}), do: single
   defp unwrap_data(body), do: Map.get(body, "data")

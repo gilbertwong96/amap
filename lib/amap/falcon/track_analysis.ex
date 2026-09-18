@@ -159,7 +159,8 @@ defmodule Amap.Falcon.TrackAnalysis do
     # Amap nests a non-empty event list one level deeper than an empty one: a section
     # with events arrived as `%{"points" => [[event, event]]}` while an empty one
     # arrived as `%{"points" => []}`. Flattening reads both, and only descends into
-    # lists, so maps pass through untouched.
+    # lists, so maps pass through untouched. Collected with the other
+    # page-versus-service differences collected on 2026-09-17.
     points = payload |> Map.get("points", []) |> List.flatten() |> Enum.map(&to_event/1)
 
     %Section{points: points}

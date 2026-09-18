@@ -120,7 +120,8 @@ defmodule Amap.Falcon.Terminal do
 
   # Confirmed against a live response on 2026-09-17: `tid` is an integer and
   # `name` is a string, which is what `add` and the search results say too. The
-  # official response table for this endpoint claims the opposite and is wrong.
+  # official response table for this endpoint claims the opposite and is wrong. Collected
+  # with the other page-versus-service differences collected on 2026-09-17.
   defp to_terminal_struct(payload) do
     %__MODULE__{
       sid: Numeric.to_integer(payload["sid"]),
