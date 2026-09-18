@@ -46,6 +46,26 @@ defmodule Amap.ResponseTest do
       assert {:ok, %{"sid" => 1}} = Response.normalize(:tsapi, body, 200)
     end
 
+    # The live API's success code, copied verbatim from a real Service.add
+    # response. Treating only 0 as success made this look like a failure while
+    # Amap had already created the service.
+    test "treats 10000 as success, which is what the live API sends" do
+      body = %{
+        "errcode" => 10_000,
+        "errmsg" => "OK",
+        "data" => %{"name" => "sdk_it_2722", "sid" => 1_078_149}
+      }
+
+      assert {:ok, %{"name" => "sdk_it_2722", "sid" => 1_078_149}} =
+               Response.normalize(:tsapi, body, 200)
+    end
+
+    test "accepts 10000 as a string too" do
+      body = %{"errcode" => "10000", "errmsg" => "OK", "data" => %{"sid" => 1}}
+
+      assert {:ok, %{"sid" => 1}} = Response.normalize(:tsapi, body, 200)
+    end
+
     test "accepts a string errcode of zero" do
       body = %{"errcode" => "0", "errmsg" => "OK", "data" => %{"sid" => 1}}
 

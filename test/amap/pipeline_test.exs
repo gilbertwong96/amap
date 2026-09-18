@@ -36,6 +36,20 @@ defmodule Amap.PipelineTest do
              Amap.request(client, :tsapi, :get, "/v1/track/service/list", %{})
   end
 
+  test "returns the payload when Falcon answers with 10000, as the live API does", %{
+    server: server,
+    client: client
+  } do
+    # `10000 OK` is the documented success code and what a real call returns; the
+    # examples in the docs use 0, so both paths are covered.
+    TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":{"services":[]}})}
+    end)
+
+    assert {:ok, %{"services" => []}} =
+             Amap.request(client, :tsapi, :get, "/v1/track/service/list", %{})
+  end
+
   test "surfaces a Falcon error with its detail", %{server: server, client: client} do
     TestServer.expect_once(server, "GET", "/v1/track/terminal/add", fn _req ->
       {200,

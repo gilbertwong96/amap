@@ -15,6 +15,11 @@ defmodule Amap.Response do
   alias Amap.Numeric
 
   @envelope_restapi ~w(status info infocode)
+  # Falcon signals success with 10000 (`10000 OK` is the error table's first
+  # row) and the documented examples also use 0. Accepting only 0 turned every
+  # successful Falcon call into an error once the payload had already been
+  # carried out on Amap's side.
+  @ok_codes [0, 10_000]
   @partial_success 20100
 
   @doc """
@@ -32,6 +37,12 @@ defmodule Amap.Response do
   @doc """
   Validates an envelope and returns its payload.
 
+  Falcon signals success with `10000`, which the live API really sends —
+  `{"errcode": 10000, "errmsg": "OK", "data": …}` — and the documented error
+  table lists it as the first row, `10000 OK`. The examples in some pages use
+  `0`, so both are accepted. Treating only `0` as success made every real Falcon
+  call look like a failure while Amap had already carried it out.
+
   Falcon's `20100 PARTIAL_SUCCESS` is returned as `{:ok, data}`: the request
   was accepted and some of the work succeeded, so reporting it as an error
   would discard the successful part. Use `partial?/2` to detect it.
@@ -41,7 +52,7 @@ defmodule Amap.Response do
   def normalize(:tsapi, %{"errcode" => errcode} = body, http_status)
       when is_integer(errcode) or is_binary(errcode) do
     case Numeric.to_integer(errcode) do
-      0 -> {:ok, Map.get(body, "data")}
+      code when code in @ok_codes -> {:ok, Map.get(body, "data")}
       @partial_success -> {:ok, Map.get(body, "data")}
       nil -> {:error, Error.unexpected_response(http_status, body)}
       _other -> {:error, Error.from_tsapi(body, http_status)}
