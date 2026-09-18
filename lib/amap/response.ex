@@ -72,9 +72,12 @@ defmodule Amap.Response do
   end
 
   # Amap writes "no value" as an empty array rather than omitting the field — its own
-  # pages say so: 当返回值不存在时，则以数组类型返回. A Falcon `data` of `[]` therefore
-  # means the same as no `data` at all, and callers see `nil`.
+  # pages say so: 当返回值不存在时，则以数组类型返回 — and it wraps a single object in an
+  # array the same way. The analysis endpoints answered `data: [%{…}]` live on
+  # 2026-09-17 while their own tables describe an object, so an array is read as a
+  # wrapper: one element is that element, none is no data.
   defp unwrap_data(%{"data" => []}), do: nil
+  defp unwrap_data(%{"data" => [single]}), do: single
   defp unwrap_data(body), do: Map.get(body, "data")
 
   @doc "Whether a Falcon response reports partial success."

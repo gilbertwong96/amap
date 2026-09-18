@@ -156,7 +156,13 @@ defmodule Amap.Falcon.TrackAnalysis do
   defp to_section(nil), do: nil
 
   defp to_section(payload) when is_map(payload) do
-    %Section{points: Enum.map(Map.get(payload, "points", []), &to_event/1)}
+    # Amap nests a non-empty event list one level deeper than an empty one: a section
+    # with events arrived as `%{"points" => [[event, event]]}` while an empty one
+    # arrived as `%{"points" => []}`. Flattening reads both, and only descends into
+    # lists, so maps pass through untouched.
+    points = payload |> Map.get("points", []) |> List.flatten() |> Enum.map(&to_event/1)
+
+    %Section{points: points}
   end
 
   defp to_event(payload) do
@@ -175,7 +181,7 @@ defmodule Amap.Falcon.TrackAnalysis do
   defp to_stay_points(payload) do
     %StayPoints{
       count: Numeric.to_integer(payload["stayPointCount"]),
-      points: Enum.map(Map.get(payload, "stayPoints", []), &to_stay_point/1)
+      points: payload |> Map.get("stayPoints", []) |> List.flatten() |> Enum.map(&to_stay_point/1)
     }
   end
 

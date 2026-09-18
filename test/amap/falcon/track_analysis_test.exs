@@ -122,20 +122,46 @@ defmodule Amap.Falcon.TrackAnalysisTest do
     server: server,
     client: client
   } do
-    # Amap's pages say a value arrives as a string or as an array. The live service
-    # answered this endpoint with a non-empty array where the docs promise an
-    # object, which used to crash inside the mapper on a string index.
+    # Amap's pages say a value arrives as a string or as an array. A list of several
+    # things is neither the endpoint's object nor a wrapped one.
+    # A payload this SDK cannot read as the endpoint's object. A single-element array
+    # is now understood as a wrapper (the live service sends one), so a shape that is
+    # still unexpected is a list of several things.
     arm(
       server,
       "/v1/track/analysis/drivingbehavior",
-      ~s({"errcode":10000,"errmsg":"OK","data":[{"distance":12000}]})
+      ~s({"errcode":10000,"errmsg":"OK","data":[{"distance":1},{"distance":2}]})
     )
 
     assert {:error, %Amap.Error{reason: :unexpected_response} = error} =
              TrackAnalysis.driving_behavior(client, 1, 456, 20)
 
     # The payload travels with the error, so a caller can see what arrived.
-    assert %{body: [%{"distance" => 12_000}]} = error.response
+    assert %{body: [%{"distance" => 1}, %{"distance" => 2}]} = error.response
+  end
+
+  test "reads the shape the live service really sends", %{server: server, client: client} do
+    # Copied from a real response on 2026-09-17, where the documented object arrived
+    # as a single-element array and a non-empty event list arrived one level deeper
+    # than an empty one.
+    arm(
+      server,
+      "/v1/track/analysis/drivingbehavior",
+      ~s({"errcode":10000,"errmsg":"OK","data":[{"aveSpeed":170.0,"distance":425,"duration":9000,"harshAcceleration":{"points":[[{"acceleration":10.4,"endSpeed":33.06,"initialSpeed":0.0,"locateTime":1789709426883,"location":"114.158066,22.279037"},{"acceleration":6.79,"endSpeed":206.75,"initialSpeed":33.06,"locateTime":1789709433991,"location":"114.160812,22.281681"}]]},"harshAccelerationCount":1,"harshDeceleration":{"points":[]},"harshDecelerationCount":0,"harshSteering":{"points":[]},"harshSteeringCount":0,"maxSpeed":206.75,"speedLimit":{"points":[]}}]})
+    )
+
+    assert {:ok, behaviour} = TrackAnalysis.driving_behavior(client, 1, 456, 20)
+
+    assert %DrivingBehaviour{distance: 425, ave_speed: 170.0, harsh_acceleration_count: 1} =
+             behaviour
+
+    # Two events out of a nested list, and the empty sections stay empty.
+    assert %Section{points: [first, second]} = behaviour.harsh_acceleration
+    assert %Event{location: {114.158066, 22.279037}, acceleration: 10.4, end_speed: 33.06} = first
+    assert %Event{location: {114.160812, 22.281681}, acceleration: 6.79} = second
+
+    assert behaviour.harsh_deceleration == %Section{points: []}
+    assert behaviour.harsh_steering == %Section{points: []}
   end
 
   describe "stay_points/5" do

@@ -73,6 +73,14 @@ defmodule Amap.ResponseTest do
       assert {:ok, nil} = Response.normalize(:tsapi, body, 200)
     end
 
+    test "unwraps an object the service sent inside an array" do
+      # The analysis endpoints answered `data: [%{…}]` live while their own tables
+      # describe an object, so a single-element array is read as a wrapper.
+      body = %{"errcode" => 10_000, "errmsg" => "OK", "data" => [%{"distance" => 425}]}
+
+      assert {:ok, %{"distance" => 425}} = Response.normalize(:tsapi, body, 200)
+    end
+
     test "accepts a string errcode of zero" do
       body = %{"errcode" => "0", "errmsg" => "OK", "data" => %{"sid" => 1}}
 
