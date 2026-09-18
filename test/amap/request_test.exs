@@ -182,5 +182,58 @@ defmodule Amap.RequestTest do
       assert {:error, error} = Request.send(client, :restapi, :get, "/v3/ip", %{})
       assert error.reason == :transport
     end
+
+    test "sends a JSON body when asked, keeping the map's shape", %{
+      server: server,
+      client: client
+    } do
+      parent = self()
+
+      TestServer.expect_once(server, "POST", "/v1/track/match", fn req ->
+        send(parent, {:body, req.headers["content-type"], req.body})
+        {200, ~s({"errcode":10000,"errmsg":"OK","data":{}})}
+      end)
+
+      assert {:ok, %Finch.Response{status: 200}} =
+               Request.send(
+                 client,
+                 :tsapi,
+                 :post,
+                 "/v1/track/match",
+                 %{
+                   "baseline" => %{"sid" => 1, "tid" => 2, "trid" => 3},
+                   "isPoints" => 1
+                 },
+                 body: :json
+               )
+
+      assert_receive {:body, "application/json", body}
+
+      # Nested objects stay nested: `Param.encode/1` would flatten them into string
+      # pairs, which is why the JSON path does not go through it.
+      assert JSON.decode!(body) == %{
+               "key" => "test-key",
+               "baseline" => %{"sid" => 1, "tid" => 2, "trid" => 3},
+               "isPoints" => 1
+             }
+    end
+
+    test "a JSON body reserves the same parameter names as a form", %{client: client} do
+      assert_raise ArgumentError, ~r/invalid request parameter "key"/, fn ->
+        Request.build(client, :tsapi, :post, "/v1/track/match", %{"key" => "mine"}, body: :json)
+      end
+    end
+
+    test "refuses a JSON body for the signing family, where it is undefined", %{client: client} do
+      assert_raise ArgumentError, ~r/only supported for the :tsapi family/, fn ->
+        Request.build(client, :restapi, :post, "/v3/ip", %{}, body: :json)
+      end
+    end
+
+    test "rejects a body encoding Amap does not take", %{client: client} do
+      assert_raise ArgumentError, ~r/:body must be :form or :json, got: :xml/, fn ->
+        Request.build(client, :tsapi, :post, "/v1/track/match", %{}, body: :xml)
+      end
+    end
   end
 end

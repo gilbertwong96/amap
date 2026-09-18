@@ -177,6 +177,32 @@ defmodule Amap.PipelineTest do
     assert {:ok, nil} = Amap.request(client, :tsapi, :get, "/v1/track/terminal/delete", %{})
   end
 
+  test "sends a JSON body through the whole pipeline, and retries it", %{
+    server: server,
+    client: client
+  } do
+    # 10016 is retryable, so this also proves the body option survives attempt/7
+    # rather than being dropped on the way to the retry.
+    parent = self()
+
+    TestServer.expect(server, "POST", "/v1/track/match", fn req ->
+      send(parent, {:hit, req.headers["content-type"]})
+      {200, ~s({"errcode":10016,"errmsg":"SERVER_IS_BUSY"})}
+    end)
+
+    retrying = Amap.new(key: "test-key", retry: [max: 1], base_urls: client.base_urls)
+
+    assert {:error, error} =
+             Amap.request(retrying, :tsapi, :post, "/v1/track/match", %{"baseline" => %{}},
+               body: :json
+             )
+
+    assert error.reason == :server_is_busy
+    assert_receive {:hit, "application/json"}
+    assert_receive {:hit, "application/json"}
+    refute_receive {:hit, _content_type}, 50
+  end
+
   test "names an invalid family instead of failing on the URL", %{client: client} do
     error =
       assert_raise ArgumentError, fn ->

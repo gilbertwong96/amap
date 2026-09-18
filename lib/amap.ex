@@ -71,15 +71,17 @@ defmodule Amap do
           map() | keyword()
         ) ::
           {:ok, map() | nil} | {:error, Error.t()}
-  def request(%Amap.Client{} = client, family, method, path, params)
+  def request(client, family, method, path, params, opts \\ [])
+
+  def request(%Amap.Client{} = client, family, method, path, params, opts)
       when family in [:restapi, :tsapi] do
-    attempt(client, family, method, path, params, 0)
+    attempt(client, family, method, path, params, opts, 0)
   end
 
   # An unknown family would otherwise reach `client.base_urls[family]`, which is
   # nil, and die with "construction of binary failed: ... got: nil" — naming
   # neither the argument nor its valid values.
-  def request(%Amap.Client{}, family, _method, _path, _params) do
+  def request(%Amap.Client{}, family, _method, _path, _params, _opts) do
     raise ArgumentError, "invalid family: #{inspect(family)}; expected :restapi or :tsapi"
   end
 
@@ -90,11 +92,11 @@ defmodule Amap do
   # Exhaustion returns the last failure unchanged — same struct, same reason —
   # because callers branch on `%Amap.Error{}` and `Amap.Telemetry.stop_meta/1`
   # has no catch-all clause.
-  defp attempt(client, family, method, path, params, attempt) do
+  defp attempt(client, family, method, path, params, opts, attempt) do
     result =
       Telemetry.span(client, family, method, path, fn ->
         with :ok <- acquire(client, family, path),
-             {:ok, response} <- Request.send(client, family, method, path, params),
+             {:ok, response} <- Request.send(client, family, method, path, params, opts),
              {:ok, payload} <- decode(response.body, response.status) do
           Response.normalize(family, payload, response.status)
         end
@@ -104,7 +106,7 @@ defmodule Amap do
       {:error, %Amap.Error{} = error} ->
         if attempt < max_attempts(client) and error.retry != :no do
           Process.sleep(delay(error, client, attempt))
-          attempt(client, family, method, path, params, attempt + 1)
+          attempt(client, family, method, path, params, opts, attempt + 1)
         else
           result
         end
