@@ -25,10 +25,14 @@ defmodule Amap.Falcon.IntegrationTest do
 
   use ExUnit.Case, async: false
 
+  alias Amap.Falcon.Grasproad
+  alias Amap.Falcon.Point
   alias Amap.Falcon.Service
   alias Amap.Falcon.Terminal
+  alias Amap.Falcon.TerminalColumn
   alias Amap.Falcon.TerminalMonitor
   alias Amap.Falcon.TerminalSearch
+  alias Amap.Falcon.Trace
 
   @moduletag :integration
   @moduletag timeout: 60_000
@@ -164,6 +168,75 @@ defmodule Amap.Falcon.IntegrationTest do
              TerminalSearch.aroundsearch(client, sid, @first_point, radius: 1000)
 
     report("aroundsearch within 1km", fn -> "count: #{inspect(around.count)}" end)
+  end
+
+  test "a custom field, a trajectory and a correction", %{client: client} do
+    # This is what S2a's run could not do: `props` is rejected until the field has
+    # been declared, and declaring it is what this batch added.
+    assert {:ok, nil} =
+             TerminalColumn.add(client, service_sid = create_service(client), "plate", :string)
+
+    sid = service_sid
+
+    on_exit(fn ->
+      case Terminal.list(client, sid) do
+        {:ok, %{items: items}} -> Enum.each(items, &Terminal.delete(client, sid, &1.tid))
+        _other -> :ok
+      end
+
+      Service.delete(client, sid)
+    end)
+
+    assert {:ok, terminal} = Terminal.add(client, sid, "truck", props: %{"plate" => "AB1234"})
+    tid = terminal.tid
+
+    assert {:ok, %Terminal.Page{items: [listed]}} = Terminal.list(client, sid)
+    report("terminal props round-trip", fn -> inspect(listed.props) end)
+
+    assert {:ok, trace} = Trace.add(client, sid, tid, trname: "morning")
+    trid = trace.trid
+
+    now = System.system_time(:millisecond)
+
+    points =
+      for n <- 0..4 do
+        %{
+          location: {114.158 + n * 0.0003, 22.279 + n * 0.0003},
+          locatetime: now - (4 - n) * 1000,
+          # Outside the documented [0,360], so Amap should refuse this one point
+          # while storing the rest — which is what makes errorpoints non-empty.
+          direction: if(n == 2, do: 999, else: 120)
+        }
+      end
+
+    assert {:ok, upload} = Point.upload(client, sid, tid, trid, points)
+    report("point/upload errorpoints", fn -> inspect(upload.errorpoints) end)
+
+    assert {:ok, %Grasproad.Result{} = found} = Grasproad.trsearch(client, sid, tid, trid: trid)
+
+    report("trsearch by trid", fn ->
+      "counts: #{inspect(found.counts)}, tracks: #{length(found.tracks)}"
+    end)
+
+    assert {:ok, %Grasproad.Result{}} =
+             Grasproad.trsearch(client, sid, tid,
+               starttime: now - 60_000,
+               endtime: now,
+               correction: [mapmatch: false]
+             )
+
+    # Enabled by ticket, so an error here is the expected answer rather than a
+    # failure: what matters is that the call is shaped correctly.
+    report("roaddata", fn ->
+      inspect(Grasproad.roaddata(client, sid: sid, tid: tid, trid: trid))
+    end)
+  end
+
+  defp create_service(client) do
+    name = "sdk_it_#{System.unique_integer([:positive])}"
+
+    assert {:ok, service} = Service.add(client, name, desc: "集成测试")
+    service.sid
   end
 
   defp report(label, fun), do: IO.puts("[integration] #{label} -> #{fun.()}")
