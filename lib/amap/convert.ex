@@ -42,7 +42,7 @@ defmodule Amap.Convert do
 
     params = [
       locations: Param.pipe(Enum.map(locations, &Param.location/1)),
-      coordsys: coordsys_param(Keyword.get(opts, :coordsys))
+      coordsys: Validate.optional_enum!(Keyword.get(opts, :coordsys), ":coordsys", @coordsys)
     ]
 
     case Amap.request(client, :restapi, :get, @path, params) do
@@ -74,15 +74,4 @@ defmodule Amap.Convert do
 
   defp locations_message(value),
     do: ":locations must be a list of {lon, lat} tuples, got: #{inspect(value)}"
-
-  defp coordsys_param(nil), do: nil
-
-  defp coordsys_param(value) when value in @coordsys, do: Atom.to_string(value)
-
-  defp coordsys_param(other),
-    do:
-      raise(
-        ArgumentError,
-        ":coordsys must be one of #{inspect(@coordsys)}, got: #{inspect(other)}"
-      )
 end

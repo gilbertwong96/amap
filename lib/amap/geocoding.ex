@@ -79,7 +79,8 @@ defmodule Amap.Geocoding do
     params =
       [
         location: Amap.Param.location(location),
-        extensions: extensions_param(Keyword.get(opts, :extensions))
+        extensions:
+          Validate.optional_enum!(Keyword.get(opts, :extensions), ":extensions", [:base, :all])
       ] ++ detail_params(opts)
 
     case Amap.request(client, :restapi, :get, @regeo_path, params) do
@@ -87,13 +88,6 @@ defmodule Amap.Geocoding do
       {:error, _} = error -> error
     end
   end
-
-  defp extensions_param(nil), do: nil
-  defp extensions_param(:base), do: "base"
-  defp extensions_param(:all), do: "all"
-
-  defp extensions_param(other),
-    do: raise(ArgumentError, ":extensions must be :base or :all, got: #{inspect(other)}")
 
   defp detail_params(opts) do
     given =

@@ -215,9 +215,11 @@ defmodule Amap.GeocodingTest do
     end
 
     test "rejects a value Amap does not document", %{client: client} do
-      assert_raise ArgumentError, ~r/:extensions must be :base or :all, got: :full/, fn ->
-        Geocoding.regeo(client, {116.31, 39.99}, extensions: :full)
-      end
+      assert_raise ArgumentError,
+                   ~r/:extensions must be one of \[:base, :all\], got: :full/,
+                   fn ->
+                     Geocoding.regeo(client, {116.31, 39.99}, extensions: :full)
+                   end
 
       assert_raise ArgumentError, ~r/:radius must be between 0 and 3000, got: 3001/, fn ->
         Geocoding.regeo(client, {116.31, 39.99}, extensions: :all, radius: 3001)

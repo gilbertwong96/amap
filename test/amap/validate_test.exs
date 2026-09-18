@@ -57,6 +57,27 @@ defmodule Amap.ValidateTest do
     end
   end
 
+  describe "optional_enum!/3" do
+    test "returns the wire string for a documented value" do
+      assert Validate.optional_enum!(:base, ":extensions", [:base, :all]) == "base"
+      assert Validate.optional_enum!(:all, ":extensions", [:base, :all]) == "all"
+    end
+
+    test "treats nil as absent" do
+      assert Validate.optional_enum!(nil, ":extensions", [:base, :all]) == nil
+    end
+
+    test "raises, naming the allowed values, for anything else" do
+      assert_raise ArgumentError,
+                   ~r/:extensions must be one of \[:base, :all\], got: :full/,
+                   fn -> Validate.optional_enum!(:full, ":extensions", [:base, :all]) end
+
+      assert_raise ArgumentError,
+                   ~r/:coordsys must be one of \[:gps\], got: "gps"/,
+                   fn -> Validate.optional_enum!("gps", ":coordsys", [:gps]) end
+    end
+  end
+
   describe "range!/4" do
     test "accepts the documented interval" do
       assert Validate.range!(500, ":radius", 1, 5000) == 500

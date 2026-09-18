@@ -100,6 +100,31 @@ defmodule Amap.Validate do
   def optional_range!(nil, _field, _min, _max), do: nil
   def optional_range!(value, field, min, max), do: range!(value, field, min, max)
 
+  @doc """
+  Validates an optional value against the set Amap documents, for the parameters
+  that take `base`/`all` or a list of systems.
+
+  Returns the string to send, or `nil` when the caller left the parameter out.
+  An undocumented value raises instead of reaching Amap, which would answer a
+  value it does not know with something that looks like an answer.
+  """
+  @spec optional_enum!(term(), String.t(), [atom()]) :: String.t() | nil
+  def optional_enum!(nil, _field, _allowed), do: nil
+
+  def optional_enum!(value, field, allowed) when is_atom(value) do
+    if value in allowed do
+      Atom.to_string(value)
+    else
+      raise ArgumentError, enum_message(value, field, allowed)
+    end
+  end
+
+  def optional_enum!(value, field, allowed),
+    do: raise(ArgumentError, enum_message(value, field, allowed))
+
+  defp enum_message(value, field, allowed),
+    do: "#{field} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
+
   @doc "Validates an integer parameter against Amap's documented interval."
   @spec range!(term(), String.t(), integer(), integer()) :: integer()
   def range!(value, field, min, max) do
