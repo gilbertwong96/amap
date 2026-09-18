@@ -252,7 +252,7 @@ defmodule Amap.Falcon.IntegrationTest do
              Geofence.add_circle(client, sid, "warehouse",
                center: {lon, lat},
                radius: 500,
-               desc: "integration test"
+               desc: "集成测试"
              )
 
     gfid = fence.gfid
@@ -323,15 +323,39 @@ defmodule Amap.Falcon.IntegrationTest do
 
     assert {:ok, _} = Point.upload(client, sid, tid, trid, points)
 
-    assert {:ok, behaviour} = TrackAnalysis.driving_behavior(client, sid, tid, trid)
-
-    report("driving_behavior", fn ->
-      "distance: #{inspect(behaviour.distance)}, duration: #{inspect(behaviour.duration)}, " <>
-        "harsh: #{inspect(behaviour.harsh_acceleration_count)}/#{inspect(behaviour.harsh_deceleration_count)}/#{inspect(behaviour.harsh_steering_count)}"
+    report("driving_behavior raw", fn ->
+      inspect(
+        Amap.request(client, :tsapi, :get, "/v1/track/analysis/drivingbehavior",
+          sid: sid,
+          tid: tid,
+          trid: trid
+        )
+      )
     end)
 
-    assert {:ok, stays} = TrackAnalysis.stay_points(client, sid, tid, trid)
-    report("stay_points", fn -> "count: #{inspect(stays.count)}" end)
+    # Amap writes "no value" as an empty array, which the SDK turns into nil, so a
+    # track it will not analyse reports that rather than crashing.
+    case TrackAnalysis.driving_behavior(client, sid, tid, trid) do
+      {:ok, nil} ->
+        report("driving_behavior", fn -> "no data: Amap answered data: []" end)
+
+      {:ok, behaviour} ->
+        report("driving_behavior", fn ->
+          "distance: #{inspect(behaviour.distance)}, duration: #{inspect(behaviour.duration)}, " <>
+            "harsh: #{inspect(behaviour.harsh_acceleration_count)}/#{inspect(behaviour.harsh_deceleration_count)}/#{inspect(behaviour.harsh_steering_count)}"
+        end)
+
+      other ->
+        flunk("driving_behavior failed: #{inspect(other)}")
+    end
+
+    assert match?({:ok, _}, TrackAnalysis.stay_points(client, sid, tid, trid))
+
+    case TrackAnalysis.stay_points(client, sid, tid, trid) do
+      {:ok, nil} -> report("stay_points", fn -> "no data" end)
+      {:ok, stays} -> report("stay_points", fn -> "count: #{inspect(stays.count)}" end)
+      other -> flunk("stay_points failed: #{inspect(other)}")
+    end
 
     # The JSON body path, against the real service for the first time. The same
     # trace is both sides, so a match ratio near 100 is what should come back.

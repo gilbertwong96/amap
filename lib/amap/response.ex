@@ -52,8 +52,8 @@ defmodule Amap.Response do
   def normalize(:tsapi, %{"errcode" => errcode} = body, http_status)
       when is_integer(errcode) or is_binary(errcode) do
     case Numeric.to_integer(errcode) do
-      code when code in @ok_codes -> {:ok, Map.get(body, "data")}
-      @partial_success -> {:ok, Map.get(body, "data")}
+      code when code in @ok_codes -> {:ok, unwrap_data(body)}
+      @partial_success -> {:ok, unwrap_data(body)}
       nil -> {:error, Error.unexpected_response(http_status, body)}
       _other -> {:error, Error.from_tsapi(body, http_status)}
     end
@@ -70,6 +70,12 @@ defmodule Amap.Response do
   def normalize(family, body, http_status) when family in [:restapi, :tsapi] do
     {:error, Error.unexpected_response(http_status, body)}
   end
+
+  # Amap writes "no value" as an empty array rather than omitting the field — its own
+  # pages say so: 当返回值不存在时，则以数组类型返回. A Falcon `data` of `[]` therefore
+  # means the same as no `data` at all, and callers see `nil`.
+  defp unwrap_data(%{"data" => []}), do: nil
+  defp unwrap_data(body), do: Map.get(body, "data")
 
   @doc "Whether a Falcon response reports partial success."
   @spec partial?(Client.family(), term()) :: boolean()

@@ -66,6 +66,13 @@ defmodule Amap.ResponseTest do
       assert {:ok, %{"sid" => 1}} = Response.normalize(:tsapi, body, 200)
     end
 
+    test "reads an empty-array data as no data at all" do
+      # Amap writes "no value" as an empty array: 当返回值不存在时，则以数组类型返回.
+      body = %{"errcode" => 10_000, "errmsg" => "OK", "data" => []}
+
+      assert {:ok, nil} = Response.normalize(:tsapi, body, 200)
+    end
+
     test "accepts a string errcode of zero" do
       body = %{"errcode" => "0", "errmsg" => "OK", "data" => %{"sid" => 1}}
 
