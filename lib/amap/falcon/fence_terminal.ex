@@ -9,9 +9,9 @@ defmodule Amap.Falcon.FenceTerminal do
 
   alias Amap.Falcon.FenceTerminal.Page
   alias Amap.Falcon.Paging
-  alias Amap.Falcon.Validate
   alias Amap.Falcon.Wire
   alias Amap.Numeric
+  alias Amap.Validate
 
   defstruct [:tid, :tname]
 

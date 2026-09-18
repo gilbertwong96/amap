@@ -78,7 +78,7 @@ defmodule Amap.Falcon.FenceStatus do
       gfid: Numeric.to_integer(payload["gfid"]),
       gfname: payload["gfname"],
       in: Wire.decode_flag(payload["in"]),
-      location: Amap.Falcon.Point.parse_location(payload["location"]),
+      location: Amap.Coord.parse_location(payload["location"]),
       time: Numeric.to_integer(payload["time"])
     }
   end

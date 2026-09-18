@@ -7,8 +7,7 @@ defmodule Amap.Falcon.TerminalMonitor do
   so `location` here is a `{lon, lat}` tuple, parsed for you.
   """
 
-  alias Amap.Falcon.TerminalMonitor.Position
-  alias Amap.Numeric
+  alias Amap.Falcon.Position
 
   @base "/v1/track/terminal"
 
@@ -42,7 +41,7 @@ defmodule Amap.Falcon.TerminalMonitor do
     ]
 
     case Amap.request(client, :tsapi, :get, @base <> "/lastpoint", params) do
-      {:ok, payload} -> {:ok, to_position(payload)}
+      {:ok, payload} -> {:ok, Position.from_payload(payload)}
       {:error, _} = error -> error
     end
   end
@@ -53,21 +52,4 @@ defmodule Amap.Falcon.TerminalMonitor do
 
   defp correction_param(other),
     do: raise(ArgumentError, ":correction must be :driving or :n, got: #{inspect(other)}")
-
-  defp to_position(payload) do
-    %Position{
-      location: parse_location(payload["location"]),
-      locatetime: Numeric.to_integer(payload["locatetime"]),
-      accuracy: payload["accuracy"],
-      direction: payload["direction"],
-      speed: payload["speed"],
-      height: payload["height"],
-      props: payload["props"]
-    }
-  end
-
-  # Amap documents only "X,Y" here, with no example, so the order was inferred
-  # from the upload endpoint and then confirmed live (2026-09-17). The parser
-  # lives on `Amap.Falcon.Point`, which both endpoints' points go through.
-  defp parse_location(value), do: Amap.Falcon.Point.parse_location(value)
 end

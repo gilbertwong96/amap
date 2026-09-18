@@ -1,8 +1,8 @@
 defmodule Amap.Falcon.TerminalMonitorTest do
   use ExUnit.Case, async: true
 
+  alias Amap.Falcon.Position
   alias Amap.Falcon.TerminalMonitor
-  alias Amap.Falcon.TerminalMonitor.Position
   alias Amap.TestServer
 
   setup do

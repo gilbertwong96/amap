@@ -25,7 +25,7 @@ defmodule Amap.Falcon.Point do
 
   alias Amap.Falcon.Point.Upload
   alias Amap.Falcon.Point.UploadError
-  alias Amap.Falcon.Validate
+  alias Amap.Validate
 
   @max_points 100
   @base "/v1/track/point"
@@ -76,27 +76,6 @@ defmodule Amap.Falcon.Point do
 
   def encode(other),
     do: raise(ArgumentError, "each point must be a map, got: #{inspect(other)}")
-
-  @doc """
-  Parses Amap's `"lon,lat"` point string into a tuple.
-
-  Returns `nil` for anything unparseable, so a malformed value from the service
-  reads as "no location" rather than crashing the caller.
-  """
-  @spec parse_location(term()) :: {float(), float()} | nil
-  def parse_location(nil), do: nil
-
-  def parse_location(string) when is_binary(string) do
-    with [lon, lat] <- String.split(string, ","),
-         {lon, ""} <- Float.parse(lon),
-         {lat, ""} <- Float.parse(lat) do
-      {lon, lat}
-    else
-      _unparseable -> nil
-    end
-  end
-
-  def parse_location(_other), do: nil
 
   defp required!(point, key) do
     case Map.get(point, key) do

@@ -9,8 +9,8 @@ defmodule Amap.Falcon.Service do
   `{:ok, struct | [struct] | nil} | {:error, %Amap.Error{}}`.
   """
 
-  alias Amap.Falcon.Validate
   alias Amap.Numeric
+  alias Amap.Validate
 
   defstruct [:sid, :name, :desc]
 
@@ -26,7 +26,7 @@ defmodule Amap.Falcon.Service do
   Creates a service and returns it.
 
   `name` must be unique within the key and obeys Amap's naming rules (see
-  `Amap.Falcon.Validate.name!/2`), which are enforced here rather than by a round
+  `Amap.Validate.name!/2`), which are enforced here rather than by a round
   trip.
   """
   @spec add(Amap.Client.t(), String.t(), keyword()) :: {:ok, t()} | {:error, Amap.Error.t()}

@@ -13,7 +13,7 @@ defmodule Amap.Falcon.TerminalColumn do
   use Amap.Falcon.Columns, base: "/v1/track/terminal/column"
 
   alias Amap.Falcon.Column
-  alias Amap.Falcon.Validate
+  alias Amap.Validate
 
   defstruct [:column, :type, :list]
 

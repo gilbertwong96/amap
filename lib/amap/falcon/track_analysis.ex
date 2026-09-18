@@ -17,8 +17,8 @@ defmodule Amap.Falcon.TrackAnalysis do
   alias Amap.Falcon.TrackAnalysis.Section
   alias Amap.Falcon.TrackAnalysis.StayPoint
   alias Amap.Falcon.TrackAnalysis.StayPoints
-  alias Amap.Falcon.Validate
   alias Amap.Numeric
+  alias Amap.Validate
 
   @base "/v1/track/analysis"
 
@@ -168,7 +168,7 @@ defmodule Amap.Falcon.TrackAnalysis do
 
   defp to_event(payload) do
     %Event{
-      location: Amap.Falcon.Point.parse_location(payload["location"]),
+      location: Amap.Coord.parse_location(payload["location"]),
       locate_time: Numeric.to_integer(payload["locateTime"]),
       acceleration: payload["acceleration"],
       initial_speed: payload["initialSpeed"],
@@ -191,7 +191,7 @@ defmodule Amap.Falcon.TrackAnalysis do
       start_time: Numeric.to_integer(payload["startTime"]),
       end_time: Numeric.to_integer(payload["endTime"]),
       duration: Numeric.to_integer(payload["duration"]),
-      location: Amap.Falcon.Point.parse_location(payload["location"]),
+      location: Amap.Coord.parse_location(payload["location"]),
       address: payload["address"]
     }
   end

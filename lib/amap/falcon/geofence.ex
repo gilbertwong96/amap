@@ -17,10 +17,10 @@ defmodule Amap.Falcon.Geofence do
 
   alias Amap.Falcon.Geofence.Page
   alias Amap.Falcon.Paging
-  alias Amap.Falcon.Validate
   alias Amap.Falcon.Wire
   alias Amap.Numeric
   alias Amap.Param
+  alias Amap.Validate
 
   defstruct [:gfid, :name, :desc, :shape, :points, :bufferradius, :createtime, :modifytime]
 

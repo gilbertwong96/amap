@@ -3,11 +3,11 @@ defmodule Amap.Falcon.GrasproadTest do
 
   alias Amap.Falcon.Grasproad
   alias Amap.Falcon.Grasproad.Degraded
-  alias Amap.Falcon.Grasproad.Point
   alias Amap.Falcon.Grasproad.Result
   alias Amap.Falcon.Grasproad.RoadResult
   alias Amap.Falcon.Grasproad.RoadTrack
   alias Amap.Falcon.Grasproad.Track
+  alias Amap.Falcon.Position
   alias Amap.TestServer
 
   setup do
@@ -48,7 +48,7 @@ defmodule Amap.Falcon.GrasproadTest do
 
       assert %Track{trid: 20, trname: "早晨", distance: 1200, time: 60_000, counts: 5} = track
 
-      assert [%Point{location: {114.1589, 22.2799}, speed: 40, props: %{"driver" => "abc"}}] =
+      assert [%Position{location: {114.1589, 22.2799}, speed: 40, props: %{"driver" => "abc"}}] =
                track.points
 
       assert_receive {:query, query}
@@ -121,7 +121,7 @@ defmodule Amap.Falcon.GrasproadTest do
       assert {:ok, %Result{tracks: [%Track{points: [point]}]}} =
                Grasproad.trsearch(client, 1, 456, trid: 20)
 
-      assert %Point{location: {114.1589, 22.2799}, locatetime: nil, speed: nil} = point
+      assert %Position{location: {114.1589, 22.2799}, locatetime: nil, speed: nil} = point
     end
 
     test "rejects a call that does not say what to read", %{client: client} do
@@ -192,7 +192,7 @@ defmodule Amap.Falcon.GrasproadTest do
                is_ownership: true
              } = track
 
-      assert [%Point{location: {114.1589, 22.2799}}] = track.points
+      assert [%Position{location: {114.1589, 22.2799}}] = track.points
 
       assert_receive {:body, body}
       assert body["carType"] == "1"

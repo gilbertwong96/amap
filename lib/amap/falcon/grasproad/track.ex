@@ -6,7 +6,7 @@ defmodule Amap.Falcon.Grasproad.Track do
   not the same as any point's `locatetime`.
   """
 
-  alias Amap.Falcon.Grasproad.Point
+  alias Amap.Falcon.Position
 
   defstruct [:trid, :trname, :distance, :time, :counts, points: []]
 
@@ -16,6 +16,6 @@ defmodule Amap.Falcon.Grasproad.Track do
           distance: number() | nil,
           time: integer() | nil,
           counts: integer() | nil,
-          points: [Point.t()]
+          points: [Position.t()]
         }
 end

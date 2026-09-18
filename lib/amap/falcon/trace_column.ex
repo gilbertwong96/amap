@@ -16,7 +16,7 @@ defmodule Amap.Falcon.TraceColumn do
   use Amap.Falcon.Columns, base: "/v1/track/point/column"
 
   alias Amap.Falcon.Column
-  alias Amap.Falcon.Validate
+  alias Amap.Validate
 
   defstruct [:column, :type]
 

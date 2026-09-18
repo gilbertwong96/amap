@@ -1,7 +1,7 @@
-defmodule Amap.Falcon.ValidateTest do
+defmodule Amap.ValidateTest do
   use ExUnit.Case, async: true
 
-  alias Amap.Falcon.Validate
+  alias Amap.Validate
 
   describe "name!/2" do
     test "accepts Chinese, letters, digits, underscore and hyphen" do

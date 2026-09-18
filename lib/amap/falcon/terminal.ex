@@ -12,8 +12,8 @@ defmodule Amap.Falcon.Terminal do
 
   alias Amap.Falcon.Paging
   alias Amap.Falcon.Terminal.Page
-  alias Amap.Falcon.Validate
   alias Amap.Numeric
+  alias Amap.Validate
 
   defstruct [:sid, :tid, :name, :desc, :props, :createtime, :locatetime]
 

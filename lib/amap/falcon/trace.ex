@@ -9,8 +9,8 @@ defmodule Amap.Falcon.Trace do
   {:error, %Amap.Error{}}`.
   """
 
-  alias Amap.Falcon.Validate
   alias Amap.Numeric
+  alias Amap.Validate
 
   defstruct [:trid, :trname]
 
@@ -25,7 +25,7 @@ defmodule Amap.Falcon.Trace do
   Creates a trace on a terminal and returns it.
 
   `trname` is optional, follows Amap's naming rules (see
-  `Amap.Falcon.Validate.name!/2`), and Amap generates a random name when it is
+  `Amap.Validate.name!/2`), and Amap generates a random name when it is
   left out.
   """
   @spec add(Amap.Client.t(), integer(), integer(), keyword()) ::

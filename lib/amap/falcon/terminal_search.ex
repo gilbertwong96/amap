@@ -22,8 +22,8 @@ defmodule Amap.Falcon.TerminalSearch do
   alias Amap.Falcon.TerminalSearch.Location
   alias Amap.Falcon.TerminalSearch.Page
   alias Amap.Falcon.TerminalSearch.Result
-  alias Amap.Falcon.Validate
   alias Amap.Numeric
+  alias Amap.Validate
 
   @base "/v1/track/terminal"
 

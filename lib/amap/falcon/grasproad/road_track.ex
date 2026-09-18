@@ -8,7 +8,7 @@ defmodule Amap.Falcon.Grasproad.RoadTrack do
   so on — with `road_class_name` carrying the same thing as text.
   """
 
-  alias Amap.Falcon.Grasproad.Point
+  alias Amap.Falcon.Position
 
   defstruct [
     :road_name,
@@ -27,6 +27,6 @@ defmodule Amap.Falcon.Grasproad.RoadTrack do
           road_class_name: String.t() | nil,
           is_toll: boolean() | nil,
           is_ownership: boolean() | nil,
-          points: [Point.t()]
+          points: [Position.t()]
         }
 end

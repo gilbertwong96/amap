@@ -9,7 +9,7 @@ defmodule Amap.Falcon.Column do
   `Amap.Falcon.TraceColumn` supply their own path and struct.
   """
 
-  alias Amap.Falcon.Validate
+  alias Amap.Validate
 
   @types [:string, :double, :int]
 

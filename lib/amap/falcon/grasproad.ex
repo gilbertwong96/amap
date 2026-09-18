@@ -14,14 +14,14 @@ defmodule Amap.Falcon.Grasproad do
 
   alias Amap.Falcon.Correction
   alias Amap.Falcon.Grasproad.Degraded
-  alias Amap.Falcon.Grasproad.Point
   alias Amap.Falcon.Grasproad.Result
   alias Amap.Falcon.Grasproad.RoadResult
   alias Amap.Falcon.Grasproad.RoadTrack
   alias Amap.Falcon.Grasproad.Track
-  alias Amap.Falcon.Validate
+  alias Amap.Falcon.Position
   alias Amap.Falcon.Wire
   alias Amap.Numeric
+  alias Amap.Validate
 
   @base "/v1/track/terminal"
 
@@ -164,19 +164,7 @@ defmodule Amap.Falcon.Grasproad do
       distance: payload["distance"],
       time: payload["time"],
       counts: Numeric.to_integer(payload["counts"]),
-      points: Enum.map(Map.get(payload, "points", []), &to_point/1)
-    }
-  end
-
-  defp to_point(payload) do
-    %Point{
-      location: Amap.Falcon.Point.parse_location(payload["location"]),
-      locatetime: Numeric.to_integer(payload["locatetime"]),
-      accuracy: payload["accuracy"],
-      direction: payload["direction"],
-      speed: payload["speed"],
-      height: payload["height"],
-      props: payload["props"]
+      points: Enum.map(Map.get(payload, "points", []), &Position.from_payload/1)
     }
   end
 
@@ -196,7 +184,7 @@ defmodule Amap.Falcon.Grasproad do
       road_class_name: payload["roadClassName"],
       is_toll: decode_flag(payload["isToll"]),
       is_ownership: decode_flag(payload["isOwnership"]),
-      points: Enum.map(Map.get(payload, "points", []), &to_point/1)
+      points: Enum.map(Map.get(payload, "points", []), &Position.from_payload/1)
     }
   end
 end

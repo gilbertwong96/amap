@@ -166,18 +166,4 @@ defmodule Amap.Falcon.PointTest do
       Point.upload(client, 1, 456, 20, [%{location: {1, 2}, locatetime: 1, props: "driver=abc"}])
     end
   end
-
-  describe "parse_location/1" do
-    test "reads Amap's lon,lat string" do
-      assert Point.parse_location("116.397428,39.90923") == {116.397428, 39.90923}
-      assert Point.parse_location("114.158,22.279") == {114.158, 22.279}
-    end
-
-    test "returns nil rather than raising for anything it cannot read" do
-      assert Point.parse_location(nil) == nil
-      assert Point.parse_location("not,a,point") == nil
-      assert Point.parse_location("abc,def") == nil
-      assert Point.parse_location(123) == nil
-    end
-  end
 end

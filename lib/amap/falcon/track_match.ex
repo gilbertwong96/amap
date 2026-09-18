@@ -83,7 +83,7 @@ defmodule Amap.Falcon.TrackMatch do
   defp parse_points(string) when is_binary(string) do
     string
     |> split_points()
-    |> Enum.map(&Amap.Falcon.Point.parse_location/1)
+    |> Enum.map(&Amap.Coord.parse_location/1)
     |> Enum.reject(&is_nil/1)
   end
 

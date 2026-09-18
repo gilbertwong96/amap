@@ -1,11 +1,16 @@
-defmodule Amap.Falcon.Validate do
+defmodule Amap.Validate do
   @moduledoc """
-  Call-site validation for Falcon parameters.
+  Call-site validation for Amap parameters.
 
   Amap's naming rules and numeric ranges are documented, and breaking one costs a
   round trip that comes back as `20000` or `20001` with no way to tell which
   field was wrong. These raise instead, naming the field, before any request is
   built.
+
+  `name!` and `text!` are the narrower pair: the 128-character rule over Chinese,
+  letters, digits, `_` and `-` is what Amap's **track** (Falcon) pages require of
+  a name or a description. It does not apply to a Web-service address, a district
+  keyword or a road name, so the Web-service modules do not call them.
   """
 
   @max_name_length 128
@@ -14,7 +19,7 @@ defmodule Amap.Falcon.Validate do
   @doc """
   Validates a name, a description, or a trace name.
 
-  Per Amap: at most 128 characters, only Chinese, English letters, digits,
+  Per Amap's track pages: at most 128 characters, only Chinese, English letters, digits,
   underscore and hyphen, and it may not start with an underscore. Empty is not a
   name, so this rejects it — `text!/2` is the variant for fields that an update
   can clear.

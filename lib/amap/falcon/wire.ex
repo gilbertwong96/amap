@@ -8,7 +8,7 @@ defmodule Amap.Falcon.Wire do
   so the encoding and the decoding of a flag cannot be confused for each other.
   """
 
-  alias Amap.Falcon.Validate
+  alias Amap.Validate
 
   @max_ids 100
 
