@@ -134,6 +134,42 @@ for a response Amap sends without data. Caller mistakes — a name that breaks
 Amap's character rules, a radius out of range, a filter that cannot be encoded —
 raise `ArgumentError` before any request is built.
 
+### Trajectories
+
+A `props` field, on a terminal or on a trace, is only legal once it has been
+declared — Amap rejects an undeclared one — and a service holds five of each:
+
+```elixir
+{:ok, nil} = Amap.Falcon.TerminalColumn.add(client, sid, "plate", :string)
+{:ok, nil} = Amap.Falcon.TraceColumn.add(client, sid, "driver", :string)
+
+{:ok, terminal} = Amap.Falcon.Terminal.add(client, sid, "truck-01", props: %{"plate" => "AB1234"})
+{:ok, trace} = Amap.Falcon.Trace.add(client, sid, terminal.tid, trname: "morning")
+
+{:ok, upload} =
+  Amap.Falcon.Point.upload(client, sid, terminal.tid, trace.trid, [
+    %{location: {114.158, 22.279}, locatetime: ~U[2026-09-17 12:00:00Z]},
+    %{location: {114.1583, 22.2793}, locatetime: ~U[2026-09-17 12:00:01Z], speed: 40.0}
+  ])
+
+upload.errorpoints
+# [] when every point was stored. Amap keeps the valid ones in a batch it only
+# partly accepts, and this list says which to send again.
+
+{:ok, found} =
+  Amap.Falcon.Grasproad.trsearch(client, sid, terminal.tid,
+    trid: trace.trid,
+    correction: [mapmatch: true, threshold: 20]
+  )
+
+found.tracks |> hd() |> Map.get(:points) |> hd()
+# %Amap.Falcon.Grasproad.Point{location: {114.158, 22.279}, ...}
+```
+
+`trsearch/4` also takes a `:starttime`/`:endtime` window of at most 24 hours
+instead of a `trid`. `Amap.Falcon.Grasproad.roaddata/2` answers which roads a
+trajectory ran on, but **Amap enables that service by ticket**.
+
 ## Swapping the JSON library
 
 ```elixir

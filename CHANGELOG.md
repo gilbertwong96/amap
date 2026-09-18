@@ -27,6 +27,17 @@ Notable changes to this project, newest first. The format follows
 - `Amap.Param.lat_lng/1` and `Amap.Param.polygon/1` for the wire formats those
   endpoints take, and `Amap.Falcon.Validate` for the rules Amap documents about
   names and ranges, enforced before a request is built rather than by a round trip.
+- Trajectories: `Amap.Falcon.Trace` creates and deletes one, and
+  `Amap.Falcon.Point` uploads its points in batches of up to 100. A batch Amap
+  only partly accepts is still a successful call, whose `errorpoints` list says
+  which points to send again.
+- `Amap.Falcon.Grasproad` reads trajectories back with `trsearch/4` — by trace, or
+  by a window of at most 24 hours — with Amap's denoise and snap options given as
+  a keyword list rather than as its own mini-format. `roaddata/2` asks which roads
+  a trajectory ran on, which Amap enables by ticket.
+- `Amap.Falcon.TerminalColumn` and `Amap.Falcon.TraceColumn` declare the custom
+  fields that `props` needs. Amap rejects an undeclared field, so these are what
+  make `props` usable at all.
 
 ### Notes
 
