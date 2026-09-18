@@ -125,6 +125,36 @@ defmodule Amap.Validate do
   defp enum_message(value, field, allowed),
     do: "#{field} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
 
+  @doc """
+  Validates a non-empty list of `{lon, lat}` pairs.
+
+  Amap takes coordinates as pairs of numbers everywhere, so a list of lists, a
+  pair of strings or a triple is a call-site mistake rather than a request.
+  """
+  @spec points!(term(), String.t()) :: [{number(), number()}]
+  def points!(values, field) when is_list(values) and values != [] do
+    Enum.each(values, &point!(&1, field))
+    values
+  end
+
+  def points!(value, field),
+    do:
+      raise(
+        ArgumentError,
+        "#{field} must be a non-empty list of {lon, lat} pairs, got: #{inspect(value)}"
+      )
+
+  @doc "Validates one `{lon, lat}` pair."
+  @spec point!(term(), String.t()) :: {number(), number()}
+  def point!({lon, lat} = point, _field) when is_number(lon) and is_number(lat), do: point
+
+  def point!(value, field),
+    do:
+      raise(
+        ArgumentError,
+        "#{field} must be a {lon, lat} pair of numbers, got: #{inspect(value)}"
+      )
+
   @doc "Validates an integer parameter against Amap's documented interval."
   @spec range!(term(), String.t(), integer(), integer()) :: integer()
   def range!(value, field, min, max) do

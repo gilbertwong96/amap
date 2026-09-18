@@ -96,9 +96,11 @@ defmodule Amap.ConvertTest do
   end
 
   test "rejects an empty list and more than forty points", %{client: client} do
-    assert_raise ArgumentError, ~r/:locations must not be empty/, fn ->
-      Convert.convert(client, [])
-    end
+    assert_raise ArgumentError,
+                 ~r/:locations must be a non-empty list of \{lon, lat\} pairs/,
+                 fn ->
+                   Convert.convert(client, [])
+                 end
 
     assert_raise ArgumentError, ~r/:locations count must be between 1 and 40, got: 41/, fn ->
       Convert.convert(client, Enum.map(1..41, &{&1 / 10, 39.99}))
@@ -106,11 +108,11 @@ defmodule Amap.ConvertTest do
   end
 
   test "rejects a list that is not pairs of numbers", %{client: client} do
-    assert_raise ArgumentError, ~r/:locations must be a list of \{lon, lat\} tuples/, fn ->
+    assert_raise ArgumentError, ~r/:locations must be a \{lon, lat\} pair of numbers/, fn ->
       Convert.convert(client, [[116.48, 39.99]])
     end
 
-    assert_raise ArgumentError, ~r/:locations must be a list of \{lon, lat\} tuples/, fn ->
+    assert_raise ArgumentError, ~r/:locations must be a \{lon, lat\} pair of numbers/, fn ->
       Convert.convert(client, [{"116.48", "39.99"}])
     end
   end

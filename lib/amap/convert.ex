@@ -38,7 +38,8 @@ defmodule Amap.Convert do
   @spec convert(Amap.Client.t(), [{number(), number()}], keyword()) ::
           {:ok, t()} | {:error, Amap.Error.t()}
   def convert(client, locations, opts \\ []) do
-    locations = validate_locations!(locations)
+    locations = Validate.points!(locations, ":locations")
+    Validate.range!(length(locations), ":locations count", 1, @max_locations)
 
     params = [
       locations: Param.pipe(Enum.map(locations, &Param.location/1)),
@@ -53,25 +54,4 @@ defmodule Amap.Convert do
         error
     end
   end
-
-  defp validate_locations!(locations) when is_list(locations) do
-    if locations == [] do
-      raise ArgumentError, ":locations must not be empty"
-    end
-
-    unless Enum.all?(locations, &point?/1) do
-      raise ArgumentError, locations_message(locations)
-    end
-
-    Validate.range!(length(locations), ":locations count", 1, @max_locations)
-    locations
-  end
-
-  defp validate_locations!(other), do: raise(ArgumentError, locations_message(other))
-
-  defp point?({lon, lat}) when is_number(lon) and is_number(lat), do: true
-  defp point?(_other), do: false
-
-  defp locations_message(value),
-    do: ":locations must be a list of {lon, lat} tuples, got: #{inspect(value)}"
 end

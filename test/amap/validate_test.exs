@@ -78,6 +78,36 @@ defmodule Amap.ValidateTest do
     end
   end
 
+  describe "point!/2 and points!/2" do
+    test "accepts pairs of numbers, and a list of them" do
+      assert Validate.point!({116.48, 39.99}, ":location") == {116.48, 39.99}
+      assert Validate.point!({116, 39}, ":location") == {116, 39}
+
+      assert Validate.points!([{116.48, 39.99}, {114.15, 22.27}], ":locations") ==
+               [{116.48, 39.99}, {114.15, 22.27}]
+    end
+
+    test "raises for anything Amap would not read as a coordinate" do
+      assert_raise ArgumentError,
+                   ~r/:location must be a \{lon, lat\} pair of numbers, got: \[116.48, 39.99\]/,
+                   fn ->
+                     Validate.point!([116.48, 39.99], ":location")
+                   end
+
+      assert_raise ArgumentError,
+                   ~r/:locations must be a non-empty list of \{lon, lat\} pairs/,
+                   fn ->
+                     Validate.points!([], ":locations")
+                   end
+
+      assert_raise ArgumentError,
+                   ~r/:locations must be a \{lon, lat\} pair of numbers, got: "116.48,39.99"/,
+                   fn ->
+                     Validate.points!(["116.48,39.99"], ":locations")
+                   end
+    end
+  end
+
   describe "range!/4" do
     test "accepts the documented interval" do
       assert Validate.range!(500, ":radius", 1, 5000) == 500
