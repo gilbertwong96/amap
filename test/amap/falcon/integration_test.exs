@@ -25,6 +25,9 @@ defmodule Amap.Falcon.IntegrationTest do
 
   use ExUnit.Case, async: false
 
+  alias Amap.Falcon.FenceStatus
+  alias Amap.Falcon.FenceTerminal
+  alias Amap.Falcon.Geofence
   alias Amap.Falcon.Grasproad
   alias Amap.Falcon.Point
   alias Amap.Falcon.Service
@@ -230,6 +233,63 @@ defmodule Amap.Falcon.IntegrationTest do
     report("roaddata", fn ->
       inspect(Grasproad.roaddata(client, sid: sid, tid: tid, trid: trid))
     end)
+  end
+
+  test "a fence, its shape, and whether something is inside", %{client: client} do
+    sid = create_service(client)
+
+    on_exit(fn ->
+      # Best effort: nothing may exist if the test failed early.
+      Geofence.delete(client, sid, :all)
+      Service.delete(client, sid)
+    end)
+
+    {lon, lat} = {114.158, 22.279}
+
+    assert {:ok, fence} =
+             Geofence.add_circle(client, sid, "warehouse",
+               center: {lon, lat},
+               radius: 500,
+               desc: "integration test"
+             )
+
+    gfid = fence.gfid
+
+    # What the documented "shape information" object actually holds: the plan
+    # deliberately left it a plain map rather than inventing fields for it.
+    assert {:ok, %Geofence.Page{items: [listed]}} = Geofence.list(client, sid, outputshape: true)
+    report("geofence shape", fn -> inspect(listed.shape) end)
+    report("geofence list row", fn -> inspect(Map.take(listed, [:gfid, :name, :createtime])) end)
+
+    assert {:ok, %FenceStatus.Page{items: [inside]}} =
+             FenceStatus.location(client, sid, {lon, lat})
+
+    report("status/location at the centre", fn -> "in: #{inspect(inside.in)}" end)
+    # The centre of a 500 m circle is inside it by construction.
+    assert inside.in == true
+
+    assert {:ok, %FenceStatus.Page{items: [away]}} =
+             FenceStatus.location(client, sid, {lon + 1.0, lat + 1.0})
+
+    report("status/location a degree away", fn -> "in: #{inspect(away.in)}" end)
+
+    assert {:ok, terminal} = Terminal.add(client, sid, "truck")
+    assert {:ok, [bound]} = FenceTerminal.bind(client, sid, gfid, [terminal.tid])
+    assert bound == terminal.tid
+
+    assert {:ok, %FenceTerminal.Page{items: [watched]}} = FenceTerminal.list(client, sid, gfid)
+    report("bound terminal", fn -> inspect(Map.take(watched, [:tid, :tname])) end)
+
+    # With no position reported, `in` is false and the other two are absent.
+    assert {:ok, %FenceStatus.Page{items: [unpositioned]}} =
+             FenceStatus.terminal(client, sid, terminal.tid)
+
+    report("status/terminal with no position", fn ->
+      "in: #{inspect(unpositioned.in)}, location: #{inspect(unpositioned.location)}"
+    end)
+
+    assert {:ok, nil} = Geofence.delete(client, sid, :all)
+    assert {:ok, %Geofence.Page{count: 0}} = Geofence.list(client, sid)
   end
 
   defp create_service(client) do
