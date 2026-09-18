@@ -190,7 +190,7 @@ defmodule Amap.RequestTest do
       parent = self()
 
       TestServer.expect_once(server, "POST", "/v1/track/match", fn req ->
-        send(parent, {:body, req.headers["content-type"], req.body})
+        send(parent, {:body, req.headers["content-type"], req.body, req.query})
         {200, ~s({"errcode":10000,"errmsg":"OK","data":{}})}
       end)
 
@@ -207,7 +207,11 @@ defmodule Amap.RequestTest do
                  body: :json
                )
 
-      assert_receive {:body, "application/json", body}
+      assert_receive {:body, "application/json", body, query}
+
+      # The key travels in the query string as well: a live call with it only in the
+      # body answered 10001 INVALID_USER_KEY, so this service does not read it there.
+      assert URI.decode_query(query) == %{"key" => "test-key"}
 
       # Nested objects stay nested: `Param.encode/1` would flatten them into string
       # pairs, which is why the JSON path does not go through it.
