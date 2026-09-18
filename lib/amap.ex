@@ -70,7 +70,7 @@ defmodule Amap do
           String.t(),
           map() | keyword()
         ) ::
-          {:ok, map() | nil} | {:error, Error.t()}
+          {:ok, map() | list() | nil} | {:error, Error.t()}
   def request(client, family, method, path, params, opts \\ [])
 
   def request(%Amap.Client{} = client, family, method, path, params, opts)

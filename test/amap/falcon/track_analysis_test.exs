@@ -118,6 +118,26 @@ defmodule Amap.Falcon.TrackAnalysisTest do
     end
   end
 
+  test "a payload that is not an object becomes a named error, not a crash", %{
+    server: server,
+    client: client
+  } do
+    # Amap's pages say a value arrives as a string or as an array. The live service
+    # answered this endpoint with a non-empty array where the docs promise an
+    # object, which used to crash inside the mapper on a string index.
+    arm(
+      server,
+      "/v1/track/analysis/drivingbehavior",
+      ~s({"errcode":10000,"errmsg":"OK","data":[{"distance":12000}]})
+    )
+
+    assert {:error, %Amap.Error{reason: :unexpected_response} = error} =
+             TrackAnalysis.driving_behavior(client, 1, 456, 20)
+
+    # The payload travels with the error, so a caller can see what arrived.
+    assert %{body: [%{"distance" => 12_000}]} = error.response
+  end
+
   describe "stay_points/5" do
     @stay_body ~s({"errcode":10000,"errmsg":"OK","data":{"stayPointCount":1,"stayPoints":[{"startTime":1789703117430,"endTime":1789703717430,"duration":600000,"location":"114.1589,22.2799","address":"香港中環"}]}})
 

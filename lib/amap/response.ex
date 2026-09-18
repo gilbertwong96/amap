@@ -48,7 +48,7 @@ defmodule Amap.Response do
   would discard the successful part. Use `partial?/2` to detect it.
   """
   @spec normalize(Client.family(), term(), integer() | nil) ::
-          {:ok, map() | nil} | {:error, Error.t()}
+          {:ok, map() | list() | nil} | {:error, Error.t()}
   def normalize(:tsapi, %{"errcode" => errcode} = body, http_status)
       when is_integer(errcode) or is_binary(errcode) do
     case Numeric.to_integer(errcode) do

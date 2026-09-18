@@ -11,6 +11,7 @@ defmodule Amap.Falcon.TrackAnalysis do
   is: Amap reads the whole trace unless a window narrows it.
   """
 
+  alias Amap.Error
   alias Amap.Falcon.TrackAnalysis.DrivingBehaviour
   alias Amap.Falcon.TrackAnalysis.Event
   alias Amap.Falcon.TrackAnalysis.Section
@@ -45,9 +46,20 @@ defmodule Amap.Falcon.TrackAnalysis do
         ]
 
     case Amap.request(client, :tsapi, :get, @base <> "/drivingbehavior", params) do
-      {:ok, nil} -> {:ok, nil}
-      {:ok, payload} -> {:ok, to_behaviour(payload)}
-      {:error, _} = error -> error
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, payload} when is_map(payload) ->
+        {:ok, to_behaviour(payload)}
+
+      # Amap's pages say values arrive as strings or as arrays; a non-map here is a
+      # shape this SDK does not recognise, and it becomes a named error carrying the
+      # payload rather than a crash inside the mapper.
+      {:ok, other} ->
+        {:error, Error.unexpected_response(nil, other)}
+
+      {:error, _} = error ->
+        error
     end
   end
 
@@ -72,9 +84,17 @@ defmodule Amap.Falcon.TrackAnalysis do
         ]
 
     case Amap.request(client, :tsapi, :get, @base <> "/staypoint", params) do
-      {:ok, nil} -> {:ok, nil}
-      {:ok, payload} -> {:ok, to_stay_points(payload)}
-      {:error, _} = error -> error
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, payload} when is_map(payload) ->
+        {:ok, to_stay_points(payload)}
+
+      {:ok, other} ->
+        {:error, Error.unexpected_response(nil, other)}
+
+      {:error, _} = error ->
+        error
     end
   end
 
