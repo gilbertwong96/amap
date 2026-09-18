@@ -68,6 +68,44 @@ defmodule Amap.Falcon.TerminalSearch do
     |> to_page()
   end
 
+  @doc """
+  Searches terminals inside a polygon.
+
+  `polygon` is a ring of `{lon, lat}` points, or a list of rings for several
+  polygons at once — the wire form is latitude-first with rings joined by `;`
+  and groups by `|`, which is handled here. Amap caps the total bounding area at
+  3000 km², which this cannot check.
+  """
+  @spec polygonsearch(
+          Amap.Client.t(),
+          integer(),
+          [{number(), number()}] | [[{number(), number()}]],
+          keyword()
+        ) :: {:ok, Page.t()} | {:error, Amap.Error.t()}
+  def polygonsearch(client, sid, polygon, opts \\ []) do
+    params = [sid: sid, polygon: Amap.Param.polygon(polygon)] ++ common_params(opts)
+
+    client
+    |> Amap.request(:tsapi, :post, @base <> "/polygonsearch", params)
+    |> to_page()
+  end
+
+  @doc """
+  Searches terminals inside an administrative district.
+
+  `keywords` is a province, city or district name, or an adcode — Amap answers
+  every region a two-piece district covers.
+  """
+  @spec districtsearch(Amap.Client.t(), integer(), String.t(), keyword()) ::
+          {:ok, Page.t()} | {:error, Amap.Error.t()}
+  def districtsearch(client, sid, keywords, opts \\ []) do
+    params = [sid: sid, keywords: Validate.present!(keywords, ":keywords")] ++ common_params(opts)
+
+    client
+    |> Amap.request(:tsapi, :post, @base <> "/districtsearch", params)
+    |> to_page()
+  end
+
   defp common_params(opts) do
     [
       filter: encode_filter(Keyword.get(opts, :filter)),

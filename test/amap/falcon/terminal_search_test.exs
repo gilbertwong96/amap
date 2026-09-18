@@ -165,4 +165,51 @@ defmodule Amap.Falcon.TerminalSearchTest do
       end
     end
   end
+
+  describe "polygonsearch/4" do
+    test "sends the ring latitude-first with semicolons between points", %{
+      server: server,
+      client: client
+    } do
+      arm(server, "/v1/track/terminal/polygonsearch")
+
+      TerminalSearch.polygonsearch(client, 1, [{116.35, 39.98}, {116.36, 39.98}, {116.36, 39.99}])
+
+      assert_receive {:body, body}
+      assert body["polygon"] == "39.98,116.35;39.98,116.36;39.99,116.36"
+    end
+
+    test "sends several rings separated by a pipe", %{server: server, client: client} do
+      arm(server, "/v1/track/terminal/polygonsearch")
+
+      TerminalSearch.polygonsearch(client, 1, [
+        [{116.35, 39.98}, {116.36, 39.98}, {116.36, 39.99}],
+        [{116.40, 39.90}, {116.41, 39.90}, {116.41, 39.91}]
+      ])
+
+      assert_receive {:body, body}
+
+      assert body["polygon"] ==
+               "39.98,116.35;39.98,116.36;39.99,116.36|39.9,116.4;39.9,116.41;39.91,116.41"
+    end
+  end
+
+  describe "districtsearch/4" do
+    test "sends the district and the shared options", %{server: server, client: client} do
+      arm(server, "/v1/track/terminal/districtsearch")
+
+      TerminalSearch.districtsearch(client, 1, "香港", sort: {:name, :asc}, pagesize: 50)
+
+      assert_receive {:body, body}
+      assert body["keywords"] == "香港"
+      assert body["sortrule"] == "name:asc"
+      assert body["pagesize"] == "50"
+    end
+
+    test "rejects empty keywords", %{client: client} do
+      assert_raise ArgumentError, ~r/:keywords must be a non-empty string/, fn ->
+        TerminalSearch.districtsearch(client, 1, "")
+      end
+    end
+  end
 end
