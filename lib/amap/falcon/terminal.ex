@@ -38,9 +38,14 @@ defmodule Amap.Falcon.Terminal do
   @spec add(Amap.Client.t(), integer(), String.t(), keyword()) ::
           {:ok, t()} | {:error, Amap.Error.t()}
   def add(client, sid, name, opts \\ []) do
-    params =
-      [sid: sid, name: Validate.name!(name, ":name")] ++
-        optional(desc: Keyword.get(opts, :desc), props: props_param(Keyword.get(opts, :props)))
+    params = [
+      sid: sid,
+      name: Validate.name!(name, ":name"),
+      # `nil` means absent: `Amap.Param.encode/1` drops nil values, so an optional
+      # parameter the caller left out never reaches the wire.
+      desc: Keyword.get(opts, :desc),
+      props: props_param(Keyword.get(opts, :props))
+    ]
 
     client
     |> Amap.request(:tsapi, :post, @base <> "/add", params)
@@ -64,18 +69,22 @@ defmodule Amap.Falcon.Terminal do
   @spec update(Amap.Client.t(), integer(), integer(), keyword()) ::
           {:ok, nil} | {:error, Amap.Error.t()}
   def update(client, sid, tid, opts) do
-    fields =
-      optional(
-        desc: validate_optional(&Validate.name!/2, Keyword.get(opts, :desc), ":desc"),
-        props: props_param(Keyword.get(opts, :props))
-      )
+    desc = Keyword.get(opts, :desc)
+    props = Keyword.get(opts, :props)
 
-    if fields == [] do
+    if is_nil(desc) and is_nil(props) do
       raise ArgumentError,
             "update requires at least one of :desc or :props; pass a value to change"
     end
 
-    Amap.request(client, :tsapi, :post, @base <> "/update", [sid: sid, tid: tid] ++ fields)
+    params = [
+      sid: sid,
+      tid: tid,
+      desc: Validate.optional!(&Validate.name!/2, desc, ":desc"),
+      props: props_param(props)
+    ]
+
+    Amap.request(client, :tsapi, :post, @base <> "/update", params)
   end
 
   @doc """
@@ -86,13 +95,12 @@ defmodule Amap.Falcon.Terminal do
   """
   @spec list(Amap.Client.t(), integer(), keyword()) :: {:ok, Page.t()} | {:error, Amap.Error.t()}
   def list(client, sid, opts \\ []) do
-    params =
-      [sid: sid] ++
-        optional(
-          tid: Keyword.get(opts, :tid),
-          name: validate_optional(&Validate.name!/2, Keyword.get(opts, :name), ":name"),
-          page: validate_page(Keyword.get(opts, :page))
-        )
+    params = [
+      sid: sid,
+      tid: Keyword.get(opts, :tid),
+      name: Validate.optional!(&Validate.name!/2, Keyword.get(opts, :name), ":name"),
+      page: validate_page(Keyword.get(opts, :page))
+    ]
 
     case Amap.request(client, :tsapi, :get, @base <> "/list", params) do
       {:ok, payload} ->
@@ -135,9 +143,4 @@ defmodule Amap.Falcon.Terminal do
 
   defp validate_page(nil), do: nil
   defp validate_page(page), do: Validate.range!(page, ":page", 1, 1_000_000)
-
-  defp optional(pairs), do: for({key, value} <- pairs, not is_nil(value), do: {key, value})
-
-  defp validate_optional(_validator, nil, _field), do: nil
-  defp validate_optional(validator, value, field), do: validator.(value, field)
 end

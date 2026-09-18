@@ -31,10 +31,12 @@ defmodule Amap.Falcon.Service do
   """
   @spec add(Amap.Client.t(), String.t(), keyword()) :: {:ok, t()} | {:error, Amap.Error.t()}
   def add(client, name, opts \\ []) do
-    params =
-      [
-        name: Validate.name!(name, ":name")
-      ] ++ optional(desc: Keyword.get(opts, :desc))
+    params = [
+      name: Validate.name!(name, ":name"),
+      # `nil` means absent: `Amap.Param.encode/1` drops nil values, so an optional
+      # parameter the caller left out never reaches the wire.
+      desc: Keyword.get(opts, :desc)
+    ]
 
     client
     |> Amap.request(:tsapi, :post, @base <> "/add", params)
@@ -54,19 +56,22 @@ defmodule Amap.Falcon.Service do
   """
   @spec update(Amap.Client.t(), integer(), keyword()) :: {:ok, t()} | {:error, Amap.Error.t()}
   def update(client, sid, opts) do
-    fields =
-      optional(
-        name: validate_optional(&Validate.name!/2, Keyword.get(opts, :name), ":name"),
-        desc: validate_optional(&Validate.name!/2, Keyword.get(opts, :desc), ":desc")
-      )
+    name = Keyword.get(opts, :name)
+    desc = Keyword.get(opts, :desc)
 
-    if fields == [] do
+    if is_nil(name) and is_nil(desc) do
       raise ArgumentError,
             "update requires at least one of :name or :desc; pass a value to change"
     end
 
+    params = [
+      sid: sid,
+      name: Validate.optional!(&Validate.name!/2, name, ":name"),
+      desc: Validate.optional!(&Validate.name!/2, desc, ":desc")
+    ]
+
     client
-    |> Amap.request(:tsapi, :post, @base <> "/update", [sid: sid] ++ fields)
+    |> Amap.request(:tsapi, :post, @base <> "/update", params)
     |> to_service()
   end
 
@@ -92,11 +97,4 @@ defmodule Amap.Falcon.Service do
   defp to_service({:ok, nil}), do: {:ok, nil}
   defp to_service({:ok, payload}), do: {:ok, to_service_struct(payload)}
   defp to_service({:error, _} = error), do: error
-
-  # `Param.encode/1` drops nils, so building the list with nils is how an
-  # optional parameter stays absent from the request.
-  defp optional(pairs), do: for({key, value} <- pairs, not is_nil(value), do: {key, value})
-
-  defp validate_optional(_validator, nil, _field), do: nil
-  defp validate_optional(validator, value, field), do: validator.(value, field)
 end

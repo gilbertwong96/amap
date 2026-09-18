@@ -44,6 +44,15 @@ defmodule Amap.Falcon.ServiceTest do
     Service.add(client, "A", desc: "description")
     assert_receive {:body, body}
     assert URI.decode_query(body)["desc"] == "description"
+
+    TestServer.expect_once(server, "POST", "/v1/track/service/add", fn req ->
+      send(parent, {:no_desc, URI.decode_query(req.body)})
+      {200, ~s({"errcode":0,"errmsg":"OK","data":{"sid":1,"name":"A"}})}
+    end)
+
+    Service.add(client, "A")
+    assert_receive {:no_desc, body}
+    refute Map.has_key?(body, "desc")
   end
 
   test "delete/2 returns {:ok, nil}, since the API sends no data", %{

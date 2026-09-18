@@ -53,4 +53,14 @@ defmodule Amap.Falcon.ValidateTest do
       end
     end
   end
+
+  describe "optional!/3" do
+    test "passes a given value to the validator" do
+      assert Validate.optional!(&Validate.name!/2, "货车01", ":desc") == "货车01"
+    end
+
+    test "treats nil as absent rather than as a value to check" do
+      assert Validate.optional!(&Validate.name!/2, nil, ":desc") == nil
+    end
+  end
 end

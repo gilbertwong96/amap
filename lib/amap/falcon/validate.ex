@@ -53,6 +53,17 @@ defmodule Amap.Falcon.Validate do
     end
   end
 
+  @doc """
+  Validates a value only when it was given.
+
+  Optional parameters arrive as `nil` when the caller left them out, and
+  `nil` is not a valid value to check — it means "absent", which the encoder
+  turns into a missing parameter rather than an empty one.
+  """
+  @spec optional!((term(), String.t() -> String.t()), term(), String.t()) :: String.t() | nil
+  def optional!(_validator, nil, _field), do: nil
+  def optional!(validator, value, field), do: validator.(value, field)
+
   @doc "Validates an integer parameter against Amap's documented interval."
   @spec range!(term(), String.t(), integer(), integer()) :: integer()
   def range!(value, field, min, max) do

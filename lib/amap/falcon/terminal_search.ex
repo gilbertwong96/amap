@@ -57,8 +57,11 @@ defmodule Amap.Falcon.TerminalSearch do
           {:ok, Page.t()} | {:error, Amap.Error.t()}
   def aroundsearch(client, sid, center, opts \\ []) do
     params =
-      [sid: sid, center: Amap.Param.lat_lng(center)] ++
-        optional(radius: validate_radius(Keyword.get(opts, :radius))) ++ common_params(opts)
+      [
+        sid: sid,
+        center: Amap.Param.lat_lng(center),
+        radius: validate_radius(Keyword.get(opts, :radius))
+      ] ++ common_params(opts)
 
     client
     |> Amap.request(:tsapi, :post, @base <> "/aroundsearch", params)
@@ -66,12 +69,12 @@ defmodule Amap.Falcon.TerminalSearch do
   end
 
   defp common_params(opts) do
-    optional(
+    [
       filter: encode_filter(Keyword.get(opts, :filter)),
       sortrule: encode_sort(Keyword.get(opts, :sort)),
       page: validate_page(Keyword.get(opts, :page)),
       pagesize: validate_pagesize(Keyword.get(opts, :pagesize))
-    )
+    ]
   end
 
   defp encode_filter(nil), do: nil
@@ -114,8 +117,6 @@ defmodule Amap.Falcon.TerminalSearch do
 
   defp validate_pagesize(nil), do: nil
   defp validate_pagesize(size), do: Validate.range!(size, ":pagesize", 1, 100)
-
-  defp optional(pairs), do: for({key, value} <- pairs, not is_nil(value), do: {key, value})
 
   defp to_page({:ok, payload}) do
     {:ok,
