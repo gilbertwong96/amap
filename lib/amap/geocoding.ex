@@ -13,10 +13,26 @@ defmodule Amap.Geocoding do
   """
 
   alias Amap.Coord
+  alias Amap.Geocoding.AddressComponent
+  alias Amap.Geocoding.Aoi
+  alias Amap.Geocoding.Building
+  alias Amap.Geocoding.BusinessArea
   alias Amap.Geocoding.Geo
+  alias Amap.Geocoding.Neighborhood
+  alias Amap.Geocoding.Poi
+  alias Amap.Geocoding.Regeo
+  alias Amap.Geocoding.Road
+  alias Amap.Geocoding.RoadInter
+  alias Amap.Geocoding.StreetNumber
   alias Amap.Validate
 
   @geo_path "/v3/geocode/geo"
+  @regeo_path "/v3/geocode/regeo"
+
+  # Amap documents these four as taking effect only with `extensions=all`, and
+  # ignores them silently otherwise — so a caller who sets one without the other
+  # would get an answer that looks fine and is not what they asked for.
+  @detail_options [:radius, :poitype, :roadlevel, :homeorcorp]
 
   @doc """
   Geocodes a structured address.
@@ -43,6 +59,74 @@ defmodule Amap.Geocoding do
     end
   end
 
+  @doc """
+  Reverse geocodes a coordinate.
+
+  `location` is a `{lon, lat}` tuple, at most six decimals.
+
+  `extensions: :all` is what brings back `roads`, `roadinters`, `pois` and `aois`
+  — without it Amap omits them, and they arrive here as `[]` rather than as `nil`
+  so a caller can always enumerate them. The four options that only work with
+  `:all` (`:radius`, `:poitype`, `:roadlevel`, `:homeorcorp`) raise without it.
+
+  `city` is **empty for the four municipalities** (北京/上海/天津/重庆) and for
+  province-administered counties, so it is not a field to branch on. `sea_area` is
+  the sea the point belongs to, if any.
+  """
+  @spec regeo(Amap.Client.t(), {number(), number()}, keyword()) ::
+          {:ok, Regeo.t()} | {:error, Amap.Error.t()}
+  def regeo(client, location, opts \\ []) do
+    params =
+      [
+        location: Amap.Param.location(location),
+        extensions: extensions_param(Keyword.get(opts, :extensions))
+      ] ++ detail_params(opts)
+
+    case Amap.request(client, :restapi, :get, @regeo_path, params) do
+      {:ok, payload} -> {:ok, to_regeo(payload["regeocode"] || %{})}
+      {:error, _} = error -> error
+    end
+  end
+
+  defp extensions_param(nil), do: nil
+  defp extensions_param(:base), do: "base"
+  defp extensions_param(:all), do: "all"
+
+  defp extensions_param(other),
+    do: raise(ArgumentError, ":extensions must be :base or :all, got: #{inspect(other)}")
+
+  defp detail_params(opts) do
+    given =
+      opts
+      |> Keyword.take(@detail_options)
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Keyword.keys()
+
+    if given != [] and Keyword.get(opts, :extensions) != :all do
+      raise ArgumentError,
+            "#{inspect(given)} only take effect with extensions: :all, which Amap " <>
+              "otherwise ignores without saying so"
+    end
+
+    [
+      radius: Validate.optional_range!(Keyword.get(opts, :radius), ":radius", 0, 3000),
+      poitype: encode_poitype(Keyword.get(opts, :poitype)),
+      roadlevel: Validate.optional_range!(Keyword.get(opts, :roadlevel), ":roadlevel", 0, 1),
+      homeorcorp: Validate.optional_range!(Keyword.get(opts, :homeorcorp), ":homeorcorp", 0, 2)
+    ]
+  end
+
+  defp encode_poitype(nil), do: nil
+  defp encode_poitype(type) when is_binary(type), do: type
+  defp encode_poitype(types) when is_list(types), do: Amap.Param.pipe(types)
+
+  defp encode_poitype(other),
+    do:
+      raise(
+        ArgumentError,
+        ":poitype must be a TYPECODE or a list of them, got: #{inspect(other)}"
+      )
+
   defp to_geo(payload) do
     %Geo{
       country: payload["country"],
@@ -55,6 +139,116 @@ defmodule Amap.Geocoding do
       adcode: payload["adcode"],
       location: Coord.parse_location(payload["location"]),
       level: payload["level"]
+    }
+  end
+
+  defp to_regeo(payload) do
+    %Regeo{
+      address_component: to_address_component(payload["addressComponent"]),
+      roads: Enum.map(payload["roads"] || [], &to_road/1),
+      roadinters: Enum.map(payload["roadinters"] || [], &to_road_inter/1),
+      pois: Enum.map(payload["pois"] || [], &to_poi/1),
+      aois: Enum.map(payload["aois"] || [], &to_aoi/1)
+    }
+  end
+
+  defp to_address_component(nil), do: nil
+
+  defp to_address_component(payload) do
+    %AddressComponent{
+      country: payload["country"],
+      province: payload["province"],
+      city: payload["city"],
+      citycode: payload["citycode"],
+      district: payload["district"],
+      adcode: payload["adcode"],
+      township: payload["township"],
+      towncode: payload["towncode"],
+      neighborhood: to_neighborhood(payload["neighborhood"]),
+      building: to_building(payload["building"]),
+      street_number: to_street_number(payload["streetNumber"]),
+      sea_area: payload["seaArea"],
+      business_areas: Enum.map(payload["businessAreas"] || [], &to_business_area/1)
+    }
+  end
+
+  defp to_neighborhood(nil), do: nil
+
+  defp to_neighborhood(payload) do
+    %Neighborhood{name: payload["name"], type: payload["type"]}
+  end
+
+  defp to_building(nil), do: nil
+
+  defp to_building(payload) do
+    %Building{name: payload["name"], type: payload["type"]}
+  end
+
+  defp to_street_number(nil), do: nil
+
+  defp to_street_number(payload) do
+    %StreetNumber{
+      street: payload["street"],
+      number: payload["number"],
+      location: Coord.parse_location(payload["location"]),
+      direction: payload["direction"],
+      distance: payload["distance"]
+    }
+  end
+
+  defp to_business_area(payload) do
+    %BusinessArea{
+      location: Coord.parse_location(payload["location"]),
+      name: payload["name"],
+      id: payload["id"]
+    }
+  end
+
+  defp to_road(payload) do
+    %Road{
+      id: payload["id"],
+      name: payload["name"],
+      distance: payload["distance"],
+      direction: payload["direction"],
+      location: Coord.parse_location(payload["location"])
+    }
+  end
+
+  defp to_road_inter(payload) do
+    %RoadInter{
+      distance: payload["distance"],
+      direction: payload["direction"],
+      location: Coord.parse_location(payload["location"]),
+      first_id: payload["first_id"],
+      first_name: payload["first_name"],
+      second_id: payload["second_id"],
+      second_name: payload["second_name"]
+    }
+  end
+
+  defp to_poi(payload) do
+    %Poi{
+      id: payload["id"],
+      name: payload["name"],
+      type: payload["type"],
+      tel: payload["tel"],
+      distance: payload["distance"],
+      direction: payload["direction"],
+      address: payload["address"],
+      location: Coord.parse_location(payload["location"]),
+      businessarea: payload["businessarea"]
+    }
+  end
+
+  defp to_aoi(payload) do
+    %Aoi{
+      id: payload["id"],
+      name: payload["name"],
+      adcode: payload["adcode"],
+      location: Coord.parse_location(payload["location"]),
+      area: payload["area"],
+      distance: payload["distance"],
+      type: payload["type"]
     }
   end
 end
