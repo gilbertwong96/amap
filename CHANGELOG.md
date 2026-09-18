@@ -38,6 +38,13 @@ Notable changes to this project, newest first. The format follows
 - `Amap.Falcon.TerminalColumn` and `Amap.Falcon.TraceColumn` declare the custom
   fields that `props` needs. Amap rejects an undeclared field, so these are what
   make `props` usable at all.
+- Geofences in four shapes — `Amap.Falcon.Geofence.add_circle/4`, `add_polygon/4`,
+  `add_polyline/4` and `add_district/4`, each with a matching `update_*` — plus
+  `delete/3` and `list/2`. Fence coordinates are longitude-first.
+- `Amap.Falcon.FenceTerminal` binds and unbinds the terminals a fence watches, and
+  `Amap.Falcon.FenceStatus` answers whether a terminal or a coordinate is inside a
+  fence. An id list longer than Amap's 100-per-call limit raises rather than being
+  truncated silently.
 
 ### Notes
 

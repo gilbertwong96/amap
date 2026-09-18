@@ -170,6 +170,32 @@ found.tracks |> hd() |> Map.get(:points) |> hd()
 instead of a `trid`. `Amap.Falcon.Grasproad.roaddata/2` answers which roads a
 trajectory ran on, but **Amap enables that service by ticket**.
 
+### Geofences
+
+Fences come in four shapes, each with its own create and update call, and a service
+holds 1000 of them:
+
+```elixir
+{:ok, fence} =
+  Amap.Falcon.Geofence.add_circle(client, sid, "warehouse",
+    center: {114.158, 22.279},
+    radius: 500
+  )
+
+# A fence only reports on terminals bound to it.
+{:ok, _} = Amap.Falcon.FenceTerminal.bind(client, sid, fence.gfid, [terminal.tid])
+
+{:ok, page} = Amap.Falcon.FenceStatus.location(client, sid, {114.158, 22.279})
+hd(page.items).in    # true
+
+Amap.Falcon.Geofence.delete(client, sid, :all)   # or up to 100 ids
+```
+
+`add_polygon/4`, `add_polyline/4` and `add_district/4` take a ring of `{lon, lat}`
+tuples, a route with a `bufferradius`, or an `adcode`. Coordinates here are
+longitude first — what `Amap.Param.locations/1` produces, and *not* the
+latitude-first order the terminal-search centre takes.
+
 ## Swapping the JSON library
 
 ```elixir
