@@ -15,6 +15,7 @@ defmodule Amap.Falcon.Geofence do
   rather than sending a fence Amap will reject.
   """
 
+  alias Amap.Falcon.Geofence.Page
   alias Amap.Falcon.Validate
   alias Amap.Numeric
   alias Amap.Param
@@ -106,6 +107,78 @@ defmodule Amap.Falcon.Geofence do
   @doc "Lists the shapes this module can build, for a caller that takes them as input."
   @spec shapes() :: [atom()]
   def shapes, do: @shapes
+
+  @doc """
+  Deletes fences.
+
+  Pass at most 100 ids — Amap truncates a longer list silently rather than failing,
+  so this raises instead — or `:all` to remove every fence in the service. `:all`
+  answers `{:ok, nil}`, because Amap has nothing to enumerate; a list answers with
+  the ids that were actually deleted.
+  """
+  @spec delete(Amap.Client.t(), integer(), [integer()] | :all) ::
+          {:ok, [integer()] | nil} | {:error, Amap.Error.t()}
+  def delete(client, sid, :all),
+    do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, gfids: "#all")
+
+  def delete(client, sid, gfids) when is_list(gfids) do
+    params = [sid: sid, gfids: join_ids!(gfids, ":gfids")]
+
+    case Amap.request(client, :tsapi, :post, @base <> "/delete", params) do
+      {:ok, payload} -> {:ok, List.wrap(payload["gfids"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Lists fences.
+
+  `outputshape: true` adds each fence's `shape` object. `gfids` limits the answer to
+  those ids and **turns pagination off** — Amap ignores `page` and `pagesize` in that
+  case — while `page` and `pagesize` page through everything else, at most 100 at a
+  time.
+  """
+  @spec list(Amap.Client.t(), integer(), keyword()) :: {:ok, Page.t()} | {:error, Amap.Error.t()}
+  def list(client, sid, opts \\ []) do
+    params = [
+      sid: sid,
+      outputshape: flag(Keyword.get(opts, :outputshape)),
+      gfids: encode_gfids(Keyword.get(opts, :gfids)),
+      page: validate_page(Keyword.get(opts, :page)),
+      pagesize: validate_pagesize(Keyword.get(opts, :pagesize))
+    ]
+
+    case Amap.request(client, :tsapi, :get, @base <> "/list", params) do
+      {:ok, payload} ->
+        {:ok,
+         %Page{
+           items: Enum.map(Map.get(payload, "results", []), &to_geofence_struct/1),
+           count: Numeric.to_integer(payload["count"])
+         }}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp join_ids!(ids, field) do
+    Validate.range!(length(ids), field, 1, 100)
+    Enum.map_join(ids, ",", &to_string/1)
+  end
+
+  defp encode_gfids(nil), do: nil
+  defp encode_gfids(ids), do: join_ids!(ids, ":gfids")
+
+  defp flag(nil), do: nil
+  defp flag(true), do: "1"
+  defp flag(false), do: "0"
+  defp flag(other), do: raise(ArgumentError, "expected a boolean, got: #{inspect(other)}")
+
+  defp validate_page(nil), do: nil
+  defp validate_page(page), do: Validate.range!(page, ":page", 1, 1_000_000)
+
+  defp validate_pagesize(nil), do: nil
+  defp validate_pagesize(size), do: Validate.range!(size, ":pagesize", 1, 100)
 
   defp create(client, sid, name, opts, shape) do
     params =

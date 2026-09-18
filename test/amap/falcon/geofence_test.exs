@@ -2,6 +2,7 @@ defmodule Amap.Falcon.GeofenceTest do
   use ExUnit.Case, async: true
 
   alias Amap.Falcon.Geofence
+  alias Amap.Falcon.Geofence.Page
   alias Amap.TestServer
 
   setup do
@@ -176,6 +177,99 @@ defmodule Amap.Falcon.GeofenceTest do
 
       assert_raise ArgumentError, ~r/:radius is required/, fn ->
         Geofence.update_circle(client, 1, 77, "仓库", center: {1, 2})
+      end
+    end
+  end
+
+  describe "deleting and listing" do
+    test "delete/3 joins ids with commas and answers the ones removed", %{
+      server: server,
+      client: client
+    } do
+      arm(
+        server,
+        "POST",
+        "/v1/track/geofence/delete",
+        ~s({"errcode":10000,"errmsg":"OK","data":{"gfids":[1,2]}})
+      )
+
+      assert {:ok, [1, 2]} = Geofence.delete(client, 1, [1, 2])
+
+      assert_receive {:params, params}
+      assert params["gfids"] == "1,2"
+    end
+
+    test "delete/3 with :all sends the sentinel and answers nothing", %{
+      server: server,
+      client: client
+    } do
+      arm(server, "POST", "/v1/track/geofence/delete", ~s({"errcode":10000,"errmsg":"OK"}))
+
+      # Amap sends no data for #all, because there is nothing to enumerate.
+      assert {:ok, nil} = Geofence.delete(client, 1, :all)
+      assert_receive {:params, params}
+      assert params["gfids"] == "#all"
+    end
+
+    test "delete/3 refuses a list Amap would silently truncate", %{client: client} do
+      # Amap keeps the first 100 and does not fail, so 150 ids would look deleted.
+      assert_raise ArgumentError, ~r/:gfids must be between 1 and 100, got: 101/, fn ->
+        Geofence.delete(client, 1, Enum.to_list(1..101))
+      end
+
+      assert_raise ArgumentError, ~r/:gfids must be between 1 and 100, got: 0/, fn ->
+        Geofence.delete(client, 1, [])
+      end
+    end
+
+    test "list/2 maps a page, leaving the shape as a map", %{server: server, client: client} do
+      arm(
+        server,
+        "GET",
+        "/v1/track/geofence/list",
+        ~s({"errcode":10000,"errmsg":"OK","data":{"count":7,"results":[{"gfid":77,"name":"仓库","desc":"north","shape":{"center":"114.158,22.279","radius":500},"createtime":1789703117430,"modifytime":1789703117430}]}})
+      )
+
+      assert {:ok, %Page{count: 7, items: [fence]}} = Geofence.list(client, 1, outputshape: true)
+
+      assert %Geofence{gfid: 77, name: "仓库", desc: "north", createtime: 1_789_703_117_430} = fence
+      assert is_map(fence.shape)
+
+      assert_receive {:params, params}
+      assert params["outputshape"] == "1"
+      assert params["sid"] == "1"
+    end
+
+    test "passing gfids turns pagination off, so neither page parameter is sent", %{
+      server: server,
+      client: client
+    } do
+      arm(
+        server,
+        "GET",
+        "/v1/track/geofence/list",
+        ~s({"errcode":10000,"errmsg":"OK","data":{"count":0,"results":[]}})
+      )
+
+      Geofence.list(client, 1, gfids: [77, 78])
+
+      assert_receive {:params, params}
+      assert params["gfids"] == "77,78"
+      refute Map.has_key?(params, "page")
+      refute Map.has_key?(params, "pagesize")
+    end
+
+    test "list/2 validates its ranges", %{client: client} do
+      assert_raise ArgumentError, ~r/:pagesize must be between 1 and 100, got: 101/, fn ->
+        Geofence.list(client, 1, pagesize: 101)
+      end
+
+      assert_raise ArgumentError, ~r/:gfids must be between 1 and 100/, fn ->
+        Geofence.list(client, 1, gfids: Enum.to_list(1..101))
+      end
+
+      assert_raise ArgumentError, ~r/expected a boolean, got: "yes"/, fn ->
+        Geofence.list(client, 1, outputshape: "yes")
       end
     end
   end
