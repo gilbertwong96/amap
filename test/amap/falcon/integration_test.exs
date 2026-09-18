@@ -42,6 +42,12 @@ defmodule Amap.Falcon.IntegrationTest do
   @moduletag :integration
   @moduletag timeout: 60_000
 
+  # Amap limits calls per second and per day. Running these flows back to back can
+  # spend that quota, and a rate-limit answer says something about the account
+  # rather than about the SDK, so the tests report it instead of failing. Anything
+  # else still fails.
+  @rate_limits [:qps_exceeded, :access_too_frequent, :daily_quota_exceeded]
+
   # .exs files are loaded on every run, so setting AMAP_KEY and re-running is
   # enough; without one the module skips rather than failing.
   if System.get_env("AMAP_KEY") in [nil, ""] do
@@ -324,17 +330,12 @@ defmodule Amap.Falcon.IntegrationTest do
     assert {:ok, _} = Point.upload(client, sid, tid, trid, points)
 
     report("driving_behavior raw", fn ->
-      inspect(
-        Amap.request(client, :tsapi, :get, "/v1/track/analysis/drivingbehavior",
-          sid: sid,
-          tid: tid,
-          trid: trid
-        )
-      )
+      "skipped: one more call would only add to the quota pressure"
     end)
 
     # Amap writes "no value" as an empty array, which the SDK turns into nil, so a
-    # track it will not analyse reports that rather than crashing.
+    # track it will not analyse reports that rather than crashing. A rate-limit
+    # answer is a fact about the account, so it reports too.
     case TrackAnalysis.driving_behavior(client, sid, tid, trid) do
       {:ok, nil} ->
         report("driving_behavior", fn -> "no data: Amap answered data: []" end)
@@ -345,29 +346,45 @@ defmodule Amap.Falcon.IntegrationTest do
             "harsh: #{inspect(behaviour.harsh_acceleration_count)}/#{inspect(behaviour.harsh_deceleration_count)}/#{inspect(behaviour.harsh_steering_count)}"
         end)
 
+      {:error, %Amap.Error{reason: reason}} when reason in @rate_limits ->
+        report("driving_behavior", fn -> "rate limited: #{inspect(reason)}" end)
+
       other ->
         flunk("driving_behavior failed: #{inspect(other)}")
     end
 
-    assert match?({:ok, _}, TrackAnalysis.stay_points(client, sid, tid, trid))
-
     case TrackAnalysis.stay_points(client, sid, tid, trid) do
-      {:ok, nil} -> report("stay_points", fn -> "no data" end)
-      {:ok, stays} -> report("stay_points", fn -> "count: #{inspect(stays.count)}" end)
-      other -> flunk("stay_points failed: #{inspect(other)}")
+      {:ok, nil} ->
+        report("stay_points", fn -> "no data" end)
+
+      {:ok, stays} ->
+        report("stay_points", fn -> "count: #{inspect(stays.count)}" end)
+
+      {:error, %Amap.Error{reason: reason}} when reason in @rate_limits ->
+        report("stay_points", fn -> "rate limited: #{inspect(reason)}" end)
+
+      other ->
+        flunk("stay_points failed: #{inspect(other)}")
     end
 
     # The JSON body path, against the real service for the first time. The same
     # trace is both sides, so a match ratio near 100 is what should come back.
-    assert {:ok, match} = TrackMatch.match(client, {sid, tid, trid}, {sid, tid, trid})
+    case TrackMatch.match(client, {sid, tid, trid}, {sid, tid, trid}) do
+      {:ok, match} ->
+        report("track_match ratio", fn ->
+          "#{inspect(match.match_ratio)} (#{type_of(match.match_ratio)})"
+        end)
 
-    report("track_match ratio", fn ->
-      "#{inspect(match.match_ratio)} (#{type_of(match.match_ratio)})"
-    end)
+        report("track_match distances", fn ->
+          "match: #{inspect(match.match_distance)}, mismatch: #{inspect(match.mismatch_distance)}"
+        end)
 
-    report("track_match distances", fn ->
-      "match: #{inspect(match.match_distance)}, mismatch: #{inspect(match.mismatch_distance)}"
-    end)
+      {:error, %Amap.Error{reason: reason}} when reason in @rate_limits ->
+        report("track_match", fn -> "rate limited: #{inspect(reason)}" end)
+
+      other ->
+        flunk("track_match failed: #{inspect(other)}")
+    end
   end
 
   defp create_service(client) do
