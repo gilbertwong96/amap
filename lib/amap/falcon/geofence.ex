@@ -142,17 +142,29 @@ defmodule Amap.Falcon.Geofence do
   """
   @spec list(Amap.Client.t(), integer(), keyword()) :: {:ok, Page.t()} | {:error, Amap.Error.t()}
   def list(client, sid, opts \\ []) do
-    params = [
-      sid: sid,
-      outputshape: Wire.flag!(Keyword.get(opts, :outputshape)),
-      gfids: encode_gfids(Keyword.get(opts, :gfids)),
-      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
-      pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 100)
-    ]
+    gfids = Keyword.get(opts, :gfids)
+
+    params =
+      [
+        sid: sid,
+        outputshape: Wire.flag!(Keyword.get(opts, :outputshape)),
+        gfids: encode_gfids(gfids)
+      ] ++ pagination(opts, gfids)
 
     client
     |> Amap.request(:tsapi, :get, @base <> "/list", params)
     |> Paging.from(Page, &to_geofence_struct/1)
+  end
+
+  # Amap ignores `page` and `pagesize` when `gfids` is given, so sending them anyway
+  # would suggest a paging that is not happening.
+  defp pagination(_opts, gfids) when not is_nil(gfids), do: []
+
+  defp pagination(opts, _gfids) do
+    [
+      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
+      pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 100)
+    ]
   end
 
   defp encode_gfids(nil), do: nil
