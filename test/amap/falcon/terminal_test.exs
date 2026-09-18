@@ -60,6 +60,16 @@ defmodule Amap.Falcon.TerminalTest do
     end
   end
 
+  test "add/4 rejects a desc Amap would reject", %{client: client} do
+    assert_raise ArgumentError, ~r/:desc may only contain/, fn ->
+      Terminal.add(client, 1, "A", desc: "a b")
+    end
+
+    assert_raise ArgumentError, ~r/:desc must be at most 128 characters/, fn ->
+      Terminal.add(client, 1, "A", desc: String.duplicate("a", 129))
+    end
+  end
+
   test "delete/3 returns {:ok, nil}", %{server: server, client: client} do
     TestServer.expect_once(server, "POST", "/v1/track/terminal/delete", fn _req ->
       {200, ~s({"errcode":0,"errmsg":"OK"})}

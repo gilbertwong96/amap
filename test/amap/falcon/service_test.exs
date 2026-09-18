@@ -55,6 +55,14 @@ defmodule Amap.Falcon.ServiceTest do
     refute Map.has_key?(body, "desc")
   end
 
+  test "add/3 rejects a desc Amap would reject, before any request is built", %{client: client} do
+    # A live run answered "Invalid value of field: desc" for a space here, because
+    # Amap documents the same character rules for desc as for name.
+    assert_raise ArgumentError, ~r/:desc may only contain/, fn ->
+      Service.add(client, "A", desc: "integration test")
+    end
+  end
+
   test "delete/2 returns {:ok, nil}, since the API sends no data", %{
     server: server,
     client: client

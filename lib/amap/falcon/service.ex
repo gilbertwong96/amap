@@ -33,9 +33,10 @@ defmodule Amap.Falcon.Service do
   def add(client, name, opts \\ []) do
     params = [
       name: Validate.name!(name, ":name"),
-      # `nil` means absent: `Amap.Param.encode/1` drops nil values, so an optional
-      # parameter the caller left out never reaches the wire.
-      desc: Keyword.get(opts, :desc)
+      # Amap documents the same character rules for `desc` as for `name`, so it is
+      # validated the same way — a space here would otherwise cost a round trip
+      # that answers "Invalid value of field: desc".
+      desc: Validate.optional!(&Validate.name!/2, Keyword.get(opts, :desc), ":desc")
     ]
 
     client

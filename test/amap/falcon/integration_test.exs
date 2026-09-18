@@ -42,7 +42,7 @@ defmodule Amap.Falcon.IntegrationTest do
   test "a service, a terminal, a search and a real position", %{client: client} do
     name = "sdk_it_#{System.unique_integer([:positive])}"
 
-    assert {:ok, service} = Service.add(client, name, desc: "integration test")
+    assert {:ok, service} = Service.add(client, name, desc: "集成测试")
     assert is_integer(service.sid)
     sid = service.sid
 
@@ -59,7 +59,9 @@ defmodule Amap.Falcon.IntegrationTest do
       Service.delete(client, sid)
     end)
 
-    # (1) A POST accepted with key in the body: reaching this line proves it.
+    # (1) A POST accepted with key in the form body: reaching this line proves
+    # it. No `props` here — Amap rejects a custom field that has not been
+    # declared through the column endpoints first, which are batch S2b.
     assert {:ok, terminal} =
              Terminal.add(client, sid, name, props: %{"kind" => "test"})
 

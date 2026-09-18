@@ -41,9 +41,8 @@ defmodule Amap.Falcon.Terminal do
     params = [
       sid: sid,
       name: Validate.name!(name, ":name"),
-      # `nil` means absent: `Amap.Param.encode/1` drops nil values, so an optional
-      # parameter the caller left out never reaches the wire.
-      desc: Keyword.get(opts, :desc),
+      # Amap documents the same character rules for `desc` as for `name`.
+      desc: Validate.optional!(&Validate.name!/2, Keyword.get(opts, :desc), ":desc"),
       props: props_param(Keyword.get(opts, :props))
     ]
 
