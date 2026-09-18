@@ -7,6 +7,11 @@ defmodule Amap.Response do
   `{"errcode", "errmsg", "errdetail", "data"}`. After `normalize/3` callers see
   a bare payload map either way, so `Amap.Falcon.*` and `Amap.*` business
   modules never have to care which family they are talking to.
+
+  For the flat envelope it also applies Amap's empty-array convention, so that a
+  field with no value reaches a caller as `nil` rather than as `[]` — the rule
+  its own pages state (当返回值不存在时，则以数组类型返回) and the one this SDK
+  promises for every struct field.
   """
 
   alias Amap.Client
@@ -60,7 +65,7 @@ defmodule Amap.Response do
   end
 
   def normalize(:restapi, %{"status" => "1"} = body, _http_status) do
-    {:ok, Map.drop(body, @envelope_restapi)}
+    {:ok, empty_to_nil(Map.drop(body, @envelope_restapi))}
   end
 
   def normalize(:restapi, %{"status" => "0"} = body, http_status) do
@@ -81,6 +86,24 @@ defmodule Amap.Response do
   defp unwrap_data(%{"data" => []}), do: nil
   defp unwrap_data(%{"data" => [single]}), do: single
   defp unwrap_data(body), do: Map.get(body, "data")
+
+  # The flat envelope writes "no value" as an empty array — `/v3/ip` reports four
+  # of them for an address it cannot place — so the whole payload is walked once
+  # here rather than every mapper remembering. A field that means one value, or a
+  # collection that means nothing, both arrive as nil; a mapper that wants an
+  # enumerable collection reads `payload["roads"] || []`.
+  defp empty_to_nil(value) when is_list(value) do
+    case Enum.map(value, &empty_to_nil/1) do
+      [] -> nil
+      items -> items
+    end
+  end
+
+  defp empty_to_nil(value) when is_map(value) do
+    Map.new(value, fn {key, item} -> {key, empty_to_nil(item)} end)
+  end
+
+  defp empty_to_nil(value), do: value
 
   @doc "Whether a Falcon response reports partial success."
   @spec partial?(Client.family(), term()) :: boolean()

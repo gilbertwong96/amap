@@ -29,6 +29,36 @@ defmodule Amap.ResponseTest do
       refute Map.has_key?(payload, "infocode")
     end
 
+    test "reads an empty array as no value, at any depth" do
+      # 当返回值不存在时，则以数组类型返回 — the rule this SDK promises callers, so the
+      # four empty arrays `/v3/ip` sends for an address it cannot place reach a
+      # struct as nil.
+      body = %{
+        "status" => "1",
+        "info" => "OK",
+        "infocode" => "10000",
+        "province" => [],
+        "regeocode" => %{"roads" => [], "addressComponent" => %{"city" => []}}
+      }
+
+      assert {:ok, payload} = Response.normalize(:restapi, body, 200)
+      assert payload["province"] == nil
+      assert payload["regeocode"]["roads"] == nil
+      assert payload["regeocode"]["addressComponent"]["city"] == nil
+    end
+
+    test "keeps a non-empty list, and normalises what is inside it" do
+      body = %{
+        "status" => "1",
+        "info" => "OK",
+        "infocode" => "10000",
+        "geocodes" => [%{"address" => "北京市", "level" => []}]
+      }
+
+      assert {:ok, payload} = Response.normalize(:restapi, body, 200)
+      assert payload["geocodes"] == [%{"address" => "北京市", "level" => nil}]
+    end
+
     test "turns a failed status into an error" do
       body = %{"status" => "0", "info" => "INVALID_USER_KEY", "infocode" => "10001"}
 
