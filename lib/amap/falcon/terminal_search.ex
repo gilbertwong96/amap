@@ -18,6 +18,7 @@ defmodule Amap.Falcon.TerminalSearch do
   `:asc` or `:desc`.
   """
 
+  alias Amap.Falcon.Paging
   alias Amap.Falcon.TerminalSearch.Location
   alias Amap.Falcon.TerminalSearch.Page
   alias Amap.Falcon.TerminalSearch.Result
@@ -110,8 +111,8 @@ defmodule Amap.Falcon.TerminalSearch do
     [
       filter: encode_filter(Keyword.get(opts, :filter)),
       sortrule: encode_sort(Keyword.get(opts, :sort)),
-      page: validate_page(Keyword.get(opts, :page)),
-      pagesize: validate_pagesize(Keyword.get(opts, :pagesize))
+      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
+      pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 100)
     ]
   end
 
@@ -150,21 +151,7 @@ defmodule Amap.Falcon.TerminalSearch do
   defp validate_radius(nil), do: nil
   defp validate_radius(radius), do: Validate.range!(radius, ":radius", 1, 5000)
 
-  defp validate_page(nil), do: nil
-  defp validate_page(page), do: Validate.range!(page, ":page", 1, 1_000_000)
-
-  defp validate_pagesize(nil), do: nil
-  defp validate_pagesize(size), do: Validate.range!(size, ":pagesize", 1, 100)
-
-  defp to_page({:ok, payload}) do
-    {:ok,
-     %Page{
-       items: Enum.map(Map.get(payload, "results", []), &to_result/1),
-       count: Numeric.to_integer(payload["count"])
-     }}
-  end
-
-  defp to_page({:error, _} = error), do: error
+  defp to_page(result), do: Paging.from(result, Page, &to_result/1)
 
   defp to_result(payload) do
     %Result{

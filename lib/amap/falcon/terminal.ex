@@ -10,6 +10,7 @@ defmodule Amap.Falcon.Terminal do
   rejected by Amap, not here.
   """
 
+  alias Amap.Falcon.Paging
   alias Amap.Falcon.Terminal.Page
   alias Amap.Falcon.Validate
   alias Amap.Numeric
@@ -109,20 +110,12 @@ defmodule Amap.Falcon.Terminal do
       sid: sid,
       tid: Keyword.get(opts, :tid),
       name: Validate.optional!(&Validate.name!/2, Keyword.get(opts, :name), ":name"),
-      page: validate_page(Keyword.get(opts, :page))
+      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000)
     ]
 
-    case Amap.request(client, :tsapi, :get, @base <> "/list", params) do
-      {:ok, payload} ->
-        {:ok,
-         %Page{
-           items: Enum.map(Map.get(payload, "results", []), &to_terminal_struct/1),
-           count: Numeric.to_integer(payload["count"])
-         }}
-
-      {:error, _} = error ->
-        error
-    end
+    client
+    |> Amap.request(:tsapi, :get, @base <> "/list", params)
+    |> Paging.from(Page, &to_terminal_struct/1)
   end
 
   # Confirmed against a live response on 2026-09-17: `tid` is an integer and
@@ -150,7 +143,4 @@ defmodule Amap.Falcon.Terminal do
 
   defp props_param(other),
     do: raise(ArgumentError, ":props must be a map, got: #{inspect(other)}")
-
-  defp validate_page(nil), do: nil
-  defp validate_page(page), do: Validate.range!(page, ":page", 1, 1_000_000)
 end

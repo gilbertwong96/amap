@@ -52,11 +52,11 @@ defmodule Amap.Falcon.Grasproad do
       starttime: starttime,
       endtime: endtime,
       correction: Correction.encode(Keyword.get(opts, :correction)),
-      recoup: encode_flag(Keyword.get(opts, :recoup)),
-      gap: validate_gap(Keyword.get(opts, :gap)),
-      ispoints: encode_flag(Keyword.get(opts, :ispoints)),
-      page: validate_page(Keyword.get(opts, :page)),
-      pagesize: validate_pagesize(Keyword.get(opts, :pagesize))
+      recoup: Validate.flag!(Keyword.get(opts, :recoup)),
+      gap: Validate.optional_range!(Keyword.get(opts, :gap), ":gap", 50, 10_000),
+      ispoints: Validate.flag!(Keyword.get(opts, :ispoints)),
+      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 100),
+      pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 999)
     ]
 
     case Amap.request(client, :tsapi, :get, @base <> "/trsearch", params) do
@@ -91,7 +91,7 @@ defmodule Amap.Falcon.Grasproad do
       trid: trid,
       points: encode_points(points),
       carType: encode_car_type(Keyword.get(opts, :car_type)),
-      threshold: validate_threshold(Keyword.get(opts, :threshold))
+      threshold: Validate.optional_range!(Keyword.get(opts, :threshold), ":threshold", 0, 99_999)
     ]
 
     case Amap.request(client, :tsapi, :post, @base <> "/roaddata", params) do
@@ -132,12 +132,15 @@ defmodule Amap.Falcon.Grasproad do
   defp encode_points(points),
     do: Amap.JSON.encode!(Enum.map(points, &Amap.Falcon.Point.encode/1))
 
-  defp encode_flag(nil), do: nil
-  defp encode_flag(true), do: "1"
-  defp encode_flag(false), do: "0"
-
-  defp encode_flag(other),
-    do: raise(ArgumentError, "expected a boolean, got: #{inspect(other)}")
+  # Amap spells flags as 1 and 0, and omits them rather than sending false. This is
+  # the decoding direction, for response fields; `Amap.Falcon.Validate.flag!/1` is
+  # the encoding one, for request options.
+  defp decode_flag(nil), do: nil
+  defp decode_flag(0), do: false
+  defp decode_flag(1), do: true
+  defp decode_flag("0"), do: false
+  defp decode_flag("1"), do: true
+  defp decode_flag(_other), do: nil
 
   defp encode_car_type(nil), do: nil
   defp encode_car_type(:bus), do: "0"
@@ -145,18 +148,6 @@ defmodule Amap.Falcon.Grasproad do
 
   defp encode_car_type(other),
     do: raise(ArgumentError, ":car_type must be :bus or :truck, got: #{inspect(other)}")
-
-  defp validate_gap(nil), do: nil
-  defp validate_gap(gap), do: Validate.range!(gap, ":gap", 50, 10_000)
-
-  defp validate_page(nil), do: nil
-  defp validate_page(page), do: Validate.range!(page, ":page", 1, 100)
-
-  defp validate_pagesize(nil), do: nil
-  defp validate_pagesize(size), do: Validate.range!(size, ":pagesize", 1, 999)
-
-  defp validate_threshold(nil), do: nil
-  defp validate_threshold(value), do: Validate.range!(value, ":threshold", 0, 99_999)
 
   defp to_result(payload) do
     %Result{
@@ -169,7 +160,7 @@ defmodule Amap.Falcon.Grasproad do
   defp to_degraded(nil), do: nil
 
   defp to_degraded(payload) when is_map(payload),
-    do: %Degraded{threshold: flag(payload["threshold"])}
+    do: %Degraded{threshold: decode_flag(payload["threshold"])}
 
   defp to_track(payload) do
     %Track{
@@ -208,16 +199,9 @@ defmodule Amap.Falcon.Grasproad do
       speed_limit: Numeric.to_integer(payload["speedLimit"]),
       road_class: Numeric.to_integer(payload["roadClass"]),
       road_class_name: payload["roadClassName"],
-      is_toll: flag(payload["isToll"]),
-      is_ownership: flag(payload["isOwnership"]),
+      is_toll: decode_flag(payload["isToll"]),
+      is_ownership: decode_flag(payload["isOwnership"]),
       points: Enum.map(Map.get(payload, "points", []), &to_point/1)
     }
   end
-
-  defp flag(nil), do: nil
-  defp flag(0), do: false
-  defp flag(1), do: true
-  defp flag("0"), do: false
-  defp flag("1"), do: true
-  defp flag(_other), do: nil
 end
