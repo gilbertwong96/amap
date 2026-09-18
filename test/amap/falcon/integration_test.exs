@@ -36,6 +36,8 @@ defmodule Amap.Falcon.IntegrationTest do
   alias Amap.Falcon.TerminalMonitor
   alias Amap.Falcon.TerminalSearch
   alias Amap.Falcon.Trace
+  alias Amap.Falcon.TrackAnalysis
+  alias Amap.Falcon.TrackMatch
 
   @moduletag :integration
   @moduletag timeout: 60_000
@@ -290,6 +292,58 @@ defmodule Amap.Falcon.IntegrationTest do
 
     assert {:ok, nil} = Geofence.delete(client, sid, :all)
     assert {:ok, %Geofence.Page{count: 0}} = Geofence.list(client, sid)
+  end
+
+  test "analysis, and the one endpoint that wants a JSON body", %{client: client} do
+    sid = create_service(client)
+
+    on_exit(fn ->
+      case Terminal.list(client, sid) do
+        {:ok, %{items: items}} -> Enum.each(items, &Terminal.delete(client, sid, &1.tid))
+        _other -> :ok
+      end
+
+      Service.delete(client, sid)
+    end)
+
+    assert {:ok, terminal} = Terminal.add(client, sid, "truck")
+    tid = terminal.tid
+    assert {:ok, trace} = Trace.add(client, sid, tid, trname: "morning")
+    trid = trace.trid
+
+    now = System.system_time(:millisecond)
+
+    points =
+      for n <- 0..9 do
+        %{
+          location: {114.158 + n * 0.0003, 22.279 + n * 0.0003},
+          locatetime: now - (9 - n) * 1000
+        }
+      end
+
+    assert {:ok, _} = Point.upload(client, sid, tid, trid, points)
+
+    assert {:ok, behaviour} = TrackAnalysis.driving_behavior(client, sid, tid, trid)
+
+    report("driving_behavior", fn ->
+      "distance: #{inspect(behaviour.distance)}, duration: #{inspect(behaviour.duration)}, " <>
+        "harsh: #{inspect(behaviour.harsh_acceleration_count)}/#{inspect(behaviour.harsh_deceleration_count)}/#{inspect(behaviour.harsh_steering_count)}"
+    end)
+
+    assert {:ok, stays} = TrackAnalysis.stay_points(client, sid, tid, trid)
+    report("stay_points", fn -> "count: #{inspect(stays.count)}" end)
+
+    # The JSON body path, against the real service for the first time. The same
+    # trace is both sides, so a match ratio near 100 is what should come back.
+    assert {:ok, match} = TrackMatch.match(client, {sid, tid, trid}, {sid, tid, trid})
+
+    report("track_match ratio", fn ->
+      "#{inspect(match.match_ratio)} (#{type_of(match.match_ratio)})"
+    end)
+
+    report("track_match distances", fn ->
+      "match: #{inspect(match.match_distance)}, mismatch: #{inspect(match.mismatch_distance)}"
+    end)
   end
 
   defp create_service(client) do
