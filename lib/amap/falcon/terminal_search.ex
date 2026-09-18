@@ -168,7 +168,7 @@ defmodule Amap.Falcon.TerminalSearch do
 
   defp to_result(payload) do
     %Result{
-      tid: payload["tid"],
+      tid: Numeric.to_integer(payload["tid"]),
       name: payload["name"],
       desc: payload["desc"],
       createtime: Numeric.to_integer(payload["createtime"]),

@@ -113,6 +113,18 @@ defmodule Amap.Falcon.TerminalTest do
     assert second.locatetime == 1_469_817_532
   end
 
+  test "list/2 coerces a string tid, since the docs claim it is one there", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/list", fn _req ->
+      {200,
+       ~s({"errcode":10000,"errmsg":"OK","data":{"count":1,"results":[{"tid":"2121235591","name":"A"}]}})}
+    end)
+
+    assert {:ok, %Page{items: [%Terminal{tid: 2_121_235_591}]}} = Terminal.list(client, 1)
+  end
+
   test "list/2 validates the page number before requesting", %{client: client} do
     assert_raise ArgumentError, ~r/:page must be between 1 and 1000000/, fn ->
       Terminal.list(client, 1, page: 0)

@@ -114,13 +114,13 @@ defmodule Amap.Falcon.Terminal do
     end
   end
 
-  # Types stay permissive until the live integration test confirms what this
-  # endpoint really sends: the official response table for `list` contradicts the
-  # one for `add` about `name` and `tid`.
+  # Confirmed against a live response on 2026-09-17: `tid` is an integer and
+  # `name` is a string, which is what `add` and the search results say too. The
+  # official response table for this endpoint claims the opposite and is wrong.
   defp to_terminal_struct(payload) do
     %__MODULE__{
       sid: Numeric.to_integer(payload["sid"]),
-      tid: payload["tid"],
+      tid: Numeric.to_integer(payload["tid"]),
       name: payload["name"],
       desc: payload["desc"],
       props: payload["props"],

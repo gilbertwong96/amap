@@ -1,21 +1,32 @@
 defmodule Amap.Falcon.IntegrationTest do
   @moduledoc """
-  Live checks against Amap, for the three facts documentation could not settle:
-
-    1. whether a Falcon POST really accepts `key` in the form body (the upload
-       page claims it must be in the URL; every other page lists it as an
-       ordinary parameter, and the body path is what the SDK uses);
-    2. the real types of `terminal/list`'s `name` and `tid`, whose response table
-       contradicts `terminal/add`'s;
-    3. whether `lastpoint`'s `"X,Y"` is longitude-first, which is inferred from
-       the upload endpoint rather than documented.
+  Live checks against Amap, for the facts documentation could not settle.
 
   Excluded by default (`test_helper.exs`). Run with a key:
 
       AMAP_KEY=… mix test --only integration test/amap/falcon/integration_test.exs
 
+  What the runs have established so far:
+
+    * a Falcon POST is accepted with `key` in the form body;
+    * `terminal/list` sends `tid` as an integer and `name` as a string — the
+      official response table for that endpoint says the opposite and is wrong;
+    * Falcon's success code is `10000`, not only `0` (see `Amap.Response`).
+
+  Still open, and what this test observes rather than asserts:
+
+    * whether `TerminalSearch` can find a terminal by name before that terminal
+      has ever reported a position. A freshly created terminal returned `count: 0`,
+      so the test searches before and after uploading points and prints both.
+      It asserts only that the calls succeed — a zero count is a fact about Amap's
+      search semantics, not a defect in this SDK, and a rejected parameter would
+      have come back as an error instead.
+    * `lastpoint`'s `"X,Y"` order, inferred from the upload endpoint. The
+      assertion below is what would catch a reversal.
+
   The upload steps call `Amap.request/5` directly because `point/upload` belongs
-  to batch S2b; they exist here only to give `lastpoint` something to report.
+  to batch S2b, and a terminal needs at least five points before `lastpoint`
+  answers at all.
   """
 
   use ExUnit.Case, async: false
@@ -47,7 +58,7 @@ defmodule Amap.Falcon.IntegrationTest do
     sid = service.sid
 
     on_exit(fn ->
-      # Best effort: the terminal may not exist if the test failed early.
+      # Best effort: nothing may exist if the test failed early.
       case Terminal.list(client, sid) do
         {:ok, %{items: items}} ->
           Enum.each(items, fn t -> Terminal.delete(client, sid, t.tid) end)
@@ -59,43 +70,38 @@ defmodule Amap.Falcon.IntegrationTest do
       Service.delete(client, sid)
     end)
 
-    # (1) A POST accepted with key in the form body: reaching this line proves
-    # it. No `props` here — Amap rejects a custom field that has not been
-    # declared through the column endpoints first, which are batch S2b.
-    assert {:ok, terminal} =
-             Terminal.add(client, sid, name, props: %{"kind" => "test"})
-
+    assert {:ok, terminal} = Terminal.add(client, sid, name)
     assert is_integer(terminal.tid)
     tid = terminal.tid
 
-    # (2) What list really sends for name and tid, versus its documentation.
-    assert {:ok, %Terminal.Page{items: [listed]}} =
-             Terminal.list(client, sid)
-
+    # Confirms the list response's real types, and whether a terminal that has
+    # never reported a position is findable at all.
+    assert {:ok, %Terminal.Page{items: [listed]}} = Terminal.list(client, sid)
     assert listed.tid == tid
 
-    IO.puts("""
-    [integration] terminal/list types -> tid: #{inspect(listed.tid)} (#{type_of(listed.tid)}), \
-    name: #{inspect(listed.name)} (#{type_of(listed.name)}), \
-    createtime: #{type_of(listed.createtime)}, locatetime: #{type_of(listed.locatetime)}\
-    """)
+    report("terminal/list", fn ->
+      "types -> tid: #{inspect(listed.tid)} (#{type_of(listed.tid)}), " <>
+        "name: #{inspect(listed.name)} (#{type_of(listed.name)}), " <>
+        "createtime: #{type_of(listed.createtime)}, locatetime: #{type_of(listed.locatetime)}"
+    end)
 
-    assert {:ok, %TerminalSearch.Page{count: count}} =
+    assert {:ok, %TerminalSearch.Page{} = before_points} =
              TerminalSearch.search(client, sid, name)
 
-    assert count >= 1
+    report("search before any position", fn -> "count: #{inspect(before_points.count)}" end)
 
-    # Give the terminal five points so lastpoint will answer at all.
+    # Five points, one second apart and in the past, so the track looks ordinary.
     assert {:ok, trace} =
              Amap.request(client, :tsapi, :post, "/v1/track/trace/add", sid: sid, tid: tid)
 
     trid = trace["trid"]
+    now = System.system_time(:millisecond)
 
     points =
       for n <- 0..4 do
         %{
           "location" => "#{114.158 + n / 100_000},#{22.279 + n / 100_000}",
-          "locatetime" => System.system_time(:millisecond) + n * 1000
+          "locatetime" => now - (4 - n) * 1000
         }
       end
 
@@ -107,19 +113,47 @@ defmodule Amap.Falcon.IntegrationTest do
                points: Amap.JSON.encode!(points)
              )
 
-    assert {:ok, position} = TerminalMonitor.lastpoint(client, sid, tid)
+    position = await_lastpoint(client, sid, tid, 5)
 
-    IO.puts("""
-    [integration] lastpoint location -> #{inspect(position.location)} \
-    (first element #{type_of(elem(position.location, 0))})\
-    """)
+    report("lastpoint", fn ->
+      "location: #{inspect(position.location)} (first element #{type_of(elem(position.location, 0))})"
+    end)
 
-    # (3) Hong Kong coordinates: a longitude near 114, a latitude near 22. If the
-    # parsed tuple is reversed, this assertion is what says so.
+    # Hong Kong coordinates: longitude near 114, latitude near 22. If the parsed
+    # tuple is reversed, this is what says so.
     {first, second} = position.location
     assert first > 90, "expected longitude first, got #{inspect(position.location)}"
     assert second < 90, "expected latitude second, got #{inspect(position.location)}"
+
+    assert {:ok, %TerminalSearch.Page{} = after_points} =
+             TerminalSearch.search(client, sid, name)
+
+    report("search after a position exists", fn -> "count: #{inspect(after_points.count)}" end)
+
+    assert {:ok, %TerminalSearch.Page{} = around} =
+             TerminalSearch.aroundsearch(client, sid, {114.158, 22.279}, radius: 1000)
+
+    report("aroundsearch within 1km", fn -> "count: #{inspect(around.count)}" end)
   end
+
+  # Amap needs the points to land before lastpoint will answer; a couple of
+  # seconds is normally enough, so this retries rather than sleeping blindly.
+  defp await_lastpoint(client, sid, tid, attempts) do
+    case TerminalMonitor.lastpoint(client, sid, tid) do
+      {:ok, position} when is_tuple(position.location) ->
+        position
+
+      other when attempts > 1 ->
+        IO.puts("[integration] lastpoint not ready yet (#{inspect(other)}), retrying")
+        Process.sleep(1000)
+        await_lastpoint(client, sid, tid, attempts - 1)
+
+      other ->
+        flunk("lastpoint never reported a position: #{inspect(other)}")
+    end
+  end
+
+  defp report(label, fun), do: IO.puts("[integration] #{label} -> #{fun.()}")
 
   defp type_of(nil), do: "nil"
   defp type_of(value) when is_integer(value), do: "integer"
