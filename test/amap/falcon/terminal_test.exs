@@ -92,6 +92,46 @@ defmodule Amap.Falcon.TerminalTest do
     refute Map.has_key?(body, "desc")
   end
 
+  test "update/4 accepts name, which this endpoint documents as modifiable", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+
+    TestServer.expect_once(server, "POST", "/v1/track/terminal/update", fn req ->
+      send(parent, {:body, URI.decode_query(req.body)})
+      {200, ~s({"errcode":10000,"errmsg":"OK"})}
+    end)
+
+    assert {:ok, nil} = Terminal.update(client, 1, 456, name: "新名字")
+    assert_receive {:body, body}
+    assert body["name"] == "新名字"
+  end
+
+  test "update/4 passes an empty string through, which clears the field", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+
+    TestServer.expect_once(server, "POST", "/v1/track/terminal/update", fn req ->
+      send(parent, {:body, URI.decode_query(req.body)})
+      {200, ~s({"errcode":10000,"errmsg":"OK"})}
+    end)
+
+    assert {:ok, nil} = Terminal.update(client, 1, 456, desc: "")
+    assert_receive {:body, body}
+    assert body["desc"] == ""
+  end
+
+  test "update/4 rejects a non-string desc through the public API", %{client: client} do
+    # Reachable at runtime even though the validators' inferred types are
+    # narrower: a keyword value is a term() to the compiler.
+    assert_raise ArgumentError, ~r/:desc must be a string/, fn ->
+      Terminal.update(client, 1, 456, desc: 42)
+    end
+  end
+
   test "update/4 with no fields raises", %{client: client} do
     assert_raise ArgumentError, ~r/at least one/, fn -> Terminal.update(client, 1, 456, []) end
   end

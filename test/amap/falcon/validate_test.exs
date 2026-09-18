@@ -27,8 +27,32 @@ defmodule Amap.Falcon.ValidateTest do
         Validate.name!("货车 01", ":name")
       end
 
+      # An empty string, not nil: `optional!/3` filters nil before a validator
+      # sees it, so emptiness is the shape worth pinning here.
       assert_raise ArgumentError, ~r/:desc must be a non-empty string/, fn ->
-        Validate.name!(nil, ":desc")
+        Validate.name!("", ":desc")
+      end
+    end
+  end
+
+  describe "text!/2" do
+    test "allows an empty string, which an update uses to clear a field" do
+      assert Validate.text!("", ":desc") == ""
+    end
+
+    test "still applies the character and length rules" do
+      assert Validate.text!("货车01", ":name") == "货车01"
+
+      assert_raise ArgumentError, ~r/may not start with an underscore/, fn ->
+        Validate.text!("_x", ":desc")
+      end
+
+      assert_raise ArgumentError, ~r/may only contain Chinese, letters, digits/, fn ->
+        Validate.text!("a b", ":desc")
+      end
+
+      assert_raise ArgumentError, ~r/must be at most 128 characters/, fn ->
+        Validate.text!(String.duplicate("a", 129), ":desc")
       end
     end
   end

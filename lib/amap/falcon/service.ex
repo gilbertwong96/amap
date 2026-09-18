@@ -62,13 +62,16 @@ defmodule Amap.Falcon.Service do
 
     if is_nil(name) and is_nil(desc) do
       raise ArgumentError,
-            "update requires at least one of :name or :desc; pass a value to change"
+            "update requires at least one of :name or :desc; pass a value to change, " <>
+              "or an empty string to clear one"
     end
 
+    # `text!/2` rather than `name!/2`: an empty string here is Amap's documented
+    # way to clear the stored value, not a mistake.
     params = [
       sid: sid,
-      name: Validate.optional!(&Validate.name!/2, name, ":name"),
-      desc: Validate.optional!(&Validate.name!/2, desc, ":desc")
+      name: Validate.optional!(&Validate.text!/2, name, ":name"),
+      desc: Validate.optional!(&Validate.text!/2, desc, ":desc")
     ]
 
     client

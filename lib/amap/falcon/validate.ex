@@ -15,17 +15,38 @@ defmodule Amap.Falcon.Validate do
   Validates a name, a description, or a trace name.
 
   Per Amap: at most 128 characters, only Chinese, English letters, digits,
-  underscore and hyphen, and it may not start with an underscore.
+  underscore and hyphen, and it may not start with an underscore. Empty is not a
+  name, so this rejects it — `text!/2` is the variant for fields that an update
+  can clear.
   """
   @spec name!(term(), String.t()) :: String.t()
   def name!(value, field) do
+    if is_binary(value) and value != "" do
+      text!(value, field)
+    else
+      raise ArgumentError, "#{field} must be a non-empty string"
+    end
+  end
+
+  @doc """
+  Validates a text field that an update may clear.
+
+  Amap's update endpoints document this: a field that is given but left empty
+  **clears** the stored value, which is different from leaving it out entirely.
+  The character and length rules still apply; only emptiness is allowed.
+  """
+  @spec text!(term(), String.t()) :: String.t()
+  def text!(value, field) do
     cond do
-      not is_binary(value) or value == "" ->
-        raise ArgumentError, "#{field} must be a non-empty string"
+      not is_binary(value) ->
+        raise ArgumentError, "#{field} must be a string"
 
       String.length(value) > @max_name_length ->
         raise ArgumentError,
               "#{field} must be at most #{@max_name_length} characters, got: #{String.length(value)}"
+
+      value == "" ->
+        value
 
       String.starts_with?(value, "_") ->
         raise ArgumentError, "#{field} may not start with an underscore"

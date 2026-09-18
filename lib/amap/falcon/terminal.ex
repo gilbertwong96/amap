@@ -57,29 +57,40 @@ defmodule Amap.Falcon.Terminal do
     do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, tid: tid)
 
   @doc """
-  Updates a terminal's description or `props`.
+  Updates a terminal's name, description or `props`.
 
-  `props` is a **partial** update: fields you leave out keep their current
-  values, while a field you include with no value is cleared. That asymmetry is
-  Amap's, and it is the reason this function sends only what you pass.
+  **`name` is documented as modifiable here, while `create` says it cannot be
+  changed afterwards.** Amap contradicts itself; this function passes it through,
+  because the endpoint accepts it. That is also why the terminal's display name is
+  worth choosing carefully at creation time.
+
+  `props` is a **partial** update: fields you leave out keep their current values,
+  while a field you include with no value is cleared. The same is true of `name`
+  and `desc` — an **empty string clears** the stored value, which is different
+  from leaving the parameter out.
 
   Returns `{:ok, nil}` — Amap sends no data for this endpoint.
   """
   @spec update(Amap.Client.t(), integer(), integer(), keyword()) ::
           {:ok, nil} | {:error, Amap.Error.t()}
   def update(client, sid, tid, opts) do
+    name = Keyword.get(opts, :name)
     desc = Keyword.get(opts, :desc)
     props = Keyword.get(opts, :props)
 
-    if is_nil(desc) and is_nil(props) do
+    if is_nil(name) and is_nil(desc) and is_nil(props) do
       raise ArgumentError,
-            "update requires at least one of :desc or :props; pass a value to change"
+            "update requires at least one of :name, :desc or :props; pass a value " <>
+              "to change, or an empty string to clear one"
     end
 
+    # `text!/2` rather than `name!/2`: an empty string here is Amap's documented
+    # way to clear the stored value, not a mistake.
     params = [
       sid: sid,
       tid: tid,
-      desc: Validate.optional!(&Validate.name!/2, desc, ":desc"),
+      name: Validate.optional!(&Validate.text!/2, name, ":name"),
+      desc: Validate.optional!(&Validate.text!/2, desc, ":desc"),
       props: props_param(props)
     ]
 

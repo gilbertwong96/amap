@@ -82,6 +82,38 @@ defmodule Amap.Falcon.ServiceTest do
     assert {:ok, %Service{sid: 123, name: "旧名字"}} = Service.update(client, 123, desc: "new")
   end
 
+  test "update/3 can rename, and sends the name it was given", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+
+    TestServer.expect_once(server, "POST", "/v1/track/service/update", fn req ->
+      send(parent, {:body, URI.decode_query(req.body)})
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":{"sid":1,"name":"旧"}})}
+    end)
+
+    Service.update(client, 1, name: "新名字")
+    assert_receive {:body, body}
+    assert body["name"] == "新名字"
+  end
+
+  test "update/3 accepts an empty string, Amap's way to clear a field", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+
+    TestServer.expect_once(server, "POST", "/v1/track/service/update", fn req ->
+      send(parent, {:body, URI.decode_query(req.body)})
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":{"sid":1,"name":"旧"}})}
+    end)
+
+    assert {:ok, %Service{}} = Service.update(client, 1, desc: "")
+    assert_receive {:body, body}
+    assert body["desc"] == ""
+  end
+
   test "update/3 with no fields raises rather than sending an empty update", %{
     server: _server,
     client: client
