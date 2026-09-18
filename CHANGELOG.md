@@ -45,6 +45,15 @@ Notable changes to this project, newest first. The format follows
   `Amap.Falcon.FenceStatus` answers whether a terminal or a coordinate is inside a
   fence. An id list longer than Amap's 100-per-call limit raises rather than being
   truncated silently.
+- `Amap.Falcon.TrackAnalysis` reads a trace's driving behaviour — harsh
+  acceleration, braking, steering and speeding, each as a list of points — and its
+  stay points.
+- `Amap.Falcon.TrackMatch` compares how much two trajectories overlap. It is the
+  one Amap endpoint that takes a JSON body, so `Amap.request/6` grew a
+  `body: :form | :json` option rather than a second pipeline.
+- **Not included in this release:** toll estimation (`Amap.Falcon.Etc`), which Amap
+  opens only to enterprise developers. It is deferred rather than guessed at until an
+  account exists for it.
 
 ### Notes
 

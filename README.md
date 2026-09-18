@@ -196,6 +196,31 @@ tuples, a route with a `bufferradius`, or an `adcode`. Coordinates here are
 longitude first — what `Amap.Param.locations/1` produces, and *not* the
 latitude-first order the terminal-search centre takes.
 
+### Analysis
+
+```elixir
+{:ok, behaviour} = Amap.Falcon.TrackAnalysis.driving_behavior(client, sid, tid, trid)
+behaviour.harsh_acceleration_count
+hd(behaviour.harsh_acceleration.points)   # %Amap.Falcon.TrackAnalysis.Event{}
+
+{:ok, stays} =
+  Amap.Falcon.TrackAnalysis.stay_points(client, sid, tid, trid, stay_radius: 100)
+
+{:ok, match} =
+  Amap.Falcon.TrackMatch.match(client, {sid, tid, trid}, {sid, other_tid, other_trid},
+    is_points: true
+  )
+
+match.match_ratio   # "84.7" — Amap sends a string, and it is kept as one
+```
+
+`TrackMatch.match/4` sends a **JSON body**, which is why `Amap.request/6` takes
+`body: :form | :json`; everything else here is a GET or a form POST.
+
+**One Falcon endpoint is not wrapped:** `Amap.Falcon.Etc` (toll estimation) is open
+only to enterprise developers, so it could not be exercised against the live
+service and was deferred rather than guessed at until an account exists for it.
+
 ## Swapping the JSON library
 
 ```elixir
