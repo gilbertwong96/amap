@@ -32,7 +32,14 @@ defmodule Amap.Request do
   defined, and sending one unsigned to a family that expects signatures would be
   worse than refusing.
   """
-  @spec build(Client.t(), Client.family(), :get | :post, String.t(), map() | keyword(), keyword()) ::
+  @spec build(
+          Client.t(),
+          Client.family(),
+          :get | :post,
+          String.t(),
+          Amap.JSON.props() | keyword(),
+          keyword()
+        ) ::
           Finch.Request.t()
   def build(%Client{} = client, family, method, path, params, opts \\ []) do
     case Keyword.get(opts, :body, :form) do
@@ -116,7 +123,7 @@ defmodule Amap.Request do
   signals its own failures in the body with a 200 status, so anything else came
   from a proxy or gateway rather than the API.
   """
-  @spec send(Client.t(), Client.family(), :get | :post, String.t(), map() | keyword()) ::
+  @spec send(Client.t(), Client.family(), :get | :post, String.t(), Amap.JSON.props() | keyword()) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
   def send(%Client{} = client, family, method, path, params, opts \\ []) do
     result =

@@ -73,7 +73,7 @@ defmodule Amap.Param do
   @doc """
   Encodes Falcon custom fields (`props`) as a JSON object string.
   """
-  @spec props(map()) :: String.t()
+  @spec props(Amap.JSON.props()) :: String.t()
   def props(map) when is_map(map), do: Amap.JSON.encode!(map)
 
   @doc """
@@ -84,7 +84,7 @@ defmodule Amap.Param do
   this module in scientific notation. Integers, strings and atoms are
   stringified as-is.
   """
-  @spec encode(map() | keyword()) :: [{String.t(), String.t()}]
+  @spec encode(Amap.JSON.props() | keyword()) :: [{String.t(), String.t()}]
   def encode(params) do
     params
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)

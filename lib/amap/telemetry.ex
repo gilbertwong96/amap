@@ -12,6 +12,26 @@ defmodule Amap.Telemetry do
 
   @prefix [:amap, :request]
 
+  @typedoc "The metadata emitted with `[:amap, :request, :start]`."
+  @type start_metadata :: %{
+          family: Client.family(),
+          method: :get | :post,
+          path: String.t(),
+          timeout: pos_integer()
+        }
+
+  @typedoc "The metadata emitted with `[:amap, :request, :stop]`."
+  @type stop_metadata ::
+          %{result: :ok}
+          | %{
+              result: :error,
+              reason: atom(),
+              code: integer() | nil,
+              family: Client.family() | nil,
+              http_status: integer() | nil,
+              retry: :no | :immediate | :backoff
+            }
+
   @doc """
   Runs `fun`, emitting `[:amap, :request, :start]` and
   `[:amap, :request, :stop]` around it.
@@ -20,7 +40,7 @@ defmodule Amap.Telemetry do
   the failure shape is what makes the stop metadata useful.
   """
   @spec span(Client.t(), Client.family(), :get | :post, String.t(), (-> result)) :: result
-        when result: {:ok, term()} | {:error, Error.t()}
+        when result: {:ok, Amap.JSON.value()} | {:error, Error.t()}
   def span(client, family, method, path, fun) do
     :telemetry.span(@prefix, start_meta(client, family, method, path), fn ->
       result = fun.()
@@ -29,13 +49,13 @@ defmodule Amap.Telemetry do
   end
 
   @doc "Metadata for the start event."
-  @spec start_meta(Client.t(), Client.family(), :get | :post, String.t()) :: map()
+  @spec start_meta(Client.t(), Client.family(), :get | :post, String.t()) :: start_metadata()
   def start_meta(%Client{} = client, family, method, path) do
     %{family: family, method: method, path: path, timeout: client.timeout}
   end
 
   @doc "Metadata for the stop event, derived from the call result."
-  @spec stop_meta({:ok, term()} | {:error, Error.t()}) :: map()
+  @spec stop_meta({:ok, Amap.JSON.value()} | {:error, Error.t()}) :: stop_metadata()
   def stop_meta({:ok, _payload}), do: %{result: :ok}
 
   def stop_meta({:error, %Error{} = error}) do

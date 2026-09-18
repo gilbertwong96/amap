@@ -68,9 +68,9 @@ defmodule Amap do
           Client.family(),
           :get | :post,
           String.t(),
-          map() | keyword()
+          Amap.JSON.props() | keyword()
         ) ::
-          {:ok, map() | list() | nil} | {:error, Error.t()}
+          {:ok, Response.payload()} | {:error, Error.t()}
   def request(client, family, method, path, params, opts \\ [])
 
   def request(%Amap.Client{} = client, family, method, path, params, opts)

@@ -24,7 +24,7 @@ defmodule Amap.Falcon.Position do
           direction: number() | nil,
           speed: number() | nil,
           height: number() | nil,
-          props: map() | nil
+          props: Amap.JSON.object() | nil
         }
 
   @doc """
@@ -34,7 +34,7 @@ defmodule Amap.Falcon.Position do
   field rather than through `struct/2`, so a field Amap adds later cannot change
   what this module knows.
   """
-  @spec from_payload(map()) :: t()
+  @spec from_payload(Amap.JSON.object()) :: t()
   def from_payload(payload) do
     %__MODULE__{
       location: Amap.Coord.parse_location(payload["location"]),

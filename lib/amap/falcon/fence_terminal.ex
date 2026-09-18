@@ -7,8 +7,8 @@ defmodule Amap.Falcon.FenceTerminal do
   bound terminals**, and one call changes at most 100 of them.
   """
 
+  use Amap.Falcon.Paging, page: Amap.Falcon.FenceTerminal.Page, mapper: :to_terminal
   alias Amap.Falcon.FenceTerminal.Page
-  alias Amap.Falcon.Paging
   alias Amap.Falcon.Wire
   alias Amap.Numeric
   alias Amap.Validate
@@ -74,7 +74,7 @@ defmodule Amap.Falcon.FenceTerminal do
 
     client
     |> Amap.request(:tsapi, :get, @base <> "/list", params)
-    |> Paging.from(Page, &to_terminal/1)
+    |> to_page()
   end
 
   defp to_terminal(payload) do

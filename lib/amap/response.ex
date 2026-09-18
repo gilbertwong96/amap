@@ -27,11 +27,20 @@ defmodule Amap.Response do
   @ok_codes [0, 10_000]
   @partial_success 20100
 
+  @typedoc """
+  The payload a call answers with, once either envelope has been taken apart.
+
+  A Web-service response is an object; a Falcon `data` body is whatever that
+  endpoint returns — an object, an array of rows, or nothing at all for the
+  write-only calls.
+  """
+  @type payload :: Amap.JSON.object() | [Amap.JSON.value()] | nil
+
   @doc """
   Decodes a response body, returning the original binary when it is not JSON
   so the caller can report what the server actually sent.
   """
-  @spec decode(binary()) :: {:ok, term()} | {:error, binary()}
+  @spec decode(binary()) :: {:ok, Amap.JSON.value()} | {:error, binary()}
   def decode(body) do
     case JSON.decode(body) do
       {:ok, term} -> {:ok, term}
@@ -52,8 +61,8 @@ defmodule Amap.Response do
   was accepted and some of the work succeeded, so reporting it as an error
   would discard the successful part. Use `partial?/2` to detect it.
   """
-  @spec normalize(Client.family(), term(), integer() | nil) ::
-          {:ok, map() | list() | nil} | {:error, Error.t()}
+  @spec normalize(Client.family(), Amap.JSON.value(), integer() | nil) ::
+          {:ok, payload()} | {:error, Error.t()}
   def normalize(:tsapi, %{"errcode" => errcode} = body, http_status)
       when is_integer(errcode) or is_binary(errcode) do
     case Numeric.to_integer(errcode) do
@@ -105,7 +114,7 @@ defmodule Amap.Response do
   defp empty_to_nil(value), do: value
 
   @doc "Whether a Falcon response reports partial success."
-  @spec partial?(Client.family(), term()) :: boolean()
+  @spec partial?(Client.family(), Amap.JSON.value()) :: boolean()
   def partial?(:tsapi, %{"errcode" => errcode}),
     do: Numeric.to_integer(errcode) == @partial_success
 

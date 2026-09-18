@@ -16,7 +16,7 @@ defmodule Amap.Numeric do
   Returns `nil` for anything else, including strings that are only partly
   numeric such as `"10001 "` or `"1.5"`.
   """
-  @spec to_integer(term()) :: integer() | nil
+  @spec to_integer(Amap.JSON.value()) :: integer() | nil
   def to_integer(value) when is_integer(value), do: value
 
   def to_integer(value) when is_binary(value) do

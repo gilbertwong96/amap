@@ -50,7 +50,7 @@ defmodule Amap.Falcon.Wire do
   Amap omits the list entirely for the `#all` case, so `nil` and an empty list
   both come back empty, and ids arriving as strings become integers.
   """
-  @spec decode_ids(term()) :: [integer()]
+  @spec decode_ids(Amap.JSON.value()) :: [integer()]
   def decode_ids(ids) do
     ids
     |> List.wrap()
@@ -63,7 +63,7 @@ defmodule Amap.Falcon.Wire do
   `nil` means the option was left out and stays out of the request; Amap omits a
   flag rather than sending a false one.
   """
-  @spec flag!(term()) :: String.t() | nil
+  @spec flag!(Amap.JSON.value()) :: String.t() | nil
   def flag!(nil), do: nil
   def flag!(true), do: "1"
   def flag!(false), do: "0"
@@ -75,7 +75,7 @@ defmodule Amap.Falcon.Wire do
   Amap writes `1` and `0`, and a missing field means the same as `nil` rather
   than false.
   """
-  @spec decode_flag(term()) :: boolean() | nil
+  @spec decode_flag(Amap.JSON.value()) :: boolean() | nil
   def decode_flag(nil), do: nil
   def decode_flag(0), do: false
   def decode_flag(1), do: true

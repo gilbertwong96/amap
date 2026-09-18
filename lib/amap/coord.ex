@@ -19,7 +19,7 @@ defmodule Amap.Coord do
   confirmed against the live API on 2026-09-17 by uploading a known track and
   reading it back.
   """
-  @spec parse_location(term()) :: {float(), float()} | nil
+  @spec parse_location(Amap.JSON.value()) :: {float(), float()} | nil
   def parse_location(nil), do: nil
 
   def parse_location(string) when is_binary(string) do
@@ -40,7 +40,7 @@ defmodule Amap.Coord do
   Amap writes a collection of points this way inside an object — convert's answer,
   for instance — while the same collection in a request is `|`-separated.
   """
-  @spec parse_locations(term()) :: [{float(), float()}] | nil
+  @spec parse_locations(Amap.JSON.value()) :: [{float(), float()}] | nil
   def parse_locations(nil), do: nil
 
   def parse_locations(string) when is_binary(string) do
@@ -58,7 +58,7 @@ defmodule Amap.Coord do
   (朝阳区 — Chaoyang district — for instance) with `|`, and the points inside each part with
   `;`.
   """
-  @spec parse_polyline(term()) :: [[{float(), float()}]] | nil
+  @spec parse_polyline(Amap.JSON.value()) :: [[{float(), float()}]] | nil
   def parse_polyline(nil), do: nil
 
   def parse_polyline(string) when is_binary(string) do

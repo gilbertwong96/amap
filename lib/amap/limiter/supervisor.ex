@@ -16,7 +16,9 @@ defmodule Amap.Limiter.Supervisor do
   def init(_opts), do: DynamicSupervisor.init(strategy: :one_for_one)
 
   @doc "Starts a bucket under this supervisor."
-  @spec start_bucket(keyword()) :: {:ok, pid()} | {:error, term()}
+  @spec start_bucket(Amap.Limiter.options()) ::
+          {:ok, pid()}
+          | {:error, Amap.Limiter.start_error() | :max_children | :noproc | :shutdown}
   def start_bucket(opts) do
     DynamicSupervisor.start_child(__MODULE__, {Amap.Limiter, opts})
   end

@@ -10,7 +10,7 @@ defmodule Amap.Falcon.Terminal do
   rejected by Amap, not here.
   """
 
-  alias Amap.Falcon.Paging
+  use Amap.Falcon.Paging, page: Amap.Falcon.Terminal.Page, mapper: :to_terminal_struct
   alias Amap.Falcon.Terminal.Page
   alias Amap.Numeric
   alias Amap.Validate
@@ -22,7 +22,7 @@ defmodule Amap.Falcon.Terminal do
           tid: integer() | nil,
           name: String.t() | nil,
           desc: String.t() | nil,
-          props: map() | nil,
+          props: Amap.JSON.object() | nil,
           createtime: integer() | nil,
           locatetime: integer() | nil
         }
@@ -115,7 +115,7 @@ defmodule Amap.Falcon.Terminal do
 
     client
     |> Amap.request(:tsapi, :get, @base <> "/list", params)
-    |> Paging.from(Page, &to_terminal_struct/1)
+    |> to_page()
   end
 
   # Confirmed against a live response on 2026-09-17: `tid` is an integer and

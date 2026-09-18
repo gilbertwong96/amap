@@ -11,9 +11,14 @@ defmodule Amap.Falcon.Column do
 
   alias Amap.Validate
 
+  @typedoc "One row of Amap's field list: the field's name and its type."
+  @type row :: %{String.t() => String.t()}
+
   @types [:string, :double, :int]
 
   @doc "Deletes a field and returns `{:ok, nil}`."
+  @spec delete(Amap.Client.t(), String.t(), integer(), String.t()) ::
+          {:ok, nil} | {:error, Amap.Error.t()}
   def delete(client, base, sid, column) do
     Amap.request(client, :tsapi, :post, base <> "/delete",
       sid: sid,
@@ -22,6 +27,8 @@ defmodule Amap.Falcon.Column do
   end
 
   @doc "Renames a field, keeping its values and type."
+  @spec update(Amap.Client.t(), String.t(), integer(), String.t(), String.t()) ::
+          {:ok, nil} | {:error, Amap.Error.t()}
   def update(client, base, sid, column, newcolumn) do
     params = [
       sid: sid,
@@ -33,26 +40,23 @@ defmodule Amap.Falcon.Column do
   end
 
   @doc """
-  Lists a service's fields into `module`'s struct.
+  Lists a service's fields, as the name and type Amap answers with.
 
-  Amap answers with each field's name and type and nothing else, so a struct with
-  further fields — the terminal one has a searchable flag — gets `nil` for them.
+  The rows are payload maps rather than structs, because the struct belongs to the
+  caller: `Amap.Falcon.Columns` generates the field modules, each of which knows
+  its own type and maps these rows into it.
   """
-  def list(client, base, sid, module) do
+  @spec list(Amap.Client.t(), String.t(), integer()) ::
+          {:ok, [row()]} | {:error, Amap.Error.t()}
+  def list(client, base, sid) do
     case Amap.request(client, :tsapi, :get, base <> "/list", sid: sid) do
-      {:ok, payload} ->
-        {:ok,
-         Enum.map(
-           Map.get(payload, "results", []),
-           &struct(module, column: &1["column"], type: &1["type"])
-         )}
-
-      {:error, _} = error ->
-        error
+      {:ok, payload} -> {:ok, Map.get(payload, "results") || []}
+      {:error, _} = error -> error
     end
   end
 
   @doc "Encodes a field type, the one parameter both kinds validate identically."
+  @spec encode_type(:string | :double | :int) :: String.t()
   def encode_type(type) when type in @types, do: to_string(type)
 
   def encode_type(other),

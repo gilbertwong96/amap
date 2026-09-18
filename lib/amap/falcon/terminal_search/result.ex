@@ -24,8 +24,8 @@ defmodule Amap.Falcon.TerminalSearch.Result do
           createtime: integer() | nil,
           locatetime: integer() | nil,
           location: Location.t() | nil,
-          props: map() | nil,
+          props: Amap.JSON.object() | nil,
           distance: number() | nil,
-          custom: map()
+          custom: Amap.JSON.object()
         }
 end

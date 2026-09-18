@@ -27,6 +27,22 @@ defmodule Amap.Falcon.Point do
   alias Amap.Falcon.Point.UploadError
   alias Amap.Validate
 
+  @typedoc """
+  A point to upload: where it was, when, and the measurements Amap accepts.
+
+  `locatetime` may be a `DateTime` or the unix milliseconds Amap stores; every
+  measurement past the first two fields is optional.
+  """
+  @type point :: %{
+          required(:location) => {number(), number()},
+          required(:locatetime) => DateTime.t() | integer(),
+          optional(:speed) => number(),
+          optional(:direction) => number(),
+          optional(:height) => number(),
+          optional(:accuracy) => number(),
+          optional(:props) => Amap.JSON.object()
+        }
+
   @max_points 100
   @base "/v1/track/point"
 
@@ -37,7 +53,7 @@ defmodule Amap.Falcon.Point do
   `errorpoints`. Points whose `trid` does not exist are stored against the
   terminal instead, and Amap reports that in the same list.
   """
-  @spec upload(Amap.Client.t(), integer(), integer(), integer(), [map()]) ::
+  @spec upload(Amap.Client.t(), integer(), integer(), integer(), [point()]) ::
           {:ok, Upload.t()} | {:error, Amap.Error.t()}
   def upload(client, sid, tid, trid, points) when is_list(points) do
     Validate.range!(length(points), ":points", 1, @max_points)
@@ -61,7 +77,7 @@ defmodule Amap.Falcon.Point do
   Public because two endpoints take points: this one uploads them, and
   `Amap.Falcon.Grasproad.roaddata/2` asks which roads they ran on.
   """
-  @spec encode(map()) :: map()
+  @spec encode(point()) :: Amap.JSON.object()
   def encode(point) when is_map(point) do
     %{
       "location" => Amap.Param.location(required!(point, :location)),

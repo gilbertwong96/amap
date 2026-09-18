@@ -11,8 +11,8 @@ defmodule Amap.Falcon.FenceStatus do
   they are optional here.
   """
 
+  use Amap.Falcon.Paging, page: Amap.Falcon.FenceStatus.Page, mapper: :to_status
   alias Amap.Falcon.FenceStatus.Page
-  alias Amap.Falcon.Paging
   alias Amap.Falcon.Wire
   alias Amap.Numeric
   alias Amap.Param
@@ -70,8 +70,6 @@ defmodule Amap.Falcon.FenceStatus do
   end
 
   # Amap ignores `page` and `pagesize` when `gfids` is given: see `Wire.pagination/2`.
-
-  defp to_page(result), do: Paging.from(result, Page, &to_status/1)
 
   defp to_status(payload) do
     %__MODULE__{

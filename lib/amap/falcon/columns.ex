@@ -32,8 +32,17 @@ defmodule Amap.Falcon.Columns do
       Amap answers with those two and nothing else, so a struct with further
       fields — the terminal one carries a searchable flag — gets `nil` for them.
       """
-      @spec list(Amap.Client.t(), integer()) :: {:ok, [struct()]} | {:error, Amap.Error.t()}
-      def list(client, sid), do: Column.list(client, unquote(base), sid, __MODULE__)
+      @spec list(Amap.Client.t(), integer()) ::
+              {:ok, [__MODULE__.t()]} | {:error, Amap.Error.t()}
+      def list(client, sid) do
+        case Column.list(client, unquote(base), sid) do
+          {:ok, rows} ->
+            {:ok, Enum.map(rows, &struct(__MODULE__, column: &1["column"], type: &1["type"]))}
+
+          {:error, _} = error ->
+            error
+        end
+      end
     end
   end
 end

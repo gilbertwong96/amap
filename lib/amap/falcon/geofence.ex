@@ -15,8 +15,8 @@ defmodule Amap.Falcon.Geofence do
   rather than sending a fence Amap will reject.
   """
 
+  use Amap.Falcon.Paging, page: Amap.Falcon.Geofence.Page, mapper: :to_geofence_struct
   alias Amap.Falcon.Geofence.Page
-  alias Amap.Falcon.Paging
   alias Amap.Falcon.Wire
   alias Amap.Numeric
   alias Amap.Param
@@ -28,7 +28,7 @@ defmodule Amap.Falcon.Geofence do
           gfid: integer() | nil,
           name: String.t() | nil,
           desc: String.t() | nil,
-          shape: map() | nil,
+          shape: Amap.JSON.object() | nil,
           points: String.t() | nil,
           bufferradius: integer() | nil,
           createtime: integer() | nil,
@@ -153,7 +153,7 @@ defmodule Amap.Falcon.Geofence do
 
     client
     |> Amap.request(:tsapi, :get, @base <> "/list", params)
-    |> Paging.from(Page, &to_geofence_struct/1)
+    |> to_page()
   end
 
   # Amap ignores `page` and `pagesize` when `gfids` is given: see `Wire.pagination/2`.

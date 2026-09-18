@@ -19,7 +19,7 @@ defmodule Amap.Falcon.TerminalSearch do
   "Master Zhang", the ordinary way a driver is addressed.
   """
 
-  alias Amap.Falcon.Paging
+  use Amap.Falcon.Paging, page: Amap.Falcon.TerminalSearch.Page, mapper: :to_result
   alias Amap.Falcon.TerminalSearch.Location
   alias Amap.Falcon.TerminalSearch.Page
   alias Amap.Falcon.TerminalSearch.Result
@@ -151,8 +151,6 @@ defmodule Amap.Falcon.TerminalSearch do
 
   defp validate_radius(nil), do: nil
   defp validate_radius(radius), do: Validate.range!(radius, ":radius", 1, 5000)
-
-  defp to_page(result), do: Paging.from(result, Page, &to_result/1)
 
   defp to_result(payload) do
     %Result{

@@ -43,12 +43,27 @@ defmodule Amap.Limiter do
   `:personal` and `:enterprise` before calling this, so its own error names the
   offending `:limiter` option instead.
   """
-  @spec preset(:personal | :enterprise) :: keyword()
+  @spec preset(:personal | :enterprise) :: options()
   def preset(name), do: Map.fetch!(@presets, name)
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)
   end
+
+  @typedoc "The options a bucket takes: its own rate and burst, both positive."
+  @type options :: [{:rate, pos_integer()} | {:burst, pos_integer()}]
+
+  @typedoc """
+  Why a bucket would not start.
+
+  `{:invalid_rate, rate}` and `{:invalid_burst, burst}` are this SDK's own checks;
+  the `{exception, stacktrace}` pair is what `GenServer.start_link/3` answers with
+  when `init/1` raises for any other reason.
+  """
+  @type start_error ::
+          {:invalid_rate, number()}
+          | {:invalid_burst, number()}
+          | {Exception.t(), Exception.stacktrace()}
 
   @doc """
   Starts a bucket under `Amap.Limiter.Supervisor`.
@@ -57,7 +72,7 @@ defmodule Amap.Limiter do
   for a non-positive `:rate` or `:burst`, rather than starting a bucket that
   cannot serve a request.
   """
-  @spec start(keyword()) :: {:ok, pid()} | {:error, term()}
+  @spec start(options()) :: {:ok, pid()} | {:error, start_error()}
   def start(opts), do: Supervisor.start_bucket(opts)
 
   @doc """

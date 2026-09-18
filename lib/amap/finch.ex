@@ -6,7 +6,7 @@ defmodule Amap.Finch do
   """
 
   @doc "The registered name of the default pool."
-  @spec name() :: module()
+  @spec name() :: Amap.Finch
   def name, do: __MODULE__
 
   @doc false

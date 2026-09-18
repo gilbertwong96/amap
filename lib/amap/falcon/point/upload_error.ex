@@ -12,6 +12,6 @@ defmodule Amap.Falcon.Point.UploadError do
   @type t :: %__MODULE__{
           index: String.t() | nil,
           message: String.t() | nil,
-          raw: map()
+          raw: Amap.JSON.object()
         }
 end
