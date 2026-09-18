@@ -10,7 +10,7 @@ Notable changes to this project, newest first. The format follows
 
 - `Amap.new/1` and `%Amap.Client{}`, with defaults that may come from
   application config, and validation that names the option it rejected.
-- One `Amap.request/5` entry point for both API families, `restapi` and `tsapi`,
+- One `Amap.request/6` entry point for both API families, `restapi` and `tsapi`,
   collapsing either response envelope into a bare payload map so callers never
   branch on the family.
 - Amap parameter encoding, plus digital signatures when `private_key:` is set.
@@ -25,8 +25,28 @@ Notable changes to this project, newest first. The format follows
   last known position. Coordinates are `{longitude, latitude}` everywhere; the
   endpoints that want latitude first are handled internally.
 - `Amap.Param.lat_lng/1` and `Amap.Param.polygon/1` for the wire formats those
-  endpoints take, and `Amap.Falcon.Validate` for the rules Amap documents about
-  names and ranges, enforced before a request is built rather than by a round trip.
+  endpoints take, and `Amap.Validate` for the rules Amap documents about names and
+  ranges, enforced before a request is built rather than by a round trip.
+- The Web service queries: `Amap.IpLocation.ip/2`, `Amap.Geocoding.geo/3` and
+  `regeo/3`, `Amap.Convert.convert/3`, `Amap.District.district/2`,
+  `Amap.Weather.live/2` and `Amap.Weather.forecast/2`, and `Amap.Traffic.road/4`,
+  `circle/4` and `rectangle/4`. `Amap.Traffic` is a 高级服务 interface, opened by
+  Amap per account, so a key may be refused there while every other call works.
+- `Amap.Coord`, which parses the coordinate strings payloads carry — `;` between
+  points, `|` between the parts of a boundary — so composite fields reach a caller
+  as `{lon, lat}` tuples.
+- `Amap.Validate.point!/2`, `points!/2` and `optional_enum!/3`, for the coordinate
+  pairs and the `base`/`all` and coordinate-system parameters three endpoints share.
+
+### Changed
+
+- `Amap.Response` applies Amap's empty-array convention to the flat envelope too, so
+  a field Amap has no value for reaches a caller as `nil` rather than as `[]`.
+- `Amap.Falcon.Validate` became `Amap.Validate`, with only the track service's name
+  rules left family-specific, and `Amap.Falcon.Point.parse_location/1` moved to
+  `Amap.Coord.parse_location/1`.
+- `Amap.Falcon.TerminalMonitor.Position` and `Amap.Falcon.Grasproad.Point` described
+  one wire object twice, so both are now `Amap.Falcon.Position`.
 - Trajectories: `Amap.Falcon.Trace` creates and deletes one, and
   `Amap.Falcon.Point` uploads its points in batches of up to 100. A batch Amap
   only partly accepts is still a successful call, whose `errorpoints` list says

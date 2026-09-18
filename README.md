@@ -221,6 +221,47 @@ match.match_ratio   # "84.7" — Amap sends a string, and it is kept as one
 only to enterprise developers, so it could not be exercised against the live
 service and was deferred rather than guessed at until an account exists for it.
 
+## Web service API
+
+The other family — `restapi.amap.com` — answers with a flat `{status, info,
+infocode, …}` envelope, which the same client collapses for you. The simple queries:
+
+```elixir
+{:ok, ip} = Amap.IpLocation.ip(client)
+ip.province                          # "北京市"
+
+{:ok, [place]} = Amap.Geocoding.geo(client, "北京市朝阳区阜通东大街6号", city: "北京")
+place.location                       # {116.480881, 39.989410}
+place.level                          # "门牌号": how specific the match is
+
+{:ok, regeo} = Amap.Geocoding.regeo(client, {116.310003, 39.991957}, extensions: :all)
+regeo.address_component.city         # "北京市"
+length(regeo.pois)                   # nearby POIs, with roads and AOIs beside them
+
+{:ok, converted} = Amap.Convert.convert(client, [{116.481499, 39.990475}], coordsys: :gps)
+hd(converted.locations)              # that GPS point in Amap's own system
+
+{:ok, districts} = Amap.District.district(client, keywords: "北京", subdistrict: 1)
+hd(districts.items).districts        # its children; every level is the same struct
+
+{:ok, [now]} = Amap.Weather.live(client, "110000")
+now.temperature                      # "24"
+
+{:ok, [days]} = Amap.Weather.forecast(client, "110000")
+hd(days.casts).dayweather            # "晴"
+```
+
+`Amap.Traffic` reads the traffic along a road, inside a circle or inside a
+rectangle. It is a **高级服务** interface, which Amap opens per account, so it may
+answer with a refusal while every other call on the same key works.
+
+Three things worth knowing before the first surprise. `Amap.Convert` sends
+`coordsys` only when you name one, because Amap's own default converts nothing at
+all. `Amap.District` returns its matches beside Amap's suggestion list, which is the
+only way to see what Amap thought you meant when a keyword matches nothing.
+`Amap.Weather`'s two modes answer different fields — current conditions or three
+days of forecast — which is why they are two functions rather than one.
+
 ## Swapping the JSON library
 
 ```elixir
