@@ -16,8 +16,12 @@ defmodule Amap.Direction.Step do
   writes them as a single `;`-separated string, and a leg has no parts. (The `|`
   that splits a boundary into parts belongs to 行政区划, not to a route.)
 
-  `tolls`, `toll_distance` and `toll_road` are driving's and stay `nil` elsewhere.
+  `tolls`, `toll_distance` and `toll_road` are driving's and stay `nil` elsewhere,
+  as does `tmcs` — the traffic flow along this leg, which driving sends with
+  `extensions: :all` only.
   """
+
+  alias Amap.Direction.Tmc
 
   defstruct [
     :instruction,
@@ -31,7 +35,8 @@ defmodule Amap.Direction.Step do
     :walk_type,
     :tolls,
     :toll_distance,
-    :toll_road
+    :toll_road,
+    tmcs: []
   ]
 
   @type t :: %__MODULE__{
@@ -46,6 +51,7 @@ defmodule Amap.Direction.Step do
           walk_type: String.t() | nil,
           tolls: String.t() | nil,
           toll_distance: String.t() | nil,
-          toll_road: String.t() | nil
+          toll_road: String.t() | nil,
+          tmcs: [Tmc.t()]
         }
 end

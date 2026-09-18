@@ -10,12 +10,19 @@ defmodule Amap.Direction.Path do
   Amap's own 限行 answer — `"0"` when a limiting rule was avoided or did not apply,
   `"1"` when one could not be.
 
+  The driving-only collections are empty elsewhere too. `tmcs` reports the traffic
+  flow stretch by stretch and `cities`/`districts` the places the path crosses; Amap
+  sends all three for driving, and only with `extensions: :all`.
+
   **They keep the wire's form.** Amounts are strings, `restriction` and
   `traffic_lights` are strings, and nothing is parsed into a number here — a
   payload Amap never sends a value in stays `nil` rather than becoming a zero.
   """
 
+  alias Amap.Direction.City
+  alias Amap.Direction.District
   alias Amap.Direction.Step
+  alias Amap.Direction.Tmc
 
   defstruct [
     :distance,
@@ -25,7 +32,10 @@ defmodule Amap.Direction.Path do
     :restriction,
     :traffic_lights,
     :toll_distance,
-    steps: []
+    steps: [],
+    tmcs: [],
+    cities: [],
+    districts: []
   ]
 
   @type t :: %__MODULE__{
@@ -36,6 +46,9 @@ defmodule Amap.Direction.Path do
           restriction: String.t() | nil,
           traffic_lights: String.t() | nil,
           toll_distance: String.t() | nil,
-          steps: [Step.t()]
+          steps: [Step.t()],
+          tmcs: [Tmc.t()],
+          cities: [City.t()],
+          districts: [District.t()]
         }
 end
