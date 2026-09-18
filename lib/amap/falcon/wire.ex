@@ -17,13 +17,31 @@ defmodule Amap.Falcon.Wire do
 
   Amap keeps the first 100 ids of a longer list and answers success, so a caller
   who passed 150 would believe all of them were acted on. This raises instead.
+  `nil` means the parameter was left out and stays out of the request.
   """
-  @spec ids!([integer()] | :all, String.t()) :: String.t()
+  @spec ids!([integer()] | :all | nil, String.t()) :: String.t() | nil
+  def ids!(nil, _field), do: nil
   def ids!(:all, _field), do: "#all"
 
   def ids!(ids, field) when is_list(ids) do
     Validate.range!(length(ids), field, 1, @max_ids)
     Enum.map_join(ids, ",", &to_string/1)
+  end
+
+  @doc """
+  Builds the `page` and `pagesize` parameters, or neither of them.
+
+  Amap ignores both when `gfids` is given, so passing them anyway would suggest a
+  paging that is not happening.
+  """
+  @spec pagination(keyword(), [integer()] | nil) :: keyword()
+  def pagination(_opts, gfids) when not is_nil(gfids), do: []
+
+  def pagination(opts, _gfids) do
+    [
+      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
+      pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 100)
+    ]
   end
 
   @doc """

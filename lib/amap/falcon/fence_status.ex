@@ -13,7 +13,6 @@ defmodule Amap.Falcon.FenceStatus do
 
   alias Amap.Falcon.FenceStatus.Page
   alias Amap.Falcon.Paging
-  alias Amap.Falcon.Validate
   alias Amap.Falcon.Wire
   alias Amap.Numeric
   alias Amap.Param
@@ -66,23 +65,11 @@ defmodule Amap.Falcon.FenceStatus do
     gfids = Keyword.get(opts, :gfids)
 
     [
-      gfids: encode_gfids(gfids)
-    ] ++ pagination(opts, gfids)
+      gfids: Wire.ids!(gfids, ":gfids")
+    ] ++ Wire.pagination(opts, gfids)
   end
 
-  # Amap ignores `page` and `pagesize` when `gfids` is given, so sending them anyway
-  # would suggest a paging that is not happening.
-  defp pagination(_opts, gfids) when not is_nil(gfids), do: []
-
-  defp pagination(opts, _gfids) do
-    [
-      page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
-      pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 100)
-    ]
-  end
-
-  defp encode_gfids(nil), do: nil
-  defp encode_gfids(gfids), do: Wire.ids!(gfids, ":gfids")
+  # Amap ignores `page` and `pagesize` when `gfids` is given: see `Wire.pagination/2`.
 
   defp to_page(result), do: Paging.from(result, Page, &to_status/1)
 
