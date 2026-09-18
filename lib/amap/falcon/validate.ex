@@ -38,6 +38,21 @@ defmodule Amap.Falcon.Validate do
     end
   end
 
+  @doc """
+  Validates that a required string is present.
+
+  For parameters whose contents Amap does not restrict — a search keyword, for
+  instance — where emptiness is the only caller mistake worth catching.
+  """
+  @spec present!(term(), String.t()) :: String.t()
+  def present!(value, field) do
+    if is_binary(value) and value != "" do
+      value
+    else
+      raise ArgumentError, "#{field} must be a non-empty string"
+    end
+  end
+
   @doc "Validates an integer parameter against Amap's documented interval."
   @spec range!(term(), String.t(), integer(), integer()) :: integer()
   def range!(value, field, min, max) do
