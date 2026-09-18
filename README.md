@@ -94,6 +94,46 @@ for up to `:max` × the window Amap documents. With `max: 2` and the single
 window Amap states (60 seconds, for `ACCESS_TOO_FREQUENT`) that is on the order
 of two minutes. There is no total-deadline option; lower `:max` to bound it.
 
+## Falcon track service
+
+Falcon is Amap's track service, on its own host and its own family. It is reached
+through module functions rather than API paths, so no caller needs to know a wire
+format:
+
+```elixir
+{:ok, service} = Amap.Falcon.Service.add(client, "fleet-a", desc: "fleet")
+
+{:ok, terminal} =
+  Amap.Falcon.Terminal.add(client, service.sid, "truck-01", props: %{"plate" => "AB1234"})
+
+{:ok, page} = Amap.Falcon.TerminalSearch.search(client, service.sid, "truck")
+page.count           # matches in total
+hd(page.items).name  # "truck-01"
+
+{:ok, position} = Amap.Falcon.TerminalMonitor.lastpoint(client, service.sid, terminal.tid)
+position.location    # {114.158, 22.279}
+```
+
+Coordinates are always `{longitude, latitude}` tuples, here and everywhere else in
+this SDK. The endpoints that want the opposite order on the wire — the search
+endpoints' centre and polygon — handle the reversal internally.
+
+Search takes filters and sorting as Elixir terms rather than Amap's `&&`, `|` and
+`field:asc` syntax:
+
+```elixir
+Amap.Falcon.TerminalSearch.aroundsearch(client, sid, {114.158, 22.279},
+  radius: 1000,
+  filter: [name: ["truck-01", "truck-02"], lastloctime: {:>=, 1_469_817_532}],
+  sort: {:lastloctime, :desc}
+)
+```
+
+Every function returns `{:ok, struct} | {:error, %Amap.Error{}}`, and `{:ok, nil}`
+for a response Amap sends without data. Caller mistakes — a name that breaks
+Amap's character rules, a radius out of range, a filter that cannot be encoded —
+raise `ArgumentError` before any request is built.
+
 ## Swapping the JSON library
 
 ```elixir

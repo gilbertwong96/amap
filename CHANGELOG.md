@@ -19,6 +19,14 @@ Notable changes to this project, newest first. The format follows
 - Opt-in token-bucket rate limiting via `limiter: :personal | :enterprise | [rate: …]`.
 - Telemetry spans for requests and for time spent waiting on the limiter.
 - Retry driven by the failure's own classification, off by default.
+- Falcon track service as module functions: `Amap.Falcon.Service` and
+  `Amap.Falcon.Terminal` for the resources themselves, `Amap.Falcon.TerminalSearch`
+  for the four search shapes, and `Amap.Falcon.TerminalMonitor` for a terminal's
+  last known position. Coordinates are `{longitude, latitude}` everywhere; the
+  endpoints that want latitude first are handled internally.
+- `Amap.Param.lat_lng/1` and `Amap.Param.polygon/1` for the wire formats those
+  endpoints take, and `Amap.Falcon.Validate` for the rules Amap documents about
+  names and ranges, enforced before a request is built rather than by a round trip.
 
 ### Notes
 
