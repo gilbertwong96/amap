@@ -15,10 +15,21 @@ defmodule Amap.Falcon.TerminalMonitor do
   @doc """
   Returns a terminal's last known position.
 
-  Amap requires at least five continuous points before this answers at all. With
-  the default `correction: :driving`, which snaps the track to roads, the reply
-  may omit the time, accuracy, direction, speed and height entirely — which is
-  why every field is optional.
+  `location` is a `{lon, lat}` tuple. Amap sends it as a bare `"lon,lat"` string,
+  and that order was confirmed against the live API on 2026-09-17 by uploading a
+  known track and reading it back.
+
+  Amap requires at least five points before this answers at all.
+
+  **The default `correction: :driving` snaps the track to roads and can return no
+  data whatsoever for a short track.** A five-point, 120-metre track came back with
+  an empty `data` under the default, and with the uploaded point under
+  `correction: :n`. Pass `correction: :n` when you want the last point as it was
+  uploaded rather than a road-snapped one.
+
+  Fields may also carry values nobody sent: the same call reported `speed` 255,
+  `direction` 511 and an `accuracy` of 550 metres for points that only had a
+  location and a time.
   """
   @spec lastpoint(Amap.Client.t(), integer(), integer(), keyword()) ::
           {:ok, Position.t()} | {:error, Amap.Error.t()}

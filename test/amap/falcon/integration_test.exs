@@ -130,7 +130,7 @@ defmodule Amap.Falcon.IntegrationTest do
         {correction, result}
       end
 
-    {_mode, position} =
+    {_mode, {:ok, position}} =
       Enum.find(positions, fn {_mode, result} ->
         case result do
           {:ok, %{location: location}} -> is_tuple(location)
