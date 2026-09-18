@@ -20,6 +20,7 @@ defmodule Amap.Falcon.Grasproad do
   alias Amap.Falcon.Grasproad.RoadTrack
   alias Amap.Falcon.Grasproad.Track
   alias Amap.Falcon.Validate
+  alias Amap.Falcon.Wire
   alias Amap.Numeric
 
   @base "/v1/track/terminal"
@@ -52,9 +53,9 @@ defmodule Amap.Falcon.Grasproad do
       starttime: starttime,
       endtime: endtime,
       correction: Correction.encode(Keyword.get(opts, :correction)),
-      recoup: Validate.flag!(Keyword.get(opts, :recoup)),
+      recoup: Wire.flag!(Keyword.get(opts, :recoup)),
       gap: Validate.optional_range!(Keyword.get(opts, :gap), ":gap", 50, 10_000),
-      ispoints: Validate.flag!(Keyword.get(opts, :ispoints)),
+      ispoints: Wire.flag!(Keyword.get(opts, :ispoints)),
       page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 100),
       pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 999)
     ]
@@ -132,15 +133,9 @@ defmodule Amap.Falcon.Grasproad do
   defp encode_points(points),
     do: Amap.JSON.encode!(Enum.map(points, &Amap.Falcon.Point.encode/1))
 
-  # Amap spells flags as 1 and 0, and omits them rather than sending false. This is
-  # the decoding direction, for response fields; `Amap.Falcon.Validate.flag!/1` is
-  # the encoding one, for request options.
-  defp decode_flag(nil), do: nil
-  defp decode_flag(0), do: false
-  defp decode_flag(1), do: true
-  defp decode_flag("0"), do: false
-  defp decode_flag("1"), do: true
-  defp decode_flag(_other), do: nil
+  # `Wire.decode_flag/1` turns Amap's 1/0 back into a boolean; `Wire.flag!/1` is
+  # the encoding direction, for request options.
+  defp decode_flag(value), do: Wire.decode_flag(value)
 
   defp encode_car_type(nil), do: nil
   defp encode_car_type(:bus), do: "0"

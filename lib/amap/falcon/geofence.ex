@@ -18,6 +18,7 @@ defmodule Amap.Falcon.Geofence do
   alias Amap.Falcon.Geofence.Page
   alias Amap.Falcon.Paging
   alias Amap.Falcon.Validate
+  alias Amap.Falcon.Wire
   alias Amap.Numeric
   alias Amap.Param
 
@@ -123,10 +124,10 @@ defmodule Amap.Falcon.Geofence do
     do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, gfids: "#all")
 
   def delete(client, sid, gfids) when is_list(gfids) do
-    params = [sid: sid, gfids: join_ids!(gfids, ":gfids")]
+    params = [sid: sid, gfids: Wire.ids!(gfids, ":gfids")]
 
     case Amap.request(client, :tsapi, :post, @base <> "/delete", params) do
-      {:ok, payload} -> {:ok, List.wrap(payload["gfids"])}
+      {:ok, payload} -> {:ok, Wire.decode_ids(payload["gfids"])}
       {:error, _} = error -> error
     end
   end
@@ -143,7 +144,7 @@ defmodule Amap.Falcon.Geofence do
   def list(client, sid, opts \\ []) do
     params = [
       sid: sid,
-      outputshape: Validate.flag!(Keyword.get(opts, :outputshape)),
+      outputshape: Wire.flag!(Keyword.get(opts, :outputshape)),
       gfids: encode_gfids(Keyword.get(opts, :gfids)),
       page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
       pagesize: Validate.optional_range!(Keyword.get(opts, :pagesize), ":pagesize", 1, 100)
@@ -154,13 +155,8 @@ defmodule Amap.Falcon.Geofence do
     |> Paging.from(Page, &to_geofence_struct/1)
   end
 
-  defp join_ids!(ids, field) do
-    Validate.range!(length(ids), field, 1, 100)
-    Enum.map_join(ids, ",", &to_string/1)
-  end
-
   defp encode_gfids(nil), do: nil
-  defp encode_gfids(ids), do: join_ids!(ids, ":gfids")
+  defp encode_gfids(ids), do: Wire.ids!(ids, ":gfids")
 
   defp create(client, sid, name, opts, shape) do
     params =

@@ -95,17 +95,6 @@ defmodule Amap.Falcon.Validate do
   def optional_range!(nil, _field, _min, _max), do: nil
   def optional_range!(value, field, min, max), do: range!(value, field, min, max)
 
-  @doc """
-  Validates an optional boolean and encodes it the way Amap writes flags.
-
-  Amap spells its flags `1` and `0`, and omits them rather than sending a false.
-  """
-  @spec flag!(term()) :: String.t() | nil
-  def flag!(nil), do: nil
-  def flag!(true), do: "1"
-  def flag!(false), do: "0"
-  def flag!(other), do: raise(ArgumentError, "expected a boolean, got: #{inspect(other)}")
-
   @doc "Validates an integer parameter against Amap's documented interval."
   @spec range!(term(), String.t(), integer(), integer()) :: integer()
   def range!(value, field, min, max) do
