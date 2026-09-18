@@ -97,4 +97,31 @@ defmodule Amap.ParamTest do
       refute encoded_large =~ "e"
     end
   end
+
+  describe "lat_lng/1" do
+    test "reverses the pair, because the Falcon search endpoints are latitude first" do
+      assert Param.lat_lng({116.33, 36.10}) == "36.1,116.33"
+      assert Param.lat_lng({114.158, 22.279}) == "22.279,114.158"
+    end
+
+    test "rounds to six decimals like coord/1, and never uses scientific notation" do
+      assert Param.lat_lng({116.4810283, 39.9896431234}) == "39.989643,116.481028"
+      refute Param.lat_lng({0.00001, 0.00001}) =~ "e"
+    end
+  end
+
+  describe "polygon/1" do
+    test "encodes one ring as lat,lon pairs joined by semicolons" do
+      ring = [{116.35, 39.98}, {116.36, 39.98}, {116.36, 39.99}]
+      assert Param.polygon(ring) == "39.98,116.35;39.98,116.36;39.99,116.36"
+    end
+
+    test "encodes several rings separated by a pipe, as the docs describe" do
+      ring = [{116.35, 39.98}, {116.36, 39.98}, {116.36, 39.99}]
+      other = [{116.40, 39.90}, {116.41, 39.90}, {116.41, 39.91}]
+
+      assert Param.polygon([ring, other]) ==
+               "39.98,116.35;39.98,116.36;39.99,116.36|39.9,116.4;39.9,116.41;39.91,116.41"
+    end
+  end
 end

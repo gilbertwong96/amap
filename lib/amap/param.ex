@@ -26,6 +26,34 @@ defmodule Amap.Param do
   @spec locations([{number(), number()}]) :: String.t()
   def locations(points), do: Enum.map_join(points, ";", &location/1)
 
+  @doc """
+  Formats `{longitude, latitude}` as `lat,lon`.
+
+  The Falcon search endpoints take the centre and the polygon latitude first,
+  the reverse of `location/1`. Both orders occur in one family, so each
+  endpoint's order is chosen here rather than by the caller.
+  """
+  @spec lat_lng({number(), number()}) :: String.t()
+  def lat_lng({lon, lat}), do: coord(lat) <> "," <> coord(lon)
+
+  @doc """
+  Formats one polygon ring, or several, in lat,lon order.
+
+  A ring is a list of `{lon, lat}` points; several rings are a list of rings.
+  Rings are joined with `;` and groups with `|`, which is the form Amap's
+  `polygon` parameter takes. Amap also caps the total bounding area at 3000 km²,
+  which this cannot check.
+  """
+  @spec polygon([{number(), number()}] | [[{number(), number()}]]) :: String.t()
+  def polygon(ring) when is_list(ring), do: ring |> rings() |> encode_rings()
+
+  defp rings([{_lon, _lat} | _] = ring), do: [ring]
+  defp rings(rings), do: rings
+
+  defp encode_rings(rings) do
+    Enum.map_join(rings, "|", fn ring -> Enum.map_join(ring, ";", &lat_lng/1) end)
+  end
+
   @doc "Joins a list with `|`, as used by search `types` and similar."
   @spec pipe([String.t()]) :: String.t()
   def pipe(values), do: Enum.map_join(values, "|", &to_string/1)
