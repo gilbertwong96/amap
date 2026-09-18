@@ -7,9 +7,10 @@ defmodule Amap.Geocoding do
   is the reverse, and can also bring back the roads, intersections, POIs and AOIs
   around a point.
 
-  Addresses are structured 国家、省份、城市、区县、城镇、乡村、街道、门牌号码: the
-  country may be left out for the mainland, Hong Kong and Macao, but the province,
-  city and district levels may not. Taiwan's detailed addresses are not served.
+  Addresses are structured 国家、省份、城市、区县、城镇、乡村、街道、门牌号码 — country, province,
+  city, district, town, village, street, house number: the country may be left out for
+  the mainland, Hong Kong and Macao, but the province, city and district levels may not.
+  Taiwan's detailed addresses are not served.
   """
 
   alias Amap.Coord
@@ -37,7 +38,8 @@ defmodule Amap.Geocoding do
   @doc """
   Geocodes a structured address.
 
-  `address` is 北京市朝阳区阜通东大街6号 or a landmark like 天安门. `:city` narrows
+  `address` is 北京市朝阳区阜通东大街6号 (6 Futong East Street, Chaoyang, Beijing) or a landmark
+  like 天安门 (Tiananmen). `:city` narrows
   the search and may be a Chinese name, its pinyin, a `citycode` or an `adcode`;
   **county-level cities are not supported**, and leaving it out searches the whole
   country.
@@ -69,9 +71,9 @@ defmodule Amap.Geocoding do
   so a caller can always enumerate them. The four options that only work with
   `:all` (`:radius`, `:poitype`, `:roadlevel`, `:homeorcorp`) raise without it.
 
-  `city` is **empty for the four municipalities** (北京/上海/天津/重庆) and for
-  province-administered counties, so it is not a field to branch on. `sea_area` is
-  the sea the point belongs to, if any.
+  `city` is **empty for the four municipalities** (北京/上海/天津/重庆 — Beijing, Shanghai,
+  Tianjin, Chongqing) and for province-administered counties, so it is not a field to
+  branch on. `sea_area` is the sea the point belongs to, if any.
   """
   @spec regeo(Amap.Client.t(), {number(), number()}, keyword()) ::
           {:ok, Regeo.t()} | {:error, Amap.Error.t()}

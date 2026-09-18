@@ -4,10 +4,11 @@ defmodule Amap.Weather do
 
   One endpoint answers both, and its two `extensions` modes answer **different
   fields** rather than the same fields in more detail, which is why they are two
-  functions here: `live/2` for 实况天气 and `forecast/2` for 预报天气.
+  functions here: `live/2` for 实况天气 (current conditions) and `forecast/2` for 预报天气
+  (the forecast).
 
   `city` is an **adcode**, not a name — Amap's own `city` parameter on this page
-  takes the code, so 北京 is a call-site mistake worth catching before a round
+  takes the code, so 北京 (Beijing) is a call-site mistake worth catching before a round
   trip.
 
   Conditions update several times an hour and forecasts three times a day (around

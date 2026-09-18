@@ -10,8 +10,8 @@ defmodule Amap.Response do
 
   For the flat envelope it also applies Amap's empty-array convention, so that a
   field with no value reaches a caller as `nil` rather than as `[]` — the rule
-  its own pages state (当返回值不存在时，则以数组类型返回) and the one this SDK
-  promises for every struct field.
+  its own pages state — 当返回值不存在时，则以数组类型返回, "a value that is absent comes back as
+  an array" — and the one this SDK promises for every struct field.
   """
 
   alias Amap.Client
@@ -77,11 +77,10 @@ defmodule Amap.Response do
   end
 
   # Amap writes "no value" as an empty array rather than omitting the field — its own
-  # pages say so: 当返回值不存在时，则以数组类型返回 — and it wraps a single object in an
-  # array the same way. The analysis endpoints answered `data: [%{…}]` live on
-  # 2026-09-17 while their own tables describe an object, so an array is read as a
-  # wrapper: one element is that element, none is no data. Collected with the other
-  # page-versus-service differences in
+  # pages say so: 当返回值不存在时，则以数组类型返回 ("a value that is absent comes back as an
+  # array") — and it wraps a single object in an array the same way. The analysis
+  # endpoints answered `data: [%{…}]` live on 2026-09-17 while their own tables describe
+  # an object, so an array is read as a wrapper: one element is that element, none is no
   # data. Collected with the other page-versus-service differences on 2026-09-17.
   defp unwrap_data(%{"data" => []}), do: nil
   defp unwrap_data(%{"data" => [single]}), do: single

@@ -8,14 +8,15 @@ defmodule Amap.District do
 
   What the page documents and a caller will otherwise trip over:
 
-    * a 直辖市 appears at `level: "province"` and has no `city` of its own;
+    * a 直辖市 — a municipality directly under the central government — appears at
+      `level: "province"` and has no `city` of its own;
     * a street inherits its district's `adcode` instead of having one, so an
       `adcode` alone does not identify a street;
     * `polyline` comes back only down to district level, and a district made of
-      separated pieces (朝阳区) separates each piece with `|`;
+      separated pieces (朝阳区, Chaoyang district) separates each piece with `|`;
     * `center` is not a centroid — at street level it is a point on the boundary;
-    * 东莞 and 文昌 have no district level at all, so streets sit directly under the
-      city, and Taiwan has no detailed division here.
+    * 东莞 and 文昌 (Dongguan and Wenchang) have no district level at all, so streets sit
+      directly under the city, and Taiwan has no detailed division here.
 
   The answer carries Amap's `suggestion` list too, which is the only way to see
   what it thought was meant when a keyword matches nothing: `districts` is empty

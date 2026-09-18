@@ -15,7 +15,8 @@ defmodule Amap.Falcon.TerminalSearch do
   `filter` takes a `|`-separated exact list for `name`, a comparison for
   `lastloctime` (`:>=` for "has reported since", `:<` for "has not"), and plain
   strings for custom fields. `sort` accepts only `:lastloctime` and `:name`, in
-  `:asc` or `:desc`.
+  `:asc` or `:desc`. The names in the example are 王师傅 and 张师傅 — "Master Wang" and
+  "Master Zhang", the ordinary way a driver is addressed.
   """
 
   alias Amap.Falcon.Paging

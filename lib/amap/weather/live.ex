@@ -3,8 +3,8 @@ defmodule Amap.Weather.Live do
   实况天气 — what the weather is doing in a city right now.
 
   Every field is a string, which is the form Amap writes them in: `temperature` in
-  °C, `windpower` in 级, `humidity` in percent, and `reporttime` when Amap measured
-  it (`"2026-09-17 14:00:00"`).
+  °C, `windpower` on Amap's Chinese 级 wind scale, `humidity` in percent, and `reporttime`
+  when Amap measured it (`"2026-09-17 14:00:00"`).
   """
 
   defstruct [

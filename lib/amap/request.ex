@@ -73,8 +73,9 @@ defmodule Amap.Request do
 
     # The key goes in the query string as well as the body. A live call with it only in
     # the JSON body answered 10001 INVALID_USER_KEY, so this service does not read it from
-    # there -- and the 轨迹重合度分析 page says nothing about where the key goes. The only page
-    # carrying a "key needs to be appended to the url" note is 轨迹上传及管理, on trace/add,
+    # there -- and the 轨迹重合度分析 (trajectory overlap) page says nothing about where the key
+    # goes. The only page carrying a "key needs to be appended to the url" note is
+    # 轨迹上传及管理 (trajectory upload and management), on trace/add,
     # where the key in the form body succeeds. Collected with the other page-versus-service
     url = client.base_urls[:tsapi] <> path <> "?" <> URI.encode_query(key: client.key)
 

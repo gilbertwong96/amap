@@ -30,7 +30,8 @@ defmodule Amap.ResponseTest do
     end
 
     test "reads an empty array as no value, at any depth" do
-      # 当返回值不存在时，则以数组类型返回 — the rule this SDK promises callers, so the
+      # 当返回值不存在时，则以数组类型返回 — "a value that is absent comes back as an array" —
+      # the rule this SDK promises callers, so the
       # four empty arrays `/v3/ip` sends for an address it cannot place reach a
       # struct as nil.
       body = %{
@@ -97,7 +98,8 @@ defmodule Amap.ResponseTest do
     end
 
     test "reads an empty-array data as no data at all" do
-      # Amap writes "no value" as an empty array: 当返回值不存在时，则以数组类型返回.
+      # Amap writes "no value" as an empty array: 当返回值不存在时，则以数组类型返回 — "a
+      # value that is absent comes back as an array".
       body = %{"errcode" => 10_000, "errmsg" => "OK", "data" => []}
 
       assert {:ok, nil} = Response.normalize(:tsapi, body, 200)

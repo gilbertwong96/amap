@@ -2,10 +2,12 @@ defmodule Amap.Geocoding.Geo do
   @moduledoc """
   One match for a geocoded address.
 
-  `level` is how specific the match is — 国家, 省, 市, 区县, 乡镇, 村庄, 热点商圈, 道路,
-  道路交叉路口, 兴趣点, 门牌号, 单元号, 公交地铁站点, 门址, 住宅区 or 未知 — and the
-  fields above it are filled in only as far as the match goes: a 区县 match has no
-  `street`.
+  `level` is how specific the match is, as one of Amap's own labels — 国家 (country),
+  省 (province), 市 (city), 区县 (district), 乡镇 (town), 村庄 (village), 热点商圈 (business
+  district), 道路 (road), 道路交叉路口 (intersection), 兴趣点 (point of interest), 门牌号
+  (house number), 单元号 (unit), 公交地铁站点 (transit stop), 门址 (building entrance), 住宅区
+  (residential area) or 未知 (unknown) — and the fields above it are filled in only as far
+  as the match goes: a 区县 (district) match has no `street`.
 
   `location` is a `{lon, lat}` tuple; the four municipalities report themselves as
   the `province` **and** the `city`.

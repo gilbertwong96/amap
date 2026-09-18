@@ -55,7 +55,8 @@ defmodule Amap.Coord do
   Parses a boundary into one list of points per part.
 
   District polylines separate the parts of a district that is not contiguous
-  (朝阳区, for instance) with `|`, and the points inside each part with `;`.
+  (朝阳区 — Chaoyang district — for instance) with `|`, and the points inside each part with
+  `;`.
   """
   @spec parse_polyline(term()) :: [[{float(), float()}]] | nil
   def parse_polyline(nil), do: nil

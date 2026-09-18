@@ -2,8 +2,9 @@ defmodule Amap.IpLocation do
   @moduledoc """
   IP 定位 — where an address is.
 
-  `province` and `city` name a municipality as itself (北京 appears in both), and
-  a LAN address reports `局域网` as its province. An address Amap cannot place —
+  `province` and `city` name a municipality as itself (北京, Beijing, appears in both), and a
+  LAN address reports `局域网` (a local network) as its province. An address Amap cannot
+  place —
   an illegal one, or a foreign one — reports **nothing**: its four fields arrive
   as empty arrays, which is the behaviour this SDK normalises to `nil`
   everywhere, and the first one we ever saw.

@@ -8,7 +8,7 @@ defmodule Amap.Falcon.TraceColumn do
   service holds at most five of them.
 
   **Amap's paths for this say `point/column`, but the fields are trace fields.**
-  This page of the documentation is 轨迹自定义字段, and the module is named after
+  This page of the documentation is 轨迹自定义字段 (custom trace fields), and the module is named after
   the domain rather than the path. Unlike terminal fields there is no
   "searchable" flag here.
   """

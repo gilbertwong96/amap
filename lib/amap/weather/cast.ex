@@ -3,7 +3,8 @@ defmodule Amap.Weather.Cast do
   One day of a forecast, split into its day and its night.
 
   `date` is `"2026-09-17"` and `week` is the day of the week as Amap numbers it.
-  Temperatures are in °C and wind power in 级, all as strings.
+  Temperatures are in °C and wind power on the Chinese 级 wind scale (0 to 17), all as
+  strings.
   """
 
   defstruct [

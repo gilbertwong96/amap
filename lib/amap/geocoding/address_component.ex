@@ -2,8 +2,9 @@ defmodule Amap.Geocoding.AddressComponent do
   @moduledoc """
   The administrative parts of a reverse-geocoded point.
 
-  `city` is **empty for the four municipalities** (北京/上海/天津/重庆) and for
-  province-administered counties, where the name appears one level up in
+  `city` is **empty for the four municipalities** (北京/上海/天津/重庆 — Beijing, Shanghai,
+  Tianjin, Chongqing) and for province-administered counties, where the name appears one
+  level up in
   `province`. `neighborhood`, `building` and `street_number` are present only when
   Amap knows them, and `sea_area` only when the point belongs to one.
   """
