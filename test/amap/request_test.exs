@@ -57,6 +57,47 @@ defmodule Amap.RequestTest do
       refute request.query =~ "sig="
     end
 
+    test "sends a call to a host its family does not own" do
+      request =
+        Request.build(client(private_key: "priv"), :tsapi, :get, "/v4/direction/bicycling", %{},
+          host: :restapi
+        )
+
+      assert request.host == "restapi.amap.com"
+      refute request.query =~ "sig="
+    end
+
+    test "signs by family even when the host is the other family's" do
+      request =
+        Request.build(client(private_key: "priv"), :restapi, :get, "/v3/ip", %{}, host: :tsapi)
+
+      assert request.host == "tsapi.amap.com"
+      assert request.query =~ "sig="
+    end
+
+    test "defaults the host to the family" do
+      custom = client(base_urls: %{restapi: "http://rest", tsapi: "http://track"})
+
+      assert Request.build(custom, :restapi, :get, "/v3/ip", %{}).host == "rest"
+      assert Request.build(custom, :tsapi, :get, "/v3/ip", %{}).host == "track"
+    end
+
+    test "rejects a host that is not an API family" do
+      assert_raise ArgumentError, "invalid host: :bogus; expected :restapi or :tsapi", fn ->
+        Request.build(client(), :restapi, :get, "/v3/ip", %{}, host: :bogus)
+      end
+    end
+
+    test "puts a JSON body on the host that was named" do
+      request =
+        Request.build(client(), :tsapi, :post, "/v1/track/match", %{"a" => 1},
+          body: :json,
+          host: :restapi
+        )
+
+      assert request.host == "restapi.amap.com"
+    end
+
     test "url-encodes values only after signing" do
       request =
         Request.build(

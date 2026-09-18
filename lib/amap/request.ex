@@ -31,6 +31,12 @@ defmodule Amap.Request do
   supported for `:tsapi`, where nothing is signed: signing a JSON body is not
   defined, and sending one unsigned to a family that expects signatures would be
   worse than refusing.
+
+  `host:` names the base URL when the endpoint's host is not its family's. Some
+  endpoints answer the other family's envelope: `/v4/direction/bicycling` lives on
+  `restapi.amap.com` and answers `{errcode, errmsg, errdetail, data}`, so it is
+  built as `:tsapi` — the family keeps deciding the parser and the signature — with
+  `host: :restapi` deciding where it goes. The default is the family itself.
   """
   @spec build(
           Client.t(),
@@ -42,14 +48,32 @@ defmodule Amap.Request do
         ) ::
           Finch.Request.t()
   def build(%Client{} = client, family, method, path, params, opts \\ []) do
+    host = host!(opts, family)
+
     case Keyword.get(opts, :body, :form) do
-      :form -> build_form(client, family, method, path, params)
-      :json -> build_json(client, family, method, path, params)
+      :form -> build_form(client, family, host, method, path, params)
+      :json -> build_json(client, family, host, method, path, params)
       other -> raise ArgumentError, ":body must be :form or :json, got: #{inspect(other)}"
     end
   end
 
-  defp build_form(client, family, method, path, params) do
+  # A host is where a request goes, not how its body reads. Amap pairs the two
+  # most of the time — `restapi.amap.com` answers the flat envelope, `tsapi.amap.com`
+  # the Falcon one — but not always: `/v4/direction/bicycling` and
+  # `/v4/grasproad/driving` both live on `restapi.amap.com` and answer the Falcon
+  # envelope, so a call has to be able to name a host its family does not own.
+  # Collected with the other page-versus-service differences in
+  defp host!(opts, family) do
+    case Keyword.get(opts, :host, family) do
+      host when host in [:restapi, :tsapi] ->
+        host
+
+      other ->
+        raise ArgumentError, "invalid host: #{inspect(other)}; expected :restapi or :tsapi"
+    end
+  end
+
+  defp build_form(client, family, host, method, path, params) do
     params =
       params
       |> Param.encode()
@@ -57,7 +81,7 @@ defmodule Amap.Request do
       |> Keyword.put(:key, client.key)
       |> maybe_sign(client, family, path)
 
-    url = client.base_urls[family] <> path
+    url = client.base_urls[host] <> path
     encoded = URI.encode_query(params)
 
     case method do
@@ -66,12 +90,12 @@ defmodule Amap.Request do
     end
   end
 
-  defp build_json(_client, family, _method, _path, _params) when family != :tsapi do
+  defp build_json(_client, family, _host, _method, _path, _params) when family != :tsapi do
     raise ArgumentError,
           "a JSON body is only supported for the :tsapi family, since signing one is not defined"
   end
 
-  defp build_json(%Client{} = client, :tsapi, method, path, params) when is_map(params) do
+  defp build_json(%Client{} = client, :tsapi, host, method, path, params) when is_map(params) do
     body =
       params
       |> reject_reserved_map!()
@@ -84,12 +108,12 @@ defmodule Amap.Request do
     # goes. The only page carrying a "key needs to be appended to the url" note is
     # 轨迹上传及管理 (trajectory upload and management), on trace/add,
     # where the key in the form body succeeds. Collected with the other page-versus-service
-    url = client.base_urls[:tsapi] <> path <> "?" <> URI.encode_query(key: client.key)
+    url = client.base_urls[host] <> path <> "?" <> URI.encode_query(key: client.key)
 
     Finch.build(method, url, @json_headers, body)
   end
 
-  defp build_json(%Client{}, :tsapi, _method, _path, params) do
+  defp build_json(%Client{}, :tsapi, _host, _method, _path, params) do
     raise ArgumentError, "a JSON body must be a map, got: #{inspect(params)}"
   end
 

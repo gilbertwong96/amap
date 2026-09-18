@@ -58,10 +58,16 @@ defmodule Amap do
 
   Returns `{:ok, nil}` for Falcon endpoints that answer without a `data` body.
 
-  Raises `ArgumentError` if `family` is neither `:restapi` nor `:tsapi`, or if
-  `params` supplies `key` or `sig`. The client owns both of those: injecting a
-  second copy would put two `key` parameters on the wire, and the signed string
-  would no longer be the one the server reads.
+  `opts` may carry `host:` (defaulting to `family`), naming the base URL to use
+  when an endpoint's host is not its family's. `/v4/direction/bicycling` is one
+  such endpoint: it answers the Falcon envelope from `restapi.amap.com`, so it is
+  called as `:tsapi` with `host: :restapi`. The family keeps deciding the envelope
+  and the signature — only the destination changes.
+
+  Raises `ArgumentError` if `family` is neither `:restapi` nor `:tsapi`, if `opts`
+  names a `:host` other than those two, or if `params` supplies `key` or `sig`. The
+  client owns both of those: injecting a second copy would put two `key` parameters
+  on the wire, and the signed string would no longer be the one the server reads.
   """
   @spec request(
           Client.t(),

@@ -36,6 +36,25 @@ defmodule Amap.PipelineTest do
              Amap.request(client, :tsapi, :get, "/v1/track/service/list", %{})
   end
 
+  test "sends to the host the caller names, and parses by the family", %{server: server} do
+    # `/v4/direction/bicycling` is a Falcon envelope on the Web service host: it is
+    # called as `:tsapi`, which decides the envelope and signing, with
+    # `host: :restapi`, which decides where it goes. The tsapi base URL here points
+    # at a closed port, so a call that ignored `host:` would fail in transport.
+    client =
+      Amap.new(
+        key: "test-key",
+        base_urls: %{restapi: "http://localhost:#{server.port}", tsapi: "http://localhost:1"}
+      )
+
+    TestServer.expect_once(server, "GET", "/v4/direction/bicycling", fn _req ->
+      {200, ~s({"errcode":0,"errmsg":"OK","data":{"paths":[]}})}
+    end)
+
+    assert {:ok, %{"paths" => []}} =
+             Amap.request(client, :tsapi, :get, "/v4/direction/bicycling", %{}, host: :restapi)
+  end
+
   test "returns the payload when Falcon answers with 10000, as the live API does", %{
     server: server,
     client: client
