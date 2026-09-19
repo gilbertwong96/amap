@@ -124,4 +124,40 @@ defmodule Amap.ParamTest do
                "39.98,116.35;39.98,116.36;39.99,116.36|39.9,116.4;39.9,116.41;39.91,116.41"
     end
   end
+
+  describe "csv/1" do
+    test "joins with a comma" do
+      assert Param.csv(["cost", "navi"]) == "cost,navi"
+    end
+
+    test "takes atoms, since the groups are named in Elixir" do
+      assert Param.csv([:cost, :navi]) == "cost,navi"
+    end
+
+    test "passes a single value through" do
+      assert Param.csv(["cost"]) == "cost"
+    end
+  end
+
+  describe "polygon_lon_first/1" do
+    test "encodes one ring as lon,lat pairs joined by semicolons" do
+      ring = [{116.35, 39.98}, {116.36, 39.98}, {116.36, 39.99}]
+      assert Param.polygon_lon_first(ring) == "116.35,39.98;116.36,39.98;116.36,39.99"
+    end
+
+    test "encodes several rings separated by a pipe" do
+      ring = [{116.35, 39.98}, {116.36, 39.98}]
+      other = [{116.40, 39.90}, {116.41, 39.90}]
+
+      assert Param.polygon_lon_first([ring, other]) ==
+               "116.35,39.98;116.36,39.98|116.4,39.9;116.41,39.9"
+    end
+
+    test "is the reverse of polygon/1, which is Falcon's latitude-first form" do
+      ring = [{116.35, 39.98}, {116.36, 39.98}]
+
+      assert Param.polygon(ring) == "39.98,116.35;39.98,116.36"
+      assert Param.polygon_lon_first(ring) == "116.35,39.98;116.36,39.98"
+    end
+  end
 end

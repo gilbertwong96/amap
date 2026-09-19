@@ -37,6 +37,7 @@ defmodule Amap.Direction do
   alias Amap.Direction.Transit.Space
   alias Amap.Direction.Transit.Stop
   alias Amap.Param
+  alias Amap.Routing
   alias Amap.Validate
 
   @walking_path "/v3/direction/walking"
@@ -46,7 +47,6 @@ defmodule Amap.Direction do
   @bicycling_path "/v4/direction/bicycling"
 
   @max_origin_pairs 3
-  @max_waypoints 16
   @max_avoid_regions 32
   @max_avoid_vertices 16
   @max_origins 100
@@ -56,9 +56,6 @@ defmodule Amap.Direction do
 
   # 0 the straight line, 1 the driving distance (Amap's own default), 3 walking.
   @distance_types [0, 1, 3]
-
-  # Amap documents 0 as 普通汽车, 1 as 纯电动 and 2 as 插电混动.
-  @cartypes %{fuel: "0", electric: "1", hybrid: "2"}
 
   @doc """
   Plans a walking route.
@@ -147,12 +144,12 @@ defmodule Amap.Direction do
       destinationid: optional_present(opts, :destination_id),
       destinationtype: optional_present(opts, :destination_type),
       strategy: Validate.optional_range!(Keyword.get(opts, :strategy), ":strategy", 0, 20),
-      waypoints: encode_waypoints(opts),
+      waypoints: Routing.waypoints(Keyword.get(opts, :waypoints)),
       avoidpolygons: encode_avoidpolygons(opts),
       province: optional_present(opts, :province),
       number: optional_present(opts, :number),
-      cartype: optional_cartype(opts),
-      ferry: optional_ferry(opts),
+      cartype: Routing.cartype(Keyword.get(opts, :cartype)),
+      ferry: Routing.ferry(Keyword.get(opts, :ferry)),
       roadaggregation: optional_boolean(opts, :roadaggregation, :bool),
       nosteps: optional_boolean(opts, :nosteps, :int),
       extensions:
@@ -318,26 +315,9 @@ defmodule Amap.Direction do
     end
   end
 
-  defp encode_waypoints(opts) do
-    case Keyword.get(opts, :waypoints) do
-      nil ->
-        nil
-
-      pairs ->
-        pairs = Validate.points!(pairs, ":waypoints")
-
-        if length(pairs) > @max_waypoints do
-          raise ArgumentError,
-                ":waypoints must be at most #{@max_waypoints} coordinate pairs, got: #{length(pairs)}"
-        end
-
-        Param.locations(pairs)
-    end
-  end
-
-  # 经度在前，纬度在后, the order `Param.location/1` writes and the one this
-  # parameter's own rules give — *not* `Param.polygon/1`, which is latitude-first
-  # for the Falcon search endpoints and would swap every coordinate here.
+  # 经度在前，纬度在后, the order this parameter's own rules give — which is why the
+  # work is `Param.polygon_lon_first/1` and *not* `Param.polygon/1`, whose
+  # latitude-first order belongs to the Falcon search endpoints.
   defp encode_avoidpolygons(opts) do
     case Keyword.get(opts, :avoidpolygons) do
       nil ->
@@ -345,39 +325,9 @@ defmodule Amap.Direction do
 
       rings ->
         rings
-        |> validate_rings!()
-        |> Enum.map_join("|", fn ring -> Enum.map_join(ring, ";", &Param.location/1) end)
+        |> Validate.polygons!(":avoidpolygons", @max_avoid_regions, @max_avoid_vertices)
+        |> Param.polygon_lon_first()
     end
-  end
-
-  # One ring and a list of rings are told apart by what they hold — a ring is a list
-  # of points, several rings a list of lists — so both forms are accepted, as
-  # `Amap.Param.polygon/1` also does.
-  defp validate_rings!([{_lon, _lat} | _] = ring), do: [validate_ring!(ring)]
-
-  defp validate_rings!(rings) when is_list(rings) and rings != [] do
-    if length(rings) > @max_avoid_regions do
-      raise ArgumentError,
-            ":avoidpolygons must be at most #{@max_avoid_regions} regions, got: #{length(rings)}"
-    end
-
-    Enum.map(rings, &validate_ring!/1)
-  end
-
-  defp validate_rings!(other) do
-    raise ArgumentError,
-          ":avoidpolygons must be a non-empty list of regions, got: #{inspect(other)}"
-  end
-
-  defp validate_ring!(ring) do
-    points = Validate.points!(ring, ":avoidpolygons ring")
-
-    if length(points) > @max_avoid_vertices do
-      raise ArgumentError,
-            ":avoidpolygons ring must be at most #{@max_avoid_vertices} vertices, got: #{length(points)}"
-    end
-
-    points
   end
 
   # Amap documents 0/1/2/3/5 for this endpoint — the values are not a range and
@@ -419,29 +369,6 @@ defmodule Amap.Direction do
     end
   end
 
-  defp optional_cartype(opts) do
-    case Keyword.get(opts, :cartype) do
-      nil ->
-        nil
-
-      value when is_map_key(@cartypes, value) ->
-        Map.fetch!(@cartypes, value)
-
-      other ->
-        raise ArgumentError,
-              ":cartype must be one of #{inspect(Map.keys(@cartypes))}, got: #{inspect(other)}"
-    end
-  end
-
-  defp optional_ferry(opts) do
-    case Keyword.get(opts, :ferry) do
-      nil -> nil
-      :use -> "0"
-      :avoid -> "1"
-      other -> raise ArgumentError, ":ferry must be one of [:use, :avoid], got: #{inspect(other)}"
-    end
-  end
-
   defp optional_boolean(opts, key, as) do
     case Keyword.get(opts, key) do
       nil ->
@@ -456,17 +383,9 @@ defmodule Amap.Direction do
   end
 
   # Amap leaves `route` out entirely when it found nothing, which is an answer
-  # rather than a failure: callers get an empty Route instead of a nil to branch on.
-  defp to_route(nil), do: %Route{paths: []}
-
-  defp to_route(payload) do
-    %Route{
-      origin: Coord.parse_location(payload["origin"]),
-      destination: Coord.parse_location(payload["destination"]),
-      taxi_cost: payload["taxi_cost"],
-      paths: Enum.map(payload["paths"] || [], &to_path/1)
-    }
-  end
+  # rather than a failure: `Amap.Routing` reads that as empty endpoints and no paths,
+  # so callers get an empty Route instead of a nil to branch on.
+  defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &to_path/1))
 
   defp to_path(payload) do
     %Path{

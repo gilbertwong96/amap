@@ -188,4 +188,49 @@ defmodule Amap.Validate do
         value
     end
   end
+
+  @doc """
+  Validates an avoid-region list — one ring or several — against Amap's caps.
+
+  A ring is a list of `{lon, lat}` points; several rings are a list of rings, told
+  apart by what they hold rather than by a flag, since the two cannot be confused.
+  Returns the rings as a list, so a caller may pass one region or many and get the
+  same shape back.
+
+  The caps belong to the routing pages that document them: at most `max_regions`
+  regions, each of at most `max_vertices` points. A region whose *area* is too large is
+  not checked here — Amap ignores such a region silently rather than refusing it, and
+  no list of vertices can rule that out.
+  """
+  @spec polygons!(input(), String.t(), pos_integer(), pos_integer()) :: [[{number(), number()}]]
+  def polygons!(value, field, max_regions, max_vertices) do
+    rings = rings!(value, field)
+
+    if length(rings) > max_regions do
+      raise ArgumentError,
+            "#{field} must be at most #{max_regions} regions, got: #{length(rings)}"
+    end
+
+    Enum.map(rings, &polygon_ring!(&1, field, max_vertices))
+  end
+
+  # The same reading `Amap.Param.polygon/1` and `polygon_lon_first/1` do, which is why
+  # both forms are accepted: a ring of points and a list of rings cannot be confused.
+  defp rings!([{_lon, _lat} | _] = ring, _field), do: [ring]
+  defp rings!(rings, _field) when is_list(rings) and rings != [], do: rings
+
+  defp rings!(value, field) do
+    raise ArgumentError, "#{field} must be a non-empty list of regions, got: #{inspect(value)}"
+  end
+
+  defp polygon_ring!(ring, field, max_vertices) do
+    points = points!(ring, "#{field} ring")
+
+    if length(points) > max_vertices do
+      raise ArgumentError,
+            "#{field} ring must be at most #{max_vertices} vertices, got: #{length(points)}"
+    end
+
+    points
+  end
 end

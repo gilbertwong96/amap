@@ -46,22 +46,47 @@ defmodule Amap.Param do
 
   **Latitude-first is Falcon's rule, not Amap's.** Every Web-service polygon — the
   routing `avoidpolygons`, the search endpoints' `polygon`, GeoHUB's — is
-  longitude-first and wants `location/1`; reaching for this function there transposes
-  every vertex silently, because the request still succeeds.
+  longitude-first and wants `polygon_lon_first/1`; reaching for this function there
+  transposes every vertex silently, because the request still succeeds.
   """
   @spec polygon([{number(), number()}] | [[{number(), number()}]]) :: String.t()
-  def polygon(ring) when is_list(ring), do: ring |> rings() |> encode_rings()
+  def polygon(ring) when is_list(ring), do: ring |> rings() |> encode_rings(&lat_lng/1)
+
+  @doc """
+  Formats one polygon ring, or several, in lon,lat order — Amap's Web-service rule.
+
+  The shape `polygon/1` takes: a ring is a list of `{lon, lat}` points, several rings a
+  list of rings, told apart by what they hold. Rings are joined with `;` and groups
+  with `|`, the form the `polygon` parameter takes on every family.
+
+  **This is the order every Web-service polygon wants** — the routing `avoidpolygons`,
+  the search endpoints' `polygon`, GeoHUB's — because those pages say 经度在前，纬度在后.
+  `polygon/1` is the same shape in Falcon's latitude-first order, for the search
+  endpoints that take the centre and the polygon latitude first. A transposed polygon
+  is not rejected: the request answers `200` and covers the wrong area.
+  """
+  @spec polygon_lon_first([{number(), number()}] | [[{number(), number()}]]) :: String.t()
+  def polygon_lon_first(ring) when is_list(ring), do: ring |> rings() |> encode_rings(&location/1)
 
   defp rings([{_lon, _lat} | _] = ring), do: [ring]
   defp rings(rings), do: rings
 
-  defp encode_rings(rings) do
-    Enum.map_join(rings, "|", fn ring -> Enum.map_join(ring, ";", &lat_lng/1) end)
+  defp encode_rings(rings, point) do
+    Enum.map_join(rings, "|", fn ring -> Enum.map_join(ring, ";", point) end)
   end
 
   @doc "Joins a list with `|`, as used by search `types` and similar."
   @spec pipe([String.t()]) :: String.t()
   def pipe(values), do: Enum.map_join(values, "|", &to_string/1)
+
+  @doc """
+  Joins a list with `,`, which is how the v5 pages take `show_fields`.
+
+  Amap reads it as one parameter holding several names, so a caller's groups — `cost`,
+  `navi` and the rest — travel as `cost,navi` rather than as repeated parameters.
+  """
+  @spec csv([String.t() | atom()]) :: String.t()
+  def csv(values), do: Enum.map_join(values, ",", &to_string/1)
 
   @doc """
   Encodes a boolean. Amap accepts `1/0` on some endpoints and `true/false` on
