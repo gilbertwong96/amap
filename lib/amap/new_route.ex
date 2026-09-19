@@ -10,7 +10,8 @@ defmodule Amap.NewRoute do
   Two things belong to v5 alone. **`:show_fields`** names the optional groups a caller
   wants and Amap returns base fields only when it is unset; each endpoint refuses a group
   its own page does not list — six on driving (`cost`, `tmcs`, `navi`, `cities`,
-  `district`, `polyline`) and four on walking (`cost`, `navi`, `walk_type`, `polyline`) —
+  `district`, `polyline`) and four on walking, bicycling and electrobike (`cost`, `navi`,
+  `walk_type`, `polyline`) —
   because Amap would answer a request it silently ignored and the typo would look like an
   answer. **The strategies are a different enum**: `0`, `1`, `2` and `32`–`45`,
   where `32` is Amap's own default and the rest are its app's combinations — v3's `10`,
@@ -37,6 +38,8 @@ defmodule Amap.NewRoute do
 
   @driving_path "/v5/direction/driving"
   @walking_path "/v5/direction/walking"
+  @bicycling_path "/v5/direction/bicycling"
+  @electrobike_path "/v5/direction/electrobike"
 
   # 0 速度优先, 1 费用优先, 2 常规最快, 32 高德推荐 — Amap's own default — and 33–45, its
   # app-style combinations. Not v3's 0–20: the same digits mean other things there.
@@ -47,9 +50,10 @@ defmodule Amap.NewRoute do
 
   # What each endpoint's 返回结果 section turns on, and nothing else: a group Amap does
   # not have comes back looking like base fields, so a typo is a call-site mistake. The
-  # two lists differ — walking has no `tmcs`, `cities` or `district` to ask for.
+  # two lists differ: walking, bicycling and electrobike have no `tmcs`, `cities` or
+  # `district` to ask for, because their pages do not return them.
   @driving_show_fields ~w(cost tmcs navi cities district polyline)a
-  @walking_show_fields ~w(cost navi walk_type polyline)a
+  @walking_and_riding_show_fields ~w(cost navi walk_type polyline)a
 
   @doc """
   Plans a driving route.
@@ -142,10 +146,61 @@ defmodule Amap.NewRoute do
           @alternative_routes
         ),
       isindoor: Validate.optional_boolean!(Keyword.get(opts, :isindoor), ":isindoor", as: :int),
-      show_fields: optional_show_fields(opts, @walking_show_fields)
+      show_fields: optional_show_fields(opts, @walking_and_riding_show_fields)
     ]
 
     case Amap.request(client, :restapi, :get, @walking_path, params) do
+      {:ok, payload} -> {:ok, to_route(payload["route"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Plans a cycling route.
+
+  The same two `{lon, lat}` points as `walking/4`, the same answer skeleton, and the same
+  `:alternative_route` and `:show_fields` values — the electrobike page's parameter list is
+  this one's character for character, so the two functions differ only in where the request
+  goes.
+
+  `Amap.Direction.bicycling/4` asks the same question of the older `/v4/` page, which
+  documents nothing but the two points and answers in the other family's envelope.
+  """
+  @spec bicycling(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+          {:ok, Route.t()} | {:error, Amap.Error.t()}
+  def bicycling(client, origin, destination, opts \\ []) do
+    plan_ride(client, @bicycling_path, origin, destination, opts)
+  end
+
+  @doc """
+  Plans an electric-bike route.
+
+  v5's own endpoint: v3 has no equivalent. Its parameter list is `bicycling/4`'s and its
+  answer is the same skeleton — what differs is Amap's planning, which 会考虑限行等条件,
+  it weighs no-travel restrictions, where cycling does not.
+  """
+  @spec electrobike(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+          {:ok, Route.t()} | {:error, Amap.Error.t()}
+  def electrobike(client, origin, destination, opts \\ []) do
+    plan_ride(client, @electrobike_path, origin, destination, opts)
+  end
+
+  # These two pages document identical parameter lists, so the path is the only thing
+  # that differs — it is the argument, and neither public function repeats this body.
+  defp plan_ride(client, path, origin, destination, opts) do
+    params = [
+      origin: Param.location(Validate.point!(origin, ":origin")),
+      destination: Param.location(Validate.point!(destination, ":destination")),
+      alternative_route:
+        Validate.integer_one_of!(
+          Keyword.get(opts, :alternative_route),
+          ":alternative_route",
+          @alternative_routes
+        ),
+      show_fields: optional_show_fields(opts, @walking_and_riding_show_fields)
+    ]
+
+    case Amap.request(client, :restapi, :get, path, params) do
       {:ok, payload} -> {:ok, to_route(payload["route"])}
       {:error, _} = error -> error
     end
