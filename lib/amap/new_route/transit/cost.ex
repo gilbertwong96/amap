@@ -3,12 +3,11 @@ defmodule Amap.NewRoute.Transit.Cost do
   What a transit plan costs — the `cost` group, which arrives only when `show_fields`
   asked for it.
 
-  Every v5 routing page carries a `cost` group and no two hold the same fields, so each
-  endpoint's cost has its own struct. Transit's is the one that **splits across two
-  levels**: `taxi_fee` appears only on the route (`Amap.NewRoute.Transit`), `transit_fee`
-  only under a segment (`Amap.NewRoute.Transit.Segment`), and the page says plainly that a
-  step never carries a cost at all. One struct holds both, and each level fills only what
-  it has, so a caller reading `taxi_fee` off a segment gets `nil` rather than a surprise.
+  Transit's `cost` group is the one that **splits across two levels**: `taxi_fee`
+  appears only on the route (`Amap.NewRoute.Transit`), `transit_fee` only under a
+  segment (`Amap.NewRoute.Transit.Segment`), and the page says plainly that a step never
+  carries a cost at all. One struct holds both, and each level fills only what it has, so
+  a caller reading `taxi_fee` off a segment gets `nil` rather than a surprise.
 
   `duration` is the time the trip takes (seconds).
 

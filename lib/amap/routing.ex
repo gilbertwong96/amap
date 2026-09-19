@@ -20,6 +20,12 @@ defmodule Amap.Routing do
   v5 name a step's fields differently, so each generation builds its own struct out of
   these values rather than sharing one — which is also AGENTS.md's rule for a helper
   that touches a struct it does not own.
+
+  The v3-shaped mappers (`v3_path/1`, `v3_stop/1`, `v3_buslines/1`, `v3_railway/1`) live
+  here for the mirror reason: v5's transit page documents its `walking`, `bus` and
+  `railway` parts as 参考 v3 老接口, so those parts of a v5 answer really are v3's shapes,
+  and one set of functions maps them for both generations rather than each module keeping
+  a copy that would drift.
   """
 
   alias Amap.{Coord, Param, Validate}
@@ -175,14 +181,21 @@ defmodule Amap.Routing do
   end
 
   @doc """
-  Maps a v3-shaped path — v3's own `paths[], `and the shape v5's transit page documents
+  Maps a v3-shaped path — v3's own `paths[]`, and the shape v5's transit page documents
   参考 v3 老接口 for a segment's `walking` leg.
 
   It builds `Amap.Direction.Path`, because that is whose shape it is: v5 renames a step's
   fields, so v5's own paths have a different struct, but the parts v5 inherits from v3 are
   v3's and are mapped here rather than in either module.
+
+  `nil` means Amap returned no path at all — a transit segment's `walking` leg is absent
+  more often than not, because the leg often starts on the bus — and it stays `nil`, as
+  an absent group does beside `v3_stop/1` and `v3_railway/1`. A caller that gets a struct
+  back can read it; one that gets `nil` knows there was no leg.
   """
-  @spec v3_path(Amap.JSON.value()) :: Amap.Direction.Path.t()
+  @spec v3_path(Amap.JSON.value()) :: Amap.Direction.Path.t() | nil
+  def v3_path(nil), do: nil
+
   def v3_path(payload) do
     %Amap.Direction.Path{
       distance: payload["distance"],

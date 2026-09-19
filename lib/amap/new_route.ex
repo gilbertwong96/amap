@@ -64,12 +64,11 @@ defmodule Amap.NewRoute do
   @transit_alternative_routes Enum.to_list(1..10)
 
   # What each endpoint's 返回结果 section turns on, and nothing else: a group Amap does
-  # not have comes back looking like base fields, so a typo is a call-site mistake. The
-  # two lists differ: walking, bicycling and electrobike have no `tmcs`, `cities` or
-  # `district` to ask for, because their pages do not return them.
+  # not have comes back looking like base fields, so a typo is a call-site mistake.
+  # Driving's page alone returns `tmcs`, `cities` and `district`; walking, bicycling,
+  # electrobike and transit document the same four, so they share one list.
   @driving_show_fields ~w(cost tmcs navi cities district polyline)a
   @walking_and_riding_show_fields ~w(cost navi walk_type polyline)a
-  @transit_show_fields ~w(cost navi walk_type polyline)a
 
   @doc """
   Plans a driving route.
@@ -408,7 +407,7 @@ defmodule Amap.NewRoute do
         Validate.optional_boolean!(Keyword.get(opts, :nightflag), ":nightflag", as: :int),
       date: Validate.optional_date!(Keyword.get(opts, :date), ":date"),
       time: Validate.optional_time!(Keyword.get(opts, :time), ":time"),
-      show_fields: optional_show_fields(opts, @transit_show_fields)
+      show_fields: optional_show_fields(opts, @walking_and_riding_show_fields)
     ]
 
     case Amap.request(client, :restapi, :get, @transit_path, params) do
@@ -418,10 +417,18 @@ defmodule Amap.NewRoute do
   end
 
   # Two rules about the POI pair: it travels whole or not at all, and mode 6 地铁图模式 has
-  # no coordinates to fall back on. Both are call-site mistakes, so both raise.
-  defp reject_station_pair!(6, nil, _destinationpoi) do
+  # no coordinates to fall back on. Both are call-site mistakes, so both raise — and the
+  # mode-6 messages name which of the two is missing, since saying "neither" while one
+  # was given sends the caller looking in the wrong place.
+  defp reject_station_pair!(6, nil, nil) do
     raise ArgumentError,
           ":strategy 6 地铁图模式 requires :originpoi and :destinationpoi, got neither"
+  end
+
+  defp reject_station_pair!(6, nil, _destinationpoi) do
+    raise ArgumentError,
+          ":strategy 6 地铁图模式 requires :originpoi and :destinationpoi, " <>
+            ":originpoi is missing"
   end
 
   defp reject_station_pair!(6, _originpoi, nil) do
@@ -462,18 +469,13 @@ defmodule Amap.NewRoute do
 
   defp to_transit_segment(payload) do
     %TransitSegment{
-      walking: walking_leg(payload["walking"]),
+      walking: Routing.v3_path(payload["walking"]),
       bus: Routing.v3_buslines(payload["bus"]),
       railway: Routing.v3_railway(payload["railway"]),
       taxi: to_taxi(payload["taxi"]),
       cost: to_transit_cost(payload["cost"])
     }
   end
-
-  # This page documents a segment's `walking` as 参考 v3 老接口, so it is v3's path shape
-  # and v3's mapper builds it — a leg of one is absent more often than not.
-  defp walking_leg(nil), do: nil
-  defp walking_leg(payload), do: Routing.v3_path(payload)
 
   # The cost group exists at two levels on this page and neither carries all of it, so one
   # struct holds what either level sends and the other fields stay nil.

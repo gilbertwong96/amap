@@ -62,6 +62,14 @@ defmodule Amap.NewRoute.TransitTest do
       "segments":[{"walking":{"distance":"500","duration":"400","steps":[]}}]}]}}
   """
 
+  # A leg that starts on the bus: Amap leaves `walking` out, and the segment's field
+  # type is `Path.t() | nil` there too.
+  @bus_only """
+  {"status":"1","info":"OK","infocode":"10000","count":"1",
+   "route":{"transits":[{"distance":"3000",
+     "segments":[{"bus":{"buslines":[{"name":"445路","type":"普通公交线路"}]}}]}]}}
+  """
+
   # The envelope alone: Amap sends this when it found no plan at all.
   @no_route ~s({"status":"1","info":"OK","infocode":"10000","count":"0"})
 
@@ -158,14 +166,21 @@ defmodule Amap.NewRoute.TransitTest do
     end
 
     # Mode 6 names a station instead of a coordinate, so it has nothing to fall back
-    # on when the pair is incomplete.
+    # on when the pair is incomplete — and each message names the POI that is missing.
     assert_raise ArgumentError, ~r/地铁图模式 requires/, fn ->
       NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
         strategy: 6
       )
     end
 
-    assert_raise ArgumentError, ~r/地铁图模式 requires/, fn ->
+    assert_raise ArgumentError, ~r/:originpoi is missing/, fn ->
+      NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+        strategy: 6,
+        destinationpoi: "B000A7BD6D"
+      )
+    end
+
+    assert_raise ArgumentError, ~r/:destinationpoi is missing/, fn ->
       NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
         strategy: 6,
         originpoi: "B000A7BD6C"
@@ -215,6 +230,29 @@ defmodule Amap.NewRoute.TransitTest do
 
     assert_receive {:params, params}
     refute Map.has_key?(params, "AlternativeRoute")
+  end
+
+  test "sends show_fields comma-joined and refuses a group this page does not list", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+    expect_transit(server, @base, parent)
+
+    assert {:ok, %Transit{}} =
+             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+               show_fields: [:cost, :navi, :walk_type, :polyline]
+             )
+
+    assert_receive {:params, params}
+    # This page's four groups, all of them, in the order given.
+    assert params["show_fields"] == "cost,navi,walk_type,polyline"
+
+    assert_raise ArgumentError, ~r/:show_fields must be a subset of/, fn ->
+      NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+        show_fields: [:tmcs]
+      )
+    end
   end
 
   test "sends nightflag as 1 and writes the departure as the page does", %{
@@ -325,6 +363,20 @@ defmodule Amap.NewRoute.TransitTest do
     # A collection is empty; a single value is nil — the same split the rest of the
     # batch keeps.
     assert segment.bus == []
+  end
+
+  test "leaves a bus-only segment's walking leg nil", %{server: server, client: client} do
+    TestServer.expect_once(server, "GET", @transit_path, fn _req -> {200, @bus_only} end)
+
+    assert {:ok, transit} =
+             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+
+    assert [%Plan{segments: [%Segment{} = segment]}] = transit.transits
+    # `walking` is `Path.t() | nil`: a leg Amap sent no walk for stays nil rather than
+    # arriving as an all-nil struct a truthiness check would accept.
+    assert segment.walking == nil
+    assert [%Busline{name: "445路"}] = segment.bus
+    assert segment.cost == nil
   end
 
   test "answers an empty Transit when Amap sends no route at all", %{
