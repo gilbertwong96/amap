@@ -35,6 +35,18 @@ defmodule Amap.NewRoute.DrivingTest do
   # The envelope alone: Amap sends this when it found no route at all.
   @no_route ~s({"status":"1","info":"OK","infocode":"10000","count":"0"})
 
+  # `tmcs` in the two shapes the tolerant reader promises to read besides the bare object
+  # the page prints: a one-element list of `tmc`-wrapped objects, and the wrapper alone.
+  @tmcs_list ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+               ~s("route":{"paths":[{"distance":"3200",) <>
+               ~s("tmcs":[{"tmc":{"tmc_status":"缓行","tmc_distance":"80",) <>
+               ~s("tmc_polyline":"116.481247,39.990704;116.481270,39.990726"}}]}]}})
+
+  @tmcs_wrapped ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+                  ~s("route":{"paths":[{"distance":"3200",) <>
+                  ~s("tmcs":{"tmc":{"tmc_status":"拥堵","tmc_distance":"90",) <>
+                  ~s("tmc_polyline":"116.481247,39.990704;116.481270,39.990726"}}}]}})
+
   setup do
     server = TestServer.start!()
 
@@ -345,6 +357,37 @@ defmodule Amap.NewRoute.DrivingTest do
 
     assert {:error, %Amap.Error{}} =
              NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+  end
+
+  # The page prints `tmcs` as a bare object, but its own rules do not promise that, so
+  # the reader takes the two wrapped shapes as well. Only the bare one was exercised,
+  # which is how the list branch came to call `to_tmc/1` where it needed `to_tmcs/1`.
+  test "reads a tmcs group wrapped in a one-element list", %{server: server, client: client} do
+    TestServer.expect_once(server, "GET", "/v5/direction/driving", fn _req ->
+      {200, @tmcs_list}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+
+    assert [%Tmc{} = tmc] = path.tmcs
+    assert tmc.tmc_status == "缓行"
+    assert tmc.tmc_distance == "80"
+    assert tmc.tmc_polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
+  end
+
+  test "reads a tmcs group wrapped in tmc alone", %{server: server, client: client} do
+    TestServer.expect_once(server, "GET", "/v5/direction/driving", fn _req ->
+      {200, @tmcs_wrapped}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+
+    assert [%Tmc{} = tmc] = path.tmcs
+    assert tmc.tmc_status == "拥堵"
+    assert tmc.tmc_distance == "90"
+    assert tmc.tmc_polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
   end
 
   defp expect_driving(server, body, parent, method \\ "GET") do

@@ -11,8 +11,13 @@ defmodule Amap.NewRoute.Path do
   field says which group it came from: `cost` (what the plan takes and charges), `tmcs`
   (the traffic flow), `navi` (the driving actions), `cities` and `district` (what the
   path crosses) and `polyline`, decoded into `{lon, lat}` tuples. A group that was not
-  asked for stays `nil`, or `[]` where the field holds a collection, so "not asked for"
-  and "asked for and empty" never look alike.
+  asked for stays `nil`, or `[]` where the field holds a collection.
+
+  **For `tmcs` that `[]` is ambiguous, and deliberately so.** An empty list is what an
+  unasked-for group gets and also what an asked-for group with nothing to report gets,
+  so a caller reading `tmcs` cannot tell the two apart — a list has nowhere to record
+  which it is. The scalar groups do not have this problem: an unasked-for `cost`, `navi`,
+  `cities`, `district` or `polyline` is `nil`, which no answer produces.
 
   **`Amap.Direction.Path` is not this.** The v5 page renames a step's `road` and
   `distance`, and its traffic objects carry `tmc_`-prefixed names, so the two versions

@@ -8,10 +8,11 @@ defmodule Amap.NewRoute do
   separate structs rather than one module with two modes.
 
   Two things belong to v5 alone. **`:show_fields`** names the optional groups a caller
-  wants — `cost`, `tmcs`, `navi`, `cities`, `district`, `polyline` — and Amap returns
-  base fields only when it is unset; a group this page does not list is refused here,
-  because Amap would answer a request it silently ignored and the typo would look like
-  an answer. **The strategies are a different enum**: `0`, `1`, `2` and `32`–`45`,
+  wants and Amap returns base fields only when it is unset; each endpoint refuses a group
+  its own page does not list — six on driving (`cost`, `tmcs`, `navi`, `cities`,
+  `district`, `polyline`) and four on walking (`cost`, `navi`, `walk_type`, `polyline`) —
+  because Amap would answer a request it silently ignored and the typo would look like an
+  answer. **The strategies are a different enum**: `0`, `1`, `2` and `32`–`45`,
   where `32` is Amap's own default and the rest are its app's combinations — v3's `10`,
   which means "give me several routes", is not one of them.
 
@@ -35,6 +36,7 @@ defmodule Amap.NewRoute do
   alias Amap.Validate
 
   @driving_path "/v5/direction/driving"
+  @walking_path "/v5/direction/walking"
 
   @max_avoid_regions 32
   @max_avoid_vertices 16
@@ -43,9 +45,14 @@ defmodule Amap.NewRoute do
   # app-style combinations. Not v3's 0–20: the same digits mean other things there.
   @strategies [0, 1, 2] ++ Enum.to_list(32..45)
 
-  # What this endpoint's 返回结果 section turns on, and nothing else: a group Amap does
-  # not have comes back looking like base fields, so a typo is a call-site mistake.
-  @show_fields ~w(cost tmcs navi cities district polyline)a
+  # 1 多备选路线中第一条, 2 前两条, 3 三条; unset returns one route.
+  @alternative_routes [1, 2, 3]
+
+  # What each endpoint's 返回结果 section turns on, and nothing else: a group Amap does
+  # not have comes back looking like base fields, so a typo is a call-site mistake. The
+  # two lists differ — walking has no `tmcs`, `cities` or `district` to ask for.
+  @driving_show_fields ~w(cost tmcs navi cities district polyline)a
+  @walking_show_fields ~w(cost navi walk_type polyline)a
 
   @doc """
   Plans a driving route.
@@ -92,12 +99,48 @@ defmodule Amap.NewRoute do
       plate: optional_present(opts, :plate),
       cartype: Routing.cartype(Keyword.get(opts, :cartype)),
       ferry: Routing.ferry(Keyword.get(opts, :ferry)),
-      show_fields: optional_show_fields(opts)
+      show_fields: optional_show_fields(opts, @driving_show_fields)
     ]
 
     method = validate_method!(Keyword.get(opts, :method))
 
     case Amap.request(client, :restapi, method, @driving_path, params) do
+      {:ok, payload} -> {:ok, to_route(payload["route"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Plans a walking route.
+
+  The same two `{lon, lat}` points as `driving/4`, and Amap's answer is the same skeleton
+  without `restriction` and `taxi_cost`, plus `walk_type` — a road-type code — inside the
+  `navi` group rather than flat on a step.
+
+  `:alternative_route` takes `1`, `2` or `3` — the first of several routes, the first
+  two, or three — and unset returns one, so it is sent only when named. `:isindoor` is
+  `0` or `1` on the wire, where `1` asks for indoor routing.
+
+  `:show_fields` names this endpoint's four groups: `cost`, `navi`, `walk_type` and
+  `polyline`. Asking for one of driving's instead is a call-site mistake and raises,
+  because Amap would answer it with base fields and no complaint.
+
+  Returns the route Amap planned, or `%Amap.NewRoute.Route{paths: []}` when it found none.
+  """
+  @spec walking(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+          {:ok, Route.t()} | {:error, Amap.Error.t()}
+  def walking(client, origin, destination, opts \\ []) do
+    params = [
+      origin: Param.location(Validate.point!(origin, ":origin")),
+      destination: Param.location(Validate.point!(destination, ":destination")),
+      origin_id: optional_present(opts, :origin_id),
+      destination_id: optional_present(opts, :destination_id),
+      alternative_route: validate_alternative_route!(Keyword.get(opts, :alternative_route)),
+      isindoor: optional_boolean(opts, :isindoor),
+      show_fields: optional_show_fields(opts, @walking_show_fields)
+    ]
+
+    case Amap.request(client, :restapi, :get, @walking_path, params) do
       {:ok, payload} -> {:ok, to_route(payload["route"])}
       {:error, _} = error -> error
     end
@@ -135,26 +178,46 @@ defmodule Amap.NewRoute do
 
   # An unknown group is not passed through to Amap, which answers it with base fields
   # and no complaint — so a typo would look like a request Amap chose to answer partly.
-  defp optional_show_fields(opts) do
+  defp optional_show_fields(opts, allowed) do
     case Keyword.get(opts, :show_fields) do
       nil ->
         nil
 
       fields when is_list(fields) and fields != [] ->
-        case Enum.reject(fields, &(&1 in @show_fields)) do
+        case Enum.reject(fields, &(&1 in allowed)) do
           [] ->
             Param.csv(fields)
 
           unknown ->
             raise ArgumentError,
-                  ":show_fields must be a subset of #{inspect(@show_fields)}, got unknown: " <>
+                  ":show_fields must be a subset of #{inspect(allowed)}, got unknown: " <>
                     "#{inspect(unknown)}"
         end
 
       other ->
         raise ArgumentError,
-              ":show_fields must be a non-empty list of #{inspect(@show_fields)}, " <>
+              ":show_fields must be a non-empty list of #{inspect(allowed)}, " <>
                 "got: #{inspect(other)}"
+    end
+  end
+
+  # 1 多备选路线中第一条, 2 前两条, 3 三条. Unset returns one route, so it is sent only when
+  # named; the page gives no other value.
+  defp validate_alternative_route!(nil), do: nil
+  defp validate_alternative_route!(value) when value in @alternative_routes, do: value
+
+  defp validate_alternative_route!(other) do
+    raise ArgumentError,
+          ":alternative_route must be one of #{inspect(@alternative_routes)}, got: #{inspect(other)}"
+  end
+
+  # 0 不需要室内算路, 1 需要 — this page takes no other value, so a boolean that is not
+  # one is a call-site mistake rather than something to pass through.
+  defp optional_boolean(opts, key) do
+    case Keyword.get(opts, key) do
+      nil -> nil
+      value when is_boolean(value) -> Param.boolean(value, as: :int)
+      other -> raise ArgumentError, ":#{key} must be a boolean, got: #{inspect(other)}"
     end
   end
 
@@ -168,6 +231,10 @@ defmodule Amap.NewRoute do
   # Amap leaves `route` out entirely when it found nothing, which is an answer rather
   # than a failure: `Amap.Routing` reads that as empty endpoints and no paths, so
   # callers get an empty Route instead of a nil to branch on.
+  #
+  # `struct/2` rather than a literal because ExDNA counts the two generations' route
+  # construction as one clone. The field names live in `Amap.Routing.route_fields/2`'s
+  # return type, and a key it does not know about is dropped without complaint.
   defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &to_path/1))
 
   defp to_path(payload) do
@@ -209,9 +276,10 @@ defmodule Amap.NewRoute do
 
   # The page prints this group as one object and does not say which level it hangs
   # from, so all three shapes it could take are read the way `Amap.Direction` reads the
-  # `results`/`result` pair on `/v3/distance`.
+  # `results`/`result` pair on `/v3/distance`. The list form was wrong once: it mapped
+  # with `to_tmc/1`, so a list of `tmc`-wrapped objects came back as one empty struct.
   defp to_tmcs(nil), do: []
-  defp to_tmcs(list) when is_list(list), do: Enum.map(list, &to_tmc/1)
+  defp to_tmcs(list) when is_list(list), do: Enum.flat_map(list, &to_tmcs/1)
   defp to_tmcs(%{"tmc" => nested}), do: to_tmcs(nested)
   defp to_tmcs(payload) when is_map(payload), do: [to_tmc(payload)]
 
