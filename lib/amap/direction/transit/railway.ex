@@ -17,8 +17,10 @@ defmodule Amap.Direction.Transit.Railway do
   | 2017 | L 字头、Y 字头的临时火车 |
   | 2018 | S 字头的郊区线火车 |
 
-  `time` is how long the ride takes (seconds) and `distance` how far it goes
-  (metres) — both strings, like every other scalar here.
+  `time` is how long the ride takes and `distance` how far it goes — **the page states
+  no unit for either**, and writing "seconds" or "metres" here would be this module's
+  guess rather than Amap's word, so both stay the strings they arrive as and nothing
+  more is claimed.
 
   `departure_stop`, `arrival_stop` and `via_stop` are `Amap.Direction.Transit.Stop`
   structs, and **a train's stops carry the fields a bus stop does not** — the

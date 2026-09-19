@@ -37,7 +37,7 @@ defmodule Amap.Param do
   def lat_lng({lon, lat}), do: coord(lat) <> "," <> coord(lon)
 
   @doc """
-  Formats one polygon ring, or several.
+  Formats one polygon ring, or several, in lat,lon order — Falcon's.
 
   A ring is a list of `{lon, lat}` points; several rings are a list of rings.
   Rings are joined with `;` and groups with `|`, which is the form Amap's

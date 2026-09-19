@@ -3,8 +3,11 @@ defmodule Amap.Direction.Transit.Stop do
   A station, or a way in — a bus line's stops, a segment's entrance and exit, and a
   train's stops.
 
-  Every one of these carries `name`, `id` and `location`, the station's `{lon, lat}`
-  tuple, and those three are what a caller reads whichever kind it is.
+  Three shapes share it, and they differ in what they carry. A bus stop and a train
+  stop both have `name`, `id` and `location`; **an entrance or an exit has only `name`
+  and `location`**, because there is no id to give. `location` is the `{lon, lat}`
+  tuple either way, and those are the fields a caller can read without asking which
+  kind it holds.
 
   The rest belong to trains and stay `nil` on a bus stop: `adcode`, the station's
   district code; `time`, the departure time at it in Amap's notation (`"0800"` for

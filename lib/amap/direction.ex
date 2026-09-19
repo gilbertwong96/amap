@@ -7,7 +7,10 @@ defmodule Amap.Direction do
   the structs mark as driving's own: the taxi cost, the tolls, the traffic lights,
   the 限行 answer a plate implies, and the traffic flow along the way. `transit/5`
   plans by public transport, where the answer is a list of ways to make the trip and
-  each of those is a list of legs.
+  each of those is a list of legs. `distance/4` is the odd one out: it plans nothing —
+  it measures how far each of up to a hundred origins is from one destination, which is
+  why every result carries a per-item `code` and why it lives on its own path
+  (`/v3/distance`, not `/v3/direction/…`).
 
   Both ends go in as `{lon, lat}` tuples and come back the same way — including
   every step's `polyline`, which Amap writes as one `;`-separated string and this
@@ -16,6 +19,7 @@ defmodule Amap.Direction do
 
   alias Amap.Coord
   alias Amap.Direction.City
+  alias Amap.Direction.Distance
   alias Amap.Direction.District
   alias Amap.Direction.Path
   alias Amap.Direction.Route
@@ -35,14 +39,19 @@ defmodule Amap.Direction do
   @walking_path "/v3/direction/walking"
   @driving_path "/v3/direction/driving"
   @transit_path "/v3/direction/transit/integrated"
+  @distance_path "/v3/distance"
 
   @max_origin_pairs 3
   @max_waypoints 16
   @max_avoid_regions 32
   @max_avoid_vertices 16
+  @max_origins 100
 
   # Amap documents 0/1/2/3/5 for this endpoint — not a range, and no 4.
   @transit_strategies [0, 1, 2, 3, 5]
+
+  # 0 the straight line, 1 the driving distance (Amap's own default), 3 walking.
+  @distance_types [0, 1, 3]
 
   # Amap documents 0 as 普通汽车, 1 as 纯电动 and 2 as 插电混动.
   @cartypes %{fuel: "0", electric: "1", hybrid: "2"}
@@ -94,8 +103,9 @@ defmodule Amap.Direction do
   behaviour and it suggests using it in place of `11`. `:waypoints` are up to 16
   intermediate `{lon, lat}` pairs, planned in the order given, and `:avoidpolygons`
   up to 32 regions of up to 16 points each, `|` between regions and `;` inside one.
-  **A region whose area exceeds 81 km² is silently ignored by Amap**, which this
-  module cannot check.
+  One region may be given on its own instead of a list of them, since a ring of points
+  and a list of rings cannot be confused. **A region whose area exceeds 81 km² is
+  silently ignored by Amap**, which this module cannot check.
 
   A plate is two options here — `:province` (京) and `:number` (NH1N11, upper case,
   6 or 7 characters) — and what they buy is 限行 avoidance, reported per path in
@@ -109,8 +119,7 @@ defmodule Amap.Direction do
   are wanted; and `:extensions` is `:base` or `:all` — only `all` carries the `tmcs`,
   `cities` and `districts` this module also maps. The page's parameter table marks
   `extensions` required while its own sample says otherwise, so it is sent only when
-  given. One region may be given on its own instead of a list of them, since a ring
-  of points and a list of rings cannot be confused.
+  given.
 
   `:origin_id`, `:destination_id` and `:destination_type` are the POI ids and the
   destination's POI category, and reach the wire without underscores — this is the
@@ -197,6 +206,47 @@ defmodule Amap.Direction do
 
     case Amap.request(client, :restapi, :get, @transit_path, params) do
       {:ok, payload} -> {:ok, to_transit(payload["route"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Measures how far each of several origins is from one destination.
+
+  The asymmetry is the endpoint: `origins` is a list of one to **100** `{lon, lat}`
+  tuples and `destination` is a single one, and the answers arrive in the order the
+  origins were given — each result's `origin_id` is that order's 1-based number.
+
+  `:type` says how to measure: `0` the straight line, `1` the driving distance —
+  Amap's own default, so it is sent only when named — or `3` the walking distance,
+  for points no more than 5 km apart. **`1` is a route, not a ruler**: it reads the
+  traffic when it runs, so the same pair of points can answer differently at two times
+  of day.
+
+  A result Amap could not measure carries its own `info` and `code`, and the call is
+  still `{:ok, [...]}` — across a hundred origins a failure is data rather than an
+  error. `Amap.Direction.Distance` says what each code means.
+  """
+  @spec distance(
+          Amap.Client.t(),
+          [{number(), number()}],
+          {number(), number()},
+          keyword()
+        ) ::
+          {:ok, [Distance.t()]} | {:error, Amap.Error.t()}
+  def distance(client, origins, destination, opts \\ []) do
+    origins = Validate.points!(origins, ":origins")
+
+    Validate.range!(length(origins), ":origins count", 1, @max_origins)
+
+    params = [
+      origins: Param.pipe(Enum.map(origins, &Param.location/1)),
+      destination: Param.location(Validate.point!(destination, ":destination")),
+      type: validate_distance_type!(Keyword.get(opts, :type))
+    ]
+
+    case Amap.request(client, :restapi, :get, @distance_path, params) do
+      {:ok, payload} -> {:ok, to_distances(payload["results"])}
       {:error, _} = error -> error
     end
   end
@@ -300,6 +350,17 @@ defmodule Amap.Direction do
   defp validate_transit_strategy!(other) do
     raise ArgumentError,
           ":strategy must be one of #{inspect(@transit_strategies)}, got: #{inspect(other)}"
+  end
+
+  # 0, 1 and 3 are the three the page documents and 1 is its own default; like the
+  # transit strategies this is an integer set, which `Validate.optional_enum!/3`
+  # cannot express because that one takes atoms.
+  defp validate_distance_type!(nil), do: nil
+  defp validate_distance_type!(value) when value in @distance_types, do: value
+
+  defp validate_distance_type!(other) do
+    raise ArgumentError,
+          ":type must be one of #{inspect(@distance_types)}, got: #{inspect(other)}"
   end
 
   defp optional_date(opts) do
@@ -424,6 +485,23 @@ defmodule Amap.Direction do
 
   # Same as the other two endpoints: no `route` in the answer means Amap found no
   # plan, which is an answer rather than a failure.
+  # The page prints both `results` and `result` for this list, the way driving's page
+  # prints both `paths` and `path`; read whichever arrived.
+  defp to_distances(%{"result" => nested}), do: to_distances(nested)
+  defp to_distances(results) when is_list(results), do: Enum.map(results, &to_distance/1)
+  defp to_distances(_other), do: []
+
+  defp to_distance(payload) do
+    %Distance{
+      origin_id: payload["origin_id"],
+      dest_id: payload["dest_id"],
+      distance: payload["distance"],
+      duration: payload["duration"],
+      info: payload["info"],
+      code: payload["code"]
+    }
+  end
+
   defp to_transit(nil), do: %Transit{transits: []}
 
   defp to_transit(payload) do
