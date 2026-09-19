@@ -21,21 +21,11 @@ defmodule Amap.Direction do
   """
 
   alias Amap.Coord
-  alias Amap.Direction.City
   alias Amap.Direction.Distance
-  alias Amap.Direction.District
-  alias Amap.Direction.Path
   alias Amap.Direction.Route
-  alias Amap.Direction.Step
-  alias Amap.Direction.Tmc
   alias Amap.Direction.Transit
-  alias Amap.Direction.Transit.Alter
-  alias Amap.Direction.Transit.Busline
   alias Amap.Direction.Transit.Plan
-  alias Amap.Direction.Transit.Railway
   alias Amap.Direction.Transit.Segment
-  alias Amap.Direction.Transit.Space
-  alias Amap.Direction.Transit.Stop
   alias Amap.Param
   alias Amap.Routing
   alias Amap.Validate
@@ -207,8 +197,8 @@ defmodule Amap.Direction do
         Validate.integer_one_of!(Keyword.get(opts, :strategy), ":strategy", @transit_strategies),
       nightflag:
         Validate.optional_boolean!(Keyword.get(opts, :nightflag), ":nightflag", as: :int),
-      date: optional_date(opts),
-      time: optional_time(opts)
+      date: Validate.optional_date!(Keyword.get(opts, :date), ":date"),
+      time: Validate.optional_time!(Keyword.get(opts, :time), ":time")
     ]
 
     case Amap.request(client, :restapi, :get, @transit_path, params) do
@@ -317,81 +307,10 @@ defmodule Amap.Direction do
     end
   end
 
-  defp optional_date(opts) do
-    case Keyword.get(opts, :date) do
-      nil -> nil
-      %Date{} = date -> Param.date(date)
-      other -> raise ArgumentError, ":date must be a Date, got: #{inspect(other)}"
-    end
-  end
-
-  defp optional_time(opts) do
-    case Keyword.get(opts, :time) do
-      nil -> nil
-      %Time{} = time -> Param.time(time)
-      other -> raise ArgumentError, ":time must be a Time, got: #{inspect(other)}"
-    end
-  end
-
   # Amap leaves `route` out entirely when it found nothing, which is an answer
   # rather than a failure: `Amap.Routing` reads that as empty endpoints and no paths,
   # so callers get an empty Route instead of a nil to branch on.
-  defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &to_path/1))
-
-  defp to_path(payload) do
-    %Path{
-      distance: payload["distance"],
-      duration: payload["duration"],
-      strategy: payload["strategy"],
-      tolls: payload["tolls"],
-      restriction: payload["restriction"],
-      traffic_lights: payload["traffic_lights"],
-      toll_distance: payload["toll_distance"],
-      steps: Enum.map(payload["steps"] || [], &to_step/1),
-      tmcs: Enum.map(payload["tmcs"] || [], &to_tmc/1),
-      cities: Enum.map(payload["cities"] || [], &to_city/1),
-      districts: Enum.map(payload["districts"] || [], &to_district/1)
-    }
-  end
-
-  defp to_step(payload) do
-    %Step{
-      instruction: payload["instruction"],
-      road: payload["road"],
-      distance: payload["distance"],
-      orientation: payload["orientation"],
-      duration: payload["duration"],
-      polyline: Coord.parse_locations(payload["polyline"]),
-      action: payload["action"],
-      assistant_action: payload["assistant_action"],
-      walk_type: payload["walk_type"],
-      tolls: payload["tolls"],
-      toll_distance: payload["toll_distance"],
-      toll_road: payload["toll_road"],
-      tmcs: Enum.map(payload["tmcs"] || [], &to_tmc/1)
-    }
-  end
-
-  defp to_tmc(payload) do
-    %Tmc{
-      distance: payload["distance"],
-      status: payload["status"],
-      polyline: Coord.parse_locations(payload["polyline"])
-    }
-  end
-
-  defp to_city(payload) do
-    %City{
-      name: payload["name"],
-      citycode: payload["citycode"],
-      adcode: payload["adcode"],
-      districts: Enum.map(payload["districts"] || [], &to_district/1)
-    }
-  end
-
-  defp to_district(payload) do
-    %District{name: payload["name"], adcode: payload["adcode"]}
-  end
+  defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &Routing.v3_path/1))
 
   # The page prints both `results` and `result` for this list, the way driving's page
   # prints both `paths` and `path`; read whichever arrived.
@@ -436,83 +355,11 @@ defmodule Amap.Direction do
 
   defp to_segment(payload) do
     %Segment{
-      walking: to_walking(payload["walking"]),
-      bus: to_bus(payload["bus"]),
-      entrance: to_stop(payload["entrance"]),
-      exit: to_stop(payload["exit"]),
-      railway: to_railway(payload["railway"])
+      walking: Routing.v3_path(payload["walking"]),
+      bus: Routing.v3_buslines(payload["bus"]),
+      entrance: Routing.v3_stop(payload["entrance"]),
+      exit: Routing.v3_stop(payload["exit"]),
+      railway: Routing.v3_railway(payload["railway"])
     }
   end
-
-  # A walking leg answers the same `distance`/`duration`/`steps` shape a route's
-  # path does, so it goes through the same mapper rather than a second one that
-  # would drift from it.
-  defp to_walking(nil), do: nil
-  defp to_walking(payload), do: to_path(payload)
-
-  # Amap nests these one level deeper; the wrapper holds nothing else, so the list
-  # itself is what a segment carries.
-  defp to_bus(nil), do: []
-  defp to_bus(payload), do: Enum.map(payload["buslines"] || [], &to_busline/1)
-
-  defp to_busline(payload) do
-    %Busline{
-      departure_stop: to_stop(payload["departure_stop"]),
-      arrival_stop: to_stop(payload["arrival_stop"]),
-      name: payload["name"],
-      id: payload["id"],
-      type: payload["type"],
-      distance: payload["distance"],
-      duration: payload["duration"],
-      polyline: Coord.parse_locations(payload["polyline"]),
-      start_time: payload["start_time"],
-      end_time: payload["end_time"],
-      station_start_time: payload["station_start_time"],
-      station_end_time: payload["station_end_time"],
-      via_num: payload["via_num"],
-      via_stops: Enum.map(payload["via_stops"] || [], &to_stop/1)
-    }
-  end
-
-  defp to_stop(nil), do: nil
-
-  defp to_stop(payload) do
-    %Stop{
-      name: payload["name"],
-      id: payload["id"],
-      location: Coord.parse_location(payload["location"]),
-      adcode: payload["adcode"],
-      time: payload["time"],
-      start: payload["start"],
-      end: payload["end"],
-      wait: payload["wait"]
-    }
-  end
-
-  defp to_railway(nil), do: nil
-
-  defp to_railway(payload) do
-    %Railway{
-      id: payload["id"],
-      time: payload["time"],
-      name: payload["name"],
-      trip: payload["trip"],
-      distance: payload["distance"],
-      type: payload["type"],
-      departure_stop: to_stop(payload["departure_stop"]),
-      arrival_stop: to_stop(payload["arrival_stop"]),
-      via_stop: Enum.map(payload["via_stop"] || [], &to_stop/1),
-      alters: Enum.map(payload["alters"] || [], &to_alter/1)
-    }
-  end
-
-  defp to_alter(payload) do
-    %Alter{
-      id: payload["id"],
-      name: payload["name"],
-      spaces: Enum.map(payload["spaces"] || [], &to_space/1)
-    }
-  end
-
-  defp to_space(payload), do: %Space{code: payload["code"], cost: payload["cost"]}
 end

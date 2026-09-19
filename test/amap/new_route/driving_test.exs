@@ -7,6 +7,7 @@ defmodule Amap.NewRoute.DrivingTest do
   alias Amap.NewRoute.District
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Route
+  alias Amap.NewRoute.Step
   alias Amap.NewRoute.Tmc
   alias Amap.TestServer
 
@@ -22,7 +23,8 @@ defmodule Amap.NewRoute.DrivingTest do
             ~s("polyline":"116.481247,39.990704;116.481270,39.990726",) <>
             ~s("steps":[{"instruction":"沿阜通东大街向西行驶500米","orientation":"西",) <>
             ~s("road_name":"阜通东大街","step_distance":"500",) <>
-            ~s("navi":{"action":"直行","assistant_action":"","walk_type":"0"},) <>
+            ~s("navi":{"action":"直行","assistant_action":""},) <>
+            ~s("walk_type":"0",) <>
             ~s("polyline":"116.481247,39.990704;116.481270,39.990726"}]}]}})
 
   # What arrives when show_fields was not asked for: base fields only.
@@ -310,7 +312,9 @@ defmodule Amap.NewRoute.DrivingTest do
     assert step.road_name == "阜通东大街"
     assert step.step_distance == "500"
 
-    assert %Navi{action: "直行", assistant_action: "", walk_type: "0"} = step.navi
+    assert %Navi{action: "直行", assistant_action: ""} = step.navi
+    # `walk_type` is its own group and a step-level field, not a member of `navi`.
+    assert %Step{walk_type: "0"} = step
     assert step.polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
   end
 

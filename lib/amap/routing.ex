@@ -173,4 +173,154 @@ defmodule Amap.Routing do
       _other -> []
     end
   end
+
+  @doc """
+  Maps a v3-shaped path — v3's own `paths[], `and the shape v5's transit page documents
+  参考 v3 老接口 for a segment's `walking` leg.
+
+  It builds `Amap.Direction.Path`, because that is whose shape it is: v5 renames a step's
+  fields, so v5's own paths have a different struct, but the parts v5 inherits from v3 are
+  v3's and are mapped here rather than in either module.
+  """
+  @spec v3_path(Amap.JSON.value()) :: Amap.Direction.Path.t()
+  def v3_path(payload) do
+    %Amap.Direction.Path{
+      distance: payload["distance"],
+      duration: payload["duration"],
+      strategy: payload["strategy"],
+      tolls: payload["tolls"],
+      restriction: payload["restriction"],
+      traffic_lights: payload["traffic_lights"],
+      toll_distance: payload["toll_distance"],
+      steps: Enum.map(payload["steps"] || [], &v3_step/1),
+      tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1),
+      cities: Enum.map(payload["cities"] || [], &v3_city/1),
+      districts: Enum.map(payload["districts"] || [], &v3_district/1)
+    }
+  end
+
+  defp v3_step(payload) do
+    %Amap.Direction.Step{
+      instruction: payload["instruction"],
+      road: payload["road"],
+      distance: payload["distance"],
+      orientation: payload["orientation"],
+      duration: payload["duration"],
+      polyline: Coord.parse_locations(payload["polyline"]),
+      action: payload["action"],
+      assistant_action: payload["assistant_action"],
+      walk_type: payload["walk_type"],
+      tolls: payload["tolls"],
+      toll_distance: payload["toll_distance"],
+      toll_road: payload["toll_road"],
+      tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1)
+    }
+  end
+
+  defp v3_tmc(payload) do
+    %Amap.Direction.Tmc{
+      distance: payload["distance"],
+      status: payload["status"],
+      polyline: Coord.parse_locations(payload["polyline"])
+    }
+  end
+
+  defp v3_city(payload) do
+    %Amap.Direction.City{
+      name: payload["name"],
+      citycode: payload["citycode"],
+      adcode: payload["adcode"],
+      districts: Enum.map(payload["districts"] || [], &v3_district/1)
+    }
+  end
+
+  defp v3_district(payload) do
+    %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
+  end
+
+  @doc """
+  Maps a v3-shaped station: a bus stop, a train stop, or a segment's entrance or exit.
+
+  The three share one struct, so nothing is decided here — an entrance simply arrives
+  with `name` and `location` and the rest `nil`.
+  """
+  @spec v3_stop(Amap.JSON.value()) :: Amap.Direction.Transit.Stop.t() | nil
+  def v3_stop(nil), do: nil
+
+  def v3_stop(payload) do
+    %Amap.Direction.Transit.Stop{
+      name: payload["name"],
+      id: payload["id"],
+      location: Coord.parse_location(payload["location"]),
+      adcode: payload["adcode"],
+      time: payload["time"],
+      start: payload["start"],
+      end: payload["end"],
+      wait: payload["wait"]
+    }
+  end
+
+  @doc """
+  Maps a v3-shaped `bus` object into the list of lines it wraps.
+
+  Amap nests the lines one level deeper (`bus.buslines`) and the wrapper holds nothing
+  else, so the list itself is what a segment carries.
+  """
+  @spec v3_buslines(Amap.JSON.value()) :: [Amap.Direction.Transit.Busline.t()]
+  def v3_buslines(nil), do: []
+  def v3_buslines(payload), do: Enum.map(payload["buslines"] || [], &v3_busline/1)
+
+  defp v3_busline(payload) do
+    %Amap.Direction.Transit.Busline{
+      departure_stop: v3_stop(payload["departure_stop"]),
+      arrival_stop: v3_stop(payload["arrival_stop"]),
+      name: payload["name"],
+      id: payload["id"],
+      type: payload["type"],
+      distance: payload["distance"],
+      duration: payload["duration"],
+      polyline: Coord.parse_locations(payload["polyline"]),
+      start_time: payload["start_time"],
+      end_time: payload["end_time"],
+      station_start_time: payload["station_start_time"],
+      station_end_time: payload["station_end_time"],
+      via_num: payload["via_num"],
+      via_stops: Enum.map(payload["via_stops"] || [], &v3_stop/1)
+    }
+  end
+
+  @doc """
+  Maps a v3-shaped `railway` object — the train a leg rides.
+
+  `via_stop` and `alters` are what Amap sends only when the call asked for
+  `extensions: :all`, and both simply arrive empty otherwise.
+  """
+  @spec v3_railway(Amap.JSON.value()) :: Amap.Direction.Transit.Railway.t() | nil
+  def v3_railway(nil), do: nil
+
+  def v3_railway(payload) do
+    %Amap.Direction.Transit.Railway{
+      id: payload["id"],
+      time: payload["time"],
+      name: payload["name"],
+      trip: payload["trip"],
+      distance: payload["distance"],
+      type: payload["type"],
+      departure_stop: v3_stop(payload["departure_stop"]),
+      arrival_stop: v3_stop(payload["arrival_stop"]),
+      via_stop: Enum.map(payload["via_stop"] || [], &v3_stop/1),
+      alters: Enum.map(payload["alters"] || [], &v3_alter/1)
+    }
+  end
+
+  defp v3_alter(payload) do
+    %Amap.Direction.Transit.Alter{
+      id: payload["id"],
+      name: payload["name"],
+      spaces: Enum.map(payload["spaces"] || [], &v3_space/1)
+    }
+  end
+
+  defp v3_space(payload),
+    do: %Amap.Direction.Transit.Space{code: payload["code"], cost: payload["cost"]}
 end

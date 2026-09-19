@@ -7,11 +7,17 @@ defmodule Amap.NewRoute.Step do
   says `road`, `step_distance` where v3 says `distance`. `polyline` decodes Amap's
   `;`-separated string into `{lon, lat}` tuples, so no caller has to split one.
 
-  The groups `show_fields` turns on live here too, because the page lists them without
-  saying which level they hang from: `cost`, `tmcs`, `navi` (whose `walk_type` carries
-  the road-type code) and `polyline`. A group reaches this struct when the payload carries
-  it on a step — `Amap.NewRoute.Path` says which wrappings each group is read in, and only
-  `tmcs` is read in more than one.
+  The groups `show_fields` turns on live here too, because the page prints them at a
+  level without saying which one: `cost`, `tmcs`, `navi`, `walk_type` and `polyline`.
+  **`walk_type` is its own group and a field of this struct**, not a member of `navi`:
+  every group is named after the field it controls, and the page prints `walk_type` at
+  the same level as `polyline` — a group — while `navi`'s children are only `action` and
+  `assistant_action`. It is Amap's road-type code (0 普通道路 … 30 轮渡, gaps included)
+  and stays the wire's string, the way the statuses do.
+
+  A group reaches this struct when the payload carries it on a step —
+  `Amap.NewRoute.Path` says which wrappings each group is read in, and only `tmcs` is
+  read in more than one.
   """
 
   alias Amap.NewRoute.Cost
@@ -23,6 +29,7 @@ defmodule Amap.NewRoute.Step do
     :orientation,
     :road_name,
     :step_distance,
+    :walk_type,
     :cost,
     :navi,
     :polyline,
@@ -34,6 +41,7 @@ defmodule Amap.NewRoute.Step do
           orientation: String.t() | nil,
           road_name: String.t() | nil,
           step_distance: String.t() | nil,
+          walk_type: String.t() | nil,
           cost: Cost.t() | nil,
           navi: Navi.t() | nil,
           polyline: [{float(), float()}] | nil,

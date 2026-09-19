@@ -4,17 +4,17 @@ defmodule Amap.NewRoute.Navi do
   asked for it.
 
   `action` and `assistant_action` are Amap's own instructions (直行, 进入主路 and the
-  rest of the two tables its page prints) and stay in Chinese. `walk_type` is the
-  road-type code the same group carries — the 23 values from 0 普通道路 to 30 轮渡,
-  gaps included — and stays the wire's string for the same reason as the statuses:
-  the codes are Amap's, and a caller comparing one wants to compare it to the page.
+  rest of the two tables its page prints) and stay in Chinese.
+
+  **`walk_type` is not here**: it is its own `show_fields` group and a field of
+  `Amap.NewRoute.Step`. The page prints it at the same level as `polyline`, a group,
+  while this group's children are only the two instructions above.
   """
 
-  defstruct [:action, :assistant_action, :walk_type]
+  defstruct [:action, :assistant_action]
 
   @type t :: %__MODULE__{
           action: String.t() | nil,
-          assistant_action: String.t() | nil,
-          walk_type: String.t() | nil
+          assistant_action: String.t() | nil
         }
 end

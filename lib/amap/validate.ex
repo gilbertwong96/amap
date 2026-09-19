@@ -13,6 +13,8 @@ defmodule Amap.Validate do
   keyword or a road name, so the Web-service modules do not call them.
   """
 
+  alias Amap.Param
+
   @max_name_length 128
   @charset ~r/^[\p{Han}A-Za-z0-9_-]+$/u
 
@@ -133,10 +135,40 @@ defmodule Amap.Validate do
   def optional_boolean!(nil, _field, _opts), do: nil
 
   def optional_boolean!(value, _field, as: as) when is_boolean(value),
-    do: Amap.Param.boolean(value, as: as)
+    do: Param.boolean(value, as: as)
 
   def optional_boolean!(value, field, _opts),
     do: raise(ArgumentError, "#{field} must be a boolean, got: #{inspect(value)}")
+
+  @doc """
+  Validates an optional departure date.
+
+  `Amap.Param.date/1` writes the unpadded `2014-3-19` the routing pages show in their own
+  examples. The two routing generations both take one, which is why this lives here
+  rather than in either module.
+  """
+  @spec optional_date!(input(), String.t()) :: String.t() | nil
+  def optional_date!(nil, _field), do: nil
+
+  def optional_date!(%Date{} = date, _field), do: Param.date(date)
+
+  def optional_date!(other, field) do
+    raise ArgumentError, "#{field} must be a Date, got: #{inspect(other)}"
+  end
+
+  @doc """
+  Validates an optional departure time.
+
+  `Amap.Param.time/1` writes the `22:34` the same examples show, also unpadded.
+  """
+  @spec optional_time!(input(), String.t()) :: String.t() | nil
+  def optional_time!(nil, _field), do: nil
+
+  def optional_time!(%Time{} = time, _field), do: Param.time(time)
+
+  def optional_time!(other, field) do
+    raise ArgumentError, "#{field} must be a Time, got: #{inspect(other)}"
+  end
 
   @doc """
   Validates an optional integer against the set Amap documents.

@@ -32,6 +32,11 @@ defmodule Amap.NewRoute do
   alias Amap.NewRoute.Route
   alias Amap.NewRoute.Step
   alias Amap.NewRoute.Tmc
+  alias Amap.NewRoute.Transit
+  alias Amap.NewRoute.Transit.Cost, as: TransitCost
+  alias Amap.NewRoute.Transit.Plan, as: TransitPlan
+  alias Amap.NewRoute.Transit.Segment, as: TransitSegment
+  alias Amap.NewRoute.Transit.Taxi
   alias Amap.Param
   alias Amap.Routing
   alias Amap.Validate
@@ -40,6 +45,7 @@ defmodule Amap.NewRoute do
   @walking_path "/v5/direction/walking"
   @bicycling_path "/v5/direction/bicycling"
   @electrobike_path "/v5/direction/electrobike"
+  @transit_path "/v5/direction/transit/integrated"
 
   # 0 速度优先, 1 费用优先, 2 常规最快, 32 高德推荐 — Amap's own default — and 33–45, its
   # app-style combinations. Not v3's 0–20: the same digits mean other things there.
@@ -48,12 +54,22 @@ defmodule Amap.NewRoute do
   # 1 多备选路线中第一条, 2 前两条, 3 三条; unset returns one route.
   @alternative_routes [1, 2, 3]
 
+  # Transit's own numbers again: 0 推荐, 1 最经济, 2 最少换乘, 3 最少步行, 4 最舒适,
+  # 5 不乘地铁, 6 地铁图模式, 7 地铁优先, 8 时间短 — a contiguous run, and a different
+  # meaning for every digit driving uses.
+  @transit_strategies Enum.to_list(0..8)
+
+  # This page spells its parameter with a capital A and takes 1–10, where the other v5
+  # endpoints' lowercase `alternative_route` takes 1–3. Both are the page's own doing.
+  @transit_alternative_routes Enum.to_list(1..10)
+
   # What each endpoint's 返回结果 section turns on, and nothing else: a group Amap does
   # not have comes back looking like base fields, so a typo is a call-site mistake. The
   # two lists differ: walking, bicycling and electrobike have no `tmcs`, `cities` or
   # `district` to ask for, because their pages do not return them.
   @driving_show_fields ~w(cost tmcs navi cities district polyline)a
   @walking_and_riding_show_fields ~w(cost navi walk_type polyline)a
+  @transit_show_fields ~w(cost navi walk_type polyline)a
 
   @doc """
   Plans a driving route.
@@ -117,8 +133,8 @@ defmodule Amap.NewRoute do
   Plans a walking route.
 
   The same two `{lon, lat}` points as `driving/4`, and Amap's answer is the same skeleton
-  without `restriction` and `taxi_cost`, plus `walk_type` — a road-type code — inside the
-  `navi` group rather than flat on a step.
+  without `restriction` and `taxi_cost`, plus `walk_type` — a road-type code that is a
+  step-level field of its own, controlled by the group of the same name.
 
   `:alternative_route` takes `1`, `2` or `3` — the first of several routes, the first
   two, or three — and unset returns one, so it is sent only when named. `:isindoor` is
@@ -267,6 +283,7 @@ defmodule Amap.NewRoute do
       orientation: payload["orientation"],
       road_name: payload["road_name"],
       step_distance: payload["step_distance"],
+      walk_type: payload["walk_type"],
       cost: to_cost(payload["cost"]),
       tmcs: to_tmcs(payload["tmcs"]),
       navi: to_navi(payload["navi"]),
@@ -306,8 +323,7 @@ defmodule Amap.NewRoute do
   defp to_navi(payload) do
     %Navi{
       action: payload["action"],
-      assistant_action: payload["assistant_action"],
-      walk_type: payload["walk_type"]
+      assistant_action: payload["assistant_action"]
     }
   end
 
@@ -319,4 +335,170 @@ defmodule Amap.NewRoute do
 
   defp to_district(nil), do: nil
   defp to_district(payload), do: %District{name: payload["name"], adcode: payload["adcode"]}
+
+  @doc """
+  Plans a public transport route.
+
+  `city1` is required and positional — the page marks it 必填 — and takes a **citycode**
+  (`"010"`), not a name. `:city2` is the same thing for the other end of a 跨城 trip; the
+  page's parameter table leaves its 必填 cell empty while its own sample table says 是, so
+  it is sent only when given.
+
+  `:strategy` is **a third enum**: `0` 推荐 (Amap's default), `1` 最经济, `2` 最少换乘,
+  `3` 最少步行, `4` 最舒适, `5` 不乘地铁, `6` 地铁图模式, `7` 地铁优先 and `8` 时间短 —
+  the digits driving uses mean other things entirely. Mode `6` has no other way to name a
+  station, so it requires `:originpoi` and `:destinationpoi`.
+
+  `:originpoi` and `:destinationpoi` **travel as a pair or not at all**: sending one alone
+  is a call-site mistake and raises, because the page documents the POI id as overriding
+  the coordinate it sits beside.
+
+  `:alternative_route` is 1–10 here and reaches the wire as **`AlternativeRoute`**, with a
+  capital A — this page's own spelling, against the lowercase `alternative_route` (1–3)
+  the other v5 endpoints take. `:ad1`/`:ad2` are the start and end 行政区域编码, `:nightflag`
+  asks for a 夜班车-aware plan, and `:date`/`:time` are sent only when a scheduled
+  departure is wanted.
+
+  `:show_fields` names this endpoint's four groups — `cost`, `navi`, `walk_type`,
+  `polyline` — and the `cost` group splits across two levels here: `taxi_fee` arrives on
+  the route, `transit_fee` under each segment, and `steps` never carry a cost at all.
+
+  The `walking`, `bus` and `railway` parts of a segment keep v3's structs, because this
+  page documents them as 参考 v3 老接口; `taxi` is v5's own.
+
+  Returns the plans Amap found, or `%Amap.NewRoute.Transit{transits: []}` when it found
+  none, the way `walking/4` answers an empty route.
+  """
+  @spec transit(
+          Amap.Client.t(),
+          {number(), number()},
+          {number(), number()},
+          String.t(),
+          keyword()
+        ) ::
+          {:ok, Transit.t()} | {:error, Amap.Error.t()}
+  def transit(client, origin, destination, city1, opts \\ []) do
+    strategy =
+      Validate.integer_one_of!(Keyword.get(opts, :strategy), ":strategy", @transit_strategies)
+
+    originpoi = Validate.optional_present!(Keyword.get(opts, :originpoi), ":originpoi")
+
+    destinationpoi =
+      Validate.optional_present!(Keyword.get(opts, :destinationpoi), ":destinationpoi")
+
+    reject_station_pair!(strategy, originpoi, destinationpoi)
+
+    params = [
+      origin: Param.location(Validate.point!(origin, ":origin")),
+      destination: Param.location(Validate.point!(destination, ":destination")),
+      city1: Validate.present!(city1, ":city1"),
+      city2: Validate.optional_present!(Keyword.get(opts, :city2), ":city2"),
+      originpoi: originpoi,
+      destinationpoi: destinationpoi,
+      ad1: Validate.optional_present!(Keyword.get(opts, :ad1), ":ad1"),
+      ad2: Validate.optional_present!(Keyword.get(opts, :ad2), ":ad2"),
+      strategy: strategy,
+      AlternativeRoute:
+        Validate.integer_one_of!(
+          Keyword.get(opts, :alternative_route),
+          ":alternative_route",
+          @transit_alternative_routes
+        ),
+      nightflag:
+        Validate.optional_boolean!(Keyword.get(opts, :nightflag), ":nightflag", as: :int),
+      date: Validate.optional_date!(Keyword.get(opts, :date), ":date"),
+      time: Validate.optional_time!(Keyword.get(opts, :time), ":time"),
+      show_fields: optional_show_fields(opts, @transit_show_fields)
+    ]
+
+    case Amap.request(client, :restapi, :get, @transit_path, params) do
+      {:ok, payload} -> {:ok, to_transit(payload["route"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  # Two rules about the POI pair: it travels whole or not at all, and mode 6 地铁图模式 has
+  # no coordinates to fall back on. Both are call-site mistakes, so both raise.
+  defp reject_station_pair!(6, nil, _destinationpoi) do
+    raise ArgumentError,
+          ":strategy 6 地铁图模式 requires :originpoi and :destinationpoi, got neither"
+  end
+
+  defp reject_station_pair!(6, _originpoi, nil) do
+    raise ArgumentError,
+          ":strategy 6 地铁图模式 requires :originpoi and :destinationpoi, " <>
+            ":destinationpoi is missing"
+  end
+
+  defp reject_station_pair!(_strategy, originpoi, destinationpoi)
+       when is_nil(originpoi) != is_nil(destinationpoi) do
+    raise ArgumentError,
+          ":originpoi and :destinationpoi must be given together, got: " <>
+            "#{inspect(originpoi)} and #{inspect(destinationpoi)}"
+  end
+
+  defp reject_station_pair!(_strategy, _originpoi, _destinationpoi), do: :ok
+
+  # No `route` in the answer means Amap found no plan, which is an answer rather than a
+  # failure — the same reading `walking/4` gives an empty route.
+  defp to_transit(nil), do: %Transit{transits: []}
+
+  defp to_transit(payload) do
+    %Transit{
+      origin: Coord.parse_location(payload["origin"]),
+      destination: Coord.parse_location(payload["destination"]),
+      cost: to_transit_cost(payload["cost"]),
+      transits: Enum.map(payload["transits"] || [], &to_transit_plan/1)
+    }
+  end
+
+  defp to_transit_plan(payload) do
+    %TransitPlan{
+      distance: payload["distance"],
+      nightflag: payload["nightflag"],
+      segments: Enum.map(payload["segments"] || [], &to_transit_segment/1)
+    }
+  end
+
+  defp to_transit_segment(payload) do
+    %TransitSegment{
+      walking: walking_leg(payload["walking"]),
+      bus: Routing.v3_buslines(payload["bus"]),
+      railway: Routing.v3_railway(payload["railway"]),
+      taxi: to_taxi(payload["taxi"]),
+      cost: to_transit_cost(payload["cost"])
+    }
+  end
+
+  # This page documents a segment's `walking` as 参考 v3 老接口, so it is v3's path shape
+  # and v3's mapper builds it — a leg of one is absent more often than not.
+  defp walking_leg(nil), do: nil
+  defp walking_leg(payload), do: Routing.v3_path(payload)
+
+  # The cost group exists at two levels on this page and neither carries all of it, so one
+  # struct holds what either level sends and the other fields stay nil.
+  defp to_transit_cost(nil), do: nil
+
+  defp to_transit_cost(payload) do
+    %TransitCost{
+      duration: payload["duration"],
+      taxi_fee: payload["taxi_fee"],
+      transit_fee: payload["transit_fee"]
+    }
+  end
+
+  defp to_taxi(nil), do: nil
+
+  defp to_taxi(payload) do
+    %Taxi{
+      price: payload["price"],
+      drivetime: payload["drivetime"],
+      distance: payload["distance"],
+      polyline: Coord.parse_locations(payload["polyline"]),
+      startpoint: payload["startpoint"],
+      startname: payload["startname"],
+      endpoint: payload["endpoint"],
+      endname: payload["endname"]
+    }
+  end
 end

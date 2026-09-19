@@ -5,21 +5,23 @@ defmodule Amap.NewRoute.BicyclingTest do
   alias Amap.NewRoute.Cost
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Route
+  alias Amap.NewRoute.Step
   alias Amap.TestServer
 
   @bicycling_path "/v5/direction/bicycling"
   @electrobike_path "/v5/direction/electrobike"
 
   # The v5 cycling answer: walking's skeleton, no `taxi_cost` and no `restriction`, and
-  # `walk_type` where this page puts it — inside the `navi` group.
+  # `walk_type` on the step, which is the level the page prints it at.
   @ridden ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
             ~s("route":{"origin":"116.466485,39.995197","destination":"116.46424,40.020642",) <>
             ~s("paths":[{"distance":"4300",) <>
             ~s("polyline":"116.466485,39.995197;116.46424,40.020642",) <>
-            ~s("navi":{"action":"骑行54米右转","assistant_action":"到达目的地","walk_type":"1"},) <>
+            ~s("navi":{"action":"骑行54米右转","assistant_action":"到达目的地"},) <>
             ~s("cost":{"duration":"1500","tolls":"0","toll_distance":"0"},) <>
             ~s("steps":[{"instruction":"骑行54米右转","orientation":"北",) <>
             ~s("road_name":"阜通东大街","step_distance":"54",) <>
+            ~s("walk_type":"1",) <>
             ~s("polyline":"116.466485,39.995197;116.46424,40.020642"}]}]}})
 
   @base ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
@@ -132,12 +134,14 @@ defmodule Amap.NewRoute.BicyclingTest do
     assert path.distance == "4300"
     assert path.restriction == nil
     assert path.polyline == [{116.466485, 39.995197}, {116.46424, 40.020642}]
-    assert %Navi{action: "骑行54米右转", walk_type: "1"} = path.navi
+    assert %Navi{action: "骑行54米右转"} = path.navi
     assert %Cost{duration: "1500"} = path.cost
 
     assert [step] = path.steps
     assert step.instruction == "骑行54米右转"
     assert step.road_name == "阜通东大街"
+    # Its own group and a step-level field, as on every v5 routing page.
+    assert %Step{walk_type: "1"} = step
     assert step.step_distance == "54"
     assert step.polyline == [{116.466485, 39.995197}, {116.46424, 40.020642}]
     # Not asked for, so the groups this endpoint does have stay empty.
