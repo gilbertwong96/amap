@@ -37,12 +37,17 @@ defmodule Amap.Param do
   def lat_lng({lon, lat}), do: coord(lat) <> "," <> coord(lon)
 
   @doc """
-  Formats one polygon ring, or several, in lat,lon order.
+  Formats one polygon ring, or several.
 
   A ring is a list of `{lon, lat}` points; several rings are a list of rings.
   Rings are joined with `;` and groups with `|`, which is the form Amap's
   `polygon` parameter takes. Amap also caps the total bounding area at 3000 km²,
   which this cannot check.
+
+  **Latitude-first is Falcon's rule, not Amap's.** Every Web-service polygon — the
+  routing `avoidpolygons`, the search endpoints' `polygon`, GeoHUB's — is
+  longitude-first and wants `location/1`; reaching for this function there transposes
+  every vertex silently, because the request still succeeds.
   """
   @spec polygon([{number(), number()}] | [[{number(), number()}]]) :: String.t()
   def polygon(ring) when is_list(ring), do: ring |> rings() |> encode_rings()
@@ -69,6 +74,23 @@ defmodule Amap.Param do
   @doc "Encodes a `DateTime` as Unix seconds, as Falcon endpoints expect."
   @spec unix_time(DateTime.t()) :: String.t()
   def unix_time(%DateTime{} = dt), do: dt |> DateTime.to_unix() |> Integer.to_string()
+
+  @doc """
+  Formats a `Date` the way Amap's routing pages write it: `2014-3-19`.
+
+  The month and the day carry no leading zero, because that is the form the pages
+  give — `date=2014-3-19`, not `2014-03-19`.
+  """
+  @spec date(Date.t()) :: String.t()
+  def date(%Date{year: year, month: month, day: day}), do: "#{year}-#{month}-#{day}"
+
+  @doc """
+  Formats a `Time` as the hour and minute those pages write: `22:34`.
+
+  Seconds are dropped: the parameter carries none, and Amap's own example has none.
+  """
+  @spec time(Time.t()) :: String.t()
+  def time(%Time{hour: hour, minute: minute}), do: "#{hour}:#{minute}"
 
   @doc """
   Encodes Falcon custom fields (`props`) as a JSON object string.

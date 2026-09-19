@@ -183,6 +183,26 @@ defmodule Amap.Direction.DrivingTest do
              "116.4,39.9;116.5,39.9;116.5,39.8;116.4,39.8|116.6,39.6;116.7,39.6;116.7,39.5;116.6,39.5"
   end
 
+  test "takes a single avoid-region on its own, not only a list of regions", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+    expect_driving(server, @driven, parent)
+
+    ring = [{116.4, 39.9}, {116.5, 39.9}, {116.5, 39.8}, {116.4, 39.8}]
+
+    assert {:ok, %Route{}} =
+             Direction.driving(client, {116.481028, 39.989643}, {116.465302, 40.004717},
+               avoidpolygons: ring
+             )
+
+    assert_receive {:query, query}
+    # A ring of points and a list of rings cannot be confused, so both are accepted —
+    # the same reading `Amap.Param.polygon/1` does.
+    assert query["avoidpolygons"] == "116.4,39.9;116.5,39.9;116.5,39.8;116.4,39.8"
+  end
+
   test "caps an avoid region at 16 vertices and the whole set at 32 regions", %{
     client: client
   } do

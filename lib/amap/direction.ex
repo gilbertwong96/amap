@@ -5,7 +5,9 @@ defmodule Amap.Direction do
   Amap's v3 page (`guide/api/direction`). `walking/4` plans on foot, at most
   **100 km**; `driving/4` plans by car, and is the endpoint that fills in the fields
   the structs mark as driving's own: the taxi cost, the tolls, the traffic lights,
-  the 限行 answer a plate implies, and the traffic flow along the way.
+  the 限行 answer a plate implies, and the traffic flow along the way. `transit/5`
+  plans by public transport, where the answer is a list of ways to make the trip and
+  each of those is a list of legs.
 
   Both ends go in as `{lon, lat}` tuples and come back the same way — including
   every step's `polyline`, which Amap writes as one `;`-separated string and this
@@ -19,16 +21,28 @@ defmodule Amap.Direction do
   alias Amap.Direction.Route
   alias Amap.Direction.Step
   alias Amap.Direction.Tmc
+  alias Amap.Direction.Transit
+  alias Amap.Direction.Transit.Alter
+  alias Amap.Direction.Transit.Busline
+  alias Amap.Direction.Transit.Plan
+  alias Amap.Direction.Transit.Railway
+  alias Amap.Direction.Transit.Segment
+  alias Amap.Direction.Transit.Space
+  alias Amap.Direction.Transit.Stop
   alias Amap.Param
   alias Amap.Validate
 
   @walking_path "/v3/direction/walking"
   @driving_path "/v3/direction/driving"
+  @transit_path "/v3/direction/transit/integrated"
 
   @max_origin_pairs 3
   @max_waypoints 16
   @max_avoid_regions 32
   @max_avoid_vertices 16
+
+  # Amap documents 0/1/2/3/5 for this endpoint — not a range, and no 4.
+  @transit_strategies [0, 1, 2, 3, 5]
 
   # Amap documents 0 as 普通汽车, 1 as 纯电动 and 2 as 插电混动.
   @cartypes %{fuel: "0", electric: "1", hybrid: "2"}
@@ -88,11 +102,15 @@ defmodule Amap.Direction do
   `restriction`. `:cartype` is `:fuel` (the default), `:electric` or `:hybrid`.
   `:ferry` is `:use` (the default: the wire's `0` means *take* the ferry) or
   `:avoid`; the option is named after the intent so that `0` never reads as "off".
-  `:roadaggregation` adds a `roads` grouping above `steps` and travels as the text
-  `true`; `:nosteps` keeps the step list empty if only the totals are wanted; and
-  `:extensions` is `:base` or `:all` — only `all` carries the `tmcs`, `cities` and
-  `districts` this module also maps. The page's parameter table marks `extensions`
-  required while its own sample says otherwise, so it is sent only when given.
+  `:roadaggregation` asks Amap for a `roads` grouping above `steps` and travels as
+  the text `true`; **this module does not map that grouping**, so `steps` is what a
+  caller reads whether or not the flag is set, and the grouping is simply left out
+  rather than half-returned. `:nosteps` keeps the step list empty if only the totals
+  are wanted; and `:extensions` is `:base` or `:all` — only `all` carries the `tmcs`,
+  `cities` and `districts` this module also maps. The page's parameter table marks
+  `extensions` required while its own sample says otherwise, so it is sent only when
+  given. One region may be given on its own instead of a list of them, since a ring
+  of points and a list of rings cannot be confused.
 
   `:origin_id`, `:destination_id` and `:destination_type` are the POI ids and the
   destination's POI category, and reach the wire without underscores — this is the
@@ -130,6 +148,55 @@ defmodule Amap.Direction do
 
     case Amap.request(client, :restapi, :get, @driving_path, params) do
       {:ok, payload} -> {:ok, to_route(payload["route"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Plans a public transport route.
+
+  `city` is the city the trip starts in — a name, or a `citycode` like `"010"` — and
+  is required, because Amap cannot search a network it has not been told to search.
+  `:cityd` names the city the trip ends in and is for a 跨城 trip only.
+
+  `:strategy` is one of Amap's five: `0` 最快捷 (its own default when none is given),
+  `1` 最经济, `2` 最少换乘, `3` 最少步行 and `5` 不乘地铁. **The values are not a range —
+  there is no 4.** `:nightflag` asks Amap to consider 夜班车 as well, and travels as
+  `1`/`0`.
+
+  `:date` and `:time` take a `Date` and a `Time` and say when the caller means to
+  travel; Amap then answers with what still runs at that hour. **The page says twice
+  not to send them unless a scheduled departure is what you mean**, so both stay out
+  of the request unless given.
+
+  Returns the plans Amap offers, ranked, as an `Amap.Direction.Transit`; a trip it
+  cannot plan comes back with `transits: []` rather than an error. Trains arrive as
+  `railway` legs, whose `via_stop` and `alters` need `extensions: :all`.
+  """
+  @spec transit(
+          Amap.Client.t(),
+          {number(), number()},
+          {number(), number()},
+          String.t(),
+          keyword()
+        ) ::
+          {:ok, Transit.t()} | {:error, Amap.Error.t()}
+  def transit(client, origin, destination, city, opts \\ []) do
+    params = [
+      origin: Param.location(Validate.point!(origin, ":origin")),
+      destination: Param.location(Validate.point!(destination, ":destination")),
+      city: Validate.present!(city, ":city"),
+      cityd: optional_present(opts, :cityd),
+      extensions:
+        Validate.optional_enum!(Keyword.get(opts, :extensions), ":extensions", [:base, :all]),
+      strategy: validate_transit_strategy!(Keyword.get(opts, :strategy)),
+      nightflag: optional_boolean(opts, :nightflag, :int),
+      date: optional_date(opts),
+      time: optional_time(opts)
+    ]
+
+    case Amap.request(client, :restapi, :get, @transit_path, params) do
+      {:ok, payload} -> {:ok, to_transit(payload["route"])}
       {:error, _} = error -> error
     end
   end
@@ -193,6 +260,11 @@ defmodule Amap.Direction do
     end
   end
 
+  # One ring and a list of rings are told apart by what they hold — a ring is a list
+  # of points, several rings a list of lists — so both forms are accepted, as
+  # `Amap.Param.polygon/1` also does.
+  defp validate_rings!([{_lon, _lat} | _] = ring), do: [validate_ring!(ring)]
+
   defp validate_rings!(rings) when is_list(rings) and rings != [] do
     if length(rings) > @max_avoid_regions do
       raise ArgumentError,
@@ -216,6 +288,34 @@ defmodule Amap.Direction do
     end
 
     points
+  end
+
+  # Amap documents 0/1/2/3/5 for this endpoint — the values are not a range and
+  # there is no 4, unlike driving's 0–20. The check is its own function because
+  # `Validate.optional_enum!/3` takes atoms, not integers.
+  defp validate_transit_strategy!(nil), do: nil
+
+  defp validate_transit_strategy!(value) when value in @transit_strategies, do: value
+
+  defp validate_transit_strategy!(other) do
+    raise ArgumentError,
+          ":strategy must be one of #{inspect(@transit_strategies)}, got: #{inspect(other)}"
+  end
+
+  defp optional_date(opts) do
+    case Keyword.get(opts, :date) do
+      nil -> nil
+      %Date{} = date -> Param.date(date)
+      other -> raise ArgumentError, ":date must be a Date, got: #{inspect(other)}"
+    end
+  end
+
+  defp optional_time(opts) do
+    case Keyword.get(opts, :time) do
+      nil -> nil
+      %Time{} = time -> Param.time(time)
+      other -> raise ArgumentError, ":time must be a Time, got: #{inspect(other)}"
+    end
   end
 
   defp optional_cartype(opts) do
@@ -321,4 +421,110 @@ defmodule Amap.Direction do
   defp to_district(payload) do
     %District{name: payload["name"], adcode: payload["adcode"]}
   end
+
+  # Same as the other two endpoints: no `route` in the answer means Amap found no
+  # plan, which is an answer rather than a failure.
+  defp to_transit(nil), do: %Transit{transits: []}
+
+  defp to_transit(payload) do
+    %Transit{
+      origin: Coord.parse_location(payload["origin"]),
+      destination: Coord.parse_location(payload["destination"]),
+      distance: payload["distance"],
+      taxi_cost: payload["taxi_cost"],
+      transits: Enum.map(payload["transits"] || [], &to_plan/1)
+    }
+  end
+
+  defp to_plan(payload) do
+    %Plan{
+      cost: payload["cost"],
+      duration: payload["duration"],
+      nightflag: payload["nightflag"],
+      walking_distance: payload["walking_distance"],
+      segments: Enum.map(payload["segments"] || [], &to_segment/1)
+    }
+  end
+
+  defp to_segment(payload) do
+    %Segment{
+      walking: to_walking(payload["walking"]),
+      bus: to_bus(payload["bus"]),
+      entrance: to_stop(payload["entrance"]),
+      exit: to_stop(payload["exit"]),
+      railway: to_railway(payload["railway"])
+    }
+  end
+
+  # A walking leg answers the same `distance`/`duration`/`steps` shape a route's
+  # path does, so it goes through the same mapper rather than a second one that
+  # would drift from it.
+  defp to_walking(nil), do: nil
+  defp to_walking(payload), do: to_path(payload)
+
+  # Amap nests these one level deeper; the wrapper holds nothing else, so the list
+  # itself is what a segment carries.
+  defp to_bus(nil), do: []
+  defp to_bus(payload), do: Enum.map(payload["buslines"] || [], &to_busline/1)
+
+  defp to_busline(payload) do
+    %Busline{
+      departure_stop: to_stop(payload["departure_stop"]),
+      arrival_stop: to_stop(payload["arrival_stop"]),
+      name: payload["name"],
+      id: payload["id"],
+      type: payload["type"],
+      distance: payload["distance"],
+      duration: payload["duration"],
+      polyline: Coord.parse_locations(payload["polyline"]),
+      start_time: payload["start_time"],
+      end_time: payload["end_time"],
+      station_start_time: payload["station_start_time"],
+      station_end_time: payload["station_end_time"],
+      via_num: payload["via_num"],
+      via_stops: Enum.map(payload["via_stops"] || [], &to_stop/1)
+    }
+  end
+
+  defp to_stop(nil), do: nil
+
+  defp to_stop(payload) do
+    %Stop{
+      name: payload["name"],
+      id: payload["id"],
+      location: Coord.parse_location(payload["location"]),
+      adcode: payload["adcode"],
+      time: payload["time"],
+      start: payload["start"],
+      end: payload["end"],
+      wait: payload["wait"]
+    }
+  end
+
+  defp to_railway(nil), do: nil
+
+  defp to_railway(payload) do
+    %Railway{
+      id: payload["id"],
+      time: payload["time"],
+      name: payload["name"],
+      trip: payload["trip"],
+      distance: payload["distance"],
+      type: payload["type"],
+      departure_stop: to_stop(payload["departure_stop"]),
+      arrival_stop: to_stop(payload["arrival_stop"]),
+      via_stop: Enum.map(payload["via_stop"] || [], &to_stop/1),
+      alters: Enum.map(payload["alters"] || [], &to_alter/1)
+    }
+  end
+
+  defp to_alter(payload) do
+    %Alter{
+      id: payload["id"],
+      name: payload["name"],
+      spaces: Enum.map(payload["spaces"] || [], &to_space/1)
+    }
+  end
+
+  defp to_space(payload), do: %Space{code: payload["code"], cost: payload["cost"]}
 end
