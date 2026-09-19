@@ -1,11 +1,11 @@
 defmodule Amap.NewRoute.TransitTest do
   use ExUnit.Case, async: true
 
-  alias Amap.Direction.Path
   alias Amap.Direction.Step, as: V3Step
   alias Amap.Direction.Transit.Busline
   alias Amap.Direction.Transit.Railway
   alias Amap.Direction.Transit.Stop
+  alias Amap.Direction.Transit.Walking
   alias Amap.NewRoute
   alias Amap.NewRoute.Transit
   alias Amap.NewRoute.Transit.Cost, as: TransitCost
@@ -63,7 +63,7 @@ defmodule Amap.NewRoute.TransitTest do
   """
 
   # A leg that starts on the bus: Amap leaves `walking` out, and the segment's field
-  # type is `Path.t() | nil` there too.
+  # type is `Walking.t() | nil` there too.
   @bus_only """
   {"status":"1","info":"OK","infocode":"10000","count":"1",
    "route":{"transits":[{"distance":"3000",
@@ -72,6 +72,11 @@ defmodule Amap.NewRoute.TransitTest do
 
   # The envelope alone: Amap sends this when it found no plan at all.
   @no_route ~s({"status":"1","info":"OK","infocode":"10000","count":"0"})
+
+  @origin {116.481499, 39.990475}
+  @destination {116.465063, 39.999538}
+  @city1 "010"
+  @city2 "021"
 
   setup do
     server = TestServer.start!()
@@ -88,22 +93,22 @@ defmodule Amap.NewRoute.TransitTest do
     {:ok, server: server, client: client}
   end
 
-  test "sends the two points and the required city, nothing else", %{
+  test "sends the two points and the two required cities, nothing else", %{
     server: server,
     client: client
   } do
     parent = self()
     expect_transit(server, @base, parent)
 
-    assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+    assert {:ok, %Transit{}} = NewRoute.transit(client, @origin, @destination, @city1, @city2)
 
     assert_receive {:params, params}
     assert params["origin"] == "116.481499,39.990475"
     assert params["destination"] == "116.465063,39.999538"
-    # city1 is required and positional — the page marks it 必填.
+    # Both cities are required and positional: the page's 必填 column leaves city2's
+    # cell empty, but the wire refuses a city1-only call with 20001.
     assert params["city1"] == "010"
-    refute Map.has_key?(params, "city2")
+    assert params["city2"] == "021"
     refute Map.has_key?(params, "originpoi")
     refute Map.has_key?(params, "destinationpoi")
     refute Map.has_key?(params, "strategy")
@@ -113,27 +118,21 @@ defmodule Amap.NewRoute.TransitTest do
     refute Map.has_key?(params, "show_fields")
   end
 
-  test "sends city2 only when given", %{server: server, client: client} do
+  test "requires a non-empty city2, which travels positionally", %{
+    server: server,
+    client: client
+  } do
     parent = self()
     expect_transit(server, @base, parent)
 
-    assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
-               city2: "021"
-             )
+    assert {:ok, %Transit{}} = NewRoute.transit(client, @origin, @destination, @city1, @city2)
 
     assert_receive {:params, params}
     assert params["city2"] == "021"
 
-    # Absence is asserted against a request of its own, not against the one that
-    # just sent the value.
-    expect_transit(server, @base, parent)
-
-    assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
-
-    assert_receive {:params, params}
-    refute Map.has_key?(params, "city2")
+    assert_raise ArgumentError, ~r/:city2 must be a non-empty string/, fn ->
+      NewRoute.transit(client, @origin, @destination, @city1, "")
+    end
   end
 
   test "takes strategy 0–8, and mode 6 needs both station POIs", %{
@@ -144,7 +143,7 @@ defmodule Amap.NewRoute.TransitTest do
     expect_transit(server, @base, parent)
 
     assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+             NewRoute.transit(client, @origin, @destination, @city1, @city2,
                strategy: 6,
                originpoi: "B000A7BD6C",
                destinationpoi: "B000A7BD6D"
@@ -159,29 +158,25 @@ defmodule Amap.NewRoute.TransitTest do
     # other things entirely.
     for strategy <- [9, -1] do
       assert_raise ArgumentError, ~r/:strategy must be one of/, fn ->
-        NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
-          strategy: strategy
-        )
+        NewRoute.transit(client, @origin, @destination, @city1, @city2, strategy: strategy)
       end
     end
 
     # Mode 6 names a station instead of a coordinate, so it has nothing to fall back
     # on when the pair is incomplete — and each message names the POI that is missing.
     assert_raise ArgumentError, ~r/地铁图模式 requires/, fn ->
-      NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
-        strategy: 6
-      )
+      NewRoute.transit(client, @origin, @destination, @city1, @city2, strategy: 6)
     end
 
     assert_raise ArgumentError, ~r/:originpoi is missing/, fn ->
-      NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+      NewRoute.transit(client, @origin, @destination, @city1, @city2,
         strategy: 6,
         destinationpoi: "B000A7BD6D"
       )
     end
 
     assert_raise ArgumentError, ~r/:destinationpoi is missing/, fn ->
-      NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+      NewRoute.transit(client, @origin, @destination, @city1, @city2,
         strategy: 6,
         originpoi: "B000A7BD6C"
       )
@@ -191,7 +186,7 @@ defmodule Amap.NewRoute.TransitTest do
     # all, because the id overrides the coordinate it sits beside.
     for one <- [[originpoi: "B000A7BD6C"], [destinationpoi: "B000A7BD6D"]] do
       assert_raise ArgumentError, ~r/:originpoi and :destinationpoi must be given together/, fn ->
-        NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010", one)
+        NewRoute.transit(client, @origin, @destination, @city1, @city2, one)
       end
     end
   end
@@ -204,7 +199,7 @@ defmodule Amap.NewRoute.TransitTest do
     expect_transit(server, @base, parent)
 
     assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+             NewRoute.transit(client, @origin, @destination, @city1, @city2,
                alternative_route: 10
              )
 
@@ -217,16 +212,13 @@ defmodule Amap.NewRoute.TransitTest do
 
     for count <- [0, 11] do
       assert_raise ArgumentError, ~r/:alternative_route must be one of/, fn ->
-        NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
-          alternative_route: count
-        )
+        NewRoute.transit(client, @origin, @destination, @city1, @city2, alternative_route: count)
       end
     end
 
     expect_transit(server, @base, parent)
 
-    assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+    assert {:ok, %Transit{}} = NewRoute.transit(client, @origin, @destination, @city1, @city2)
 
     assert_receive {:params, params}
     refute Map.has_key?(params, "AlternativeRoute")
@@ -240,7 +232,7 @@ defmodule Amap.NewRoute.TransitTest do
     expect_transit(server, @base, parent)
 
     assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+             NewRoute.transit(client, @origin, @destination, @city1, @city2,
                show_fields: [:cost, :navi, :walk_type, :polyline]
              )
 
@@ -249,9 +241,7 @@ defmodule Amap.NewRoute.TransitTest do
     assert params["show_fields"] == "cost,navi,walk_type,polyline"
 
     assert_raise ArgumentError, ~r/:show_fields must be a subset of/, fn ->
-      NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
-        show_fields: [:tmcs]
-      )
+      NewRoute.transit(client, @origin, @destination, @city1, @city2, show_fields: [:tmcs])
     end
   end
 
@@ -263,7 +253,7 @@ defmodule Amap.NewRoute.TransitTest do
     expect_transit(server, @base, parent)
 
     assert {:ok, %Transit{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010",
+             NewRoute.transit(client, @origin, @destination, @city1, @city2,
                ad1: "110000",
                ad2: "310000",
                nightflag: true,
@@ -283,8 +273,7 @@ defmodule Amap.NewRoute.TransitTest do
   test "maps the plans, the v3 legs and v5's own taxi", %{server: server, client: client} do
     TestServer.expect_once(server, "GET", @transit_path, fn _req -> {200, @planned} end)
 
-    assert {:ok, transit} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+    assert {:ok, transit} = NewRoute.transit(client, @origin, @destination, @city1, @city2)
 
     assert transit.origin == {116.481499, 39.990475}
     assert transit.destination == {116.465063, 39.999538}
@@ -299,9 +288,13 @@ defmodule Amap.NewRoute.TransitTest do
     assert [%Segment{} = walk, %Segment{} = ride, %Segment{} = hail, %Segment{} = train] =
              plan.segments
 
-    # v5 documents a segment's `walking` as 参考 v3 老接口, so it is v3's Path and v3's
-    # step field names — `road`, `distance` — not the v5 renames.
-    assert %Path{distance: "500", duration: "400"} = walk.walking
+    # v5 documents a segment's `walking` as 参考 v3 老接口, so it is v3's Walking and
+    # v3's step field names — `road`, `distance` — not the v5 renames. The leg's own
+    # endpoints survive with it.
+    assert %Walking{origin: {116.481499, 39.990475}, destination: {116.482, 39.991}} =
+             walk.walking
+
+    assert %Walking{distance: "500", duration: "400"} = walk.walking
     assert [%V3Step{road: "阜通东大街", walk_type: "0"}] = walk.walking.steps
 
     assert walk.walking.steps |> hd() |> Map.fetch!(:polyline) ==
@@ -350,13 +343,12 @@ defmodule Amap.NewRoute.TransitTest do
   } do
     TestServer.expect_once(server, "GET", @transit_path, fn _req -> {200, @base} end)
 
-    assert {:ok, transit} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+    assert {:ok, transit} = NewRoute.transit(client, @origin, @destination, @city1, @city2)
 
     assert transit.cost == nil
 
     assert [%Plan{nightflag: nil, segments: [%Segment{} = segment]}] = transit.transits
-    assert %Path{} = segment.walking
+    assert %Walking{} = segment.walking
     assert segment.cost == nil
     assert segment.taxi == nil
     assert segment.railway == nil
@@ -368,11 +360,10 @@ defmodule Amap.NewRoute.TransitTest do
   test "leaves a bus-only segment's walking leg nil", %{server: server, client: client} do
     TestServer.expect_once(server, "GET", @transit_path, fn _req -> {200, @bus_only} end)
 
-    assert {:ok, transit} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+    assert {:ok, transit} = NewRoute.transit(client, @origin, @destination, @city1, @city2)
 
     assert [%Plan{segments: [%Segment{} = segment]}] = transit.transits
-    # `walking` is `Path.t() | nil`: a leg Amap sent no walk for stays nil rather than
+    # `walking` is `Walking.t() | nil`: a leg Amap sent no walk for stays nil rather than
     # arriving as an all-nil struct a truthiness check would accept.
     assert segment.walking == nil
     assert [%Busline{name: "445路"}] = segment.bus
@@ -386,7 +377,7 @@ defmodule Amap.NewRoute.TransitTest do
     TestServer.expect_once(server, "GET", @transit_path, fn _req -> {200, @no_route} end)
 
     assert {:ok, %Transit{origin: nil, destination: nil, cost: nil, transits: []}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+             NewRoute.transit(client, @origin, @destination, @city1, @city2)
   end
 
   test "returns an error rather than raising for a refusal", %{server: server, client: client} do
@@ -395,7 +386,7 @@ defmodule Amap.NewRoute.TransitTest do
     TestServer.expect_once(server, "GET", @transit_path, fn _req -> {200, refusal} end)
 
     assert {:error, %Amap.Error{}} =
-             NewRoute.transit(client, {116.481499, 39.990475}, {116.465063, 39.999538}, "010")
+             NewRoute.transit(client, @origin, @destination, @city1, @city2)
   end
 
   defp expect_transit(server, body, parent) do

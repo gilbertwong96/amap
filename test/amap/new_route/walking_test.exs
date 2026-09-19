@@ -5,7 +5,6 @@ defmodule Amap.NewRoute.WalkingTest do
   alias Amap.NewRoute.Cost
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Route
-  alias Amap.NewRoute.Step
   alias Amap.NewRoute.Tmc
   alias Amap.TestServer
 
@@ -21,7 +20,7 @@ defmodule Amap.NewRoute.WalkingTest do
             ~s("cost":{"duration":"2400","tolls":"0","toll_distance":"0"},) <>
             ~s("steps":[{"instruction":"步行54米右转","orientation":"北",) <>
             ~s("road_name":"阜通东大街","step_distance":"54",) <>
-            ~s("walk_type":"1",) <>
+            ~s("navi":{"action":"直行","assistant_action":"","walk_type":"1"},) <>
             ~s("cost":{"duration":"54","tolls":"0","toll_distance":"0"},) <>
             ~s("tmcs":{"tmc_status":"畅通","tmc_distance":"54",) <>
             ~s("tmc_polyline":"116.466485,39.995197;116.46424,40.020642"},) <>
@@ -169,9 +168,9 @@ defmodule Amap.NewRoute.WalkingTest do
     assert step.instruction == "步行54米右转"
     assert step.road_name == "阜通东大街"
     assert step.step_distance == "54"
-    # `walk_type` is its own group and a step-level field: the page prints it at the same
-    # level as `polyline`, and every group is named after the field it controls.
-    assert %Step{walk_type: "1"} = step
+    # The wire puts `walk_type` inside a step's `navi`, even though the page lists it
+    # as a `show_fields` group of its own.
+    assert %Navi{action: "直行", walk_type: "1"} = step.navi
     assert step.polyline == [{116.466485, 39.995197}, {116.46424, 40.020642}]
 
     # The step-level reading of the groups, which no other payload feeds.

@@ -10,6 +10,7 @@ defmodule Amap.Direction.TransitTest do
   alias Amap.Direction.Transit.Segment
   alias Amap.Direction.Transit.Space
   alias Amap.Direction.Transit.Stop
+  alias Amap.Direction.Transit.Walking
   alias Amap.TestServer
 
   @planned """
@@ -288,7 +289,7 @@ defmodule Amap.Direction.TransitTest do
     assert plan.walking_distance == "1200"
   end
 
-  test "maps a segment's walking leg into the shared Path struct", %{
+  test "maps a segment's walking leg, including its own endpoints", %{
     server: server,
     client: client
   } do
@@ -297,10 +298,15 @@ defmodule Amap.Direction.TransitTest do
     assert {:ok, %Transit{transits: [%Plan{segments: [segment]}]}} = call_transit(client)
 
     assert %Segment{} = segment
-    assert %Amap.Direction.Path{} = segment.walking
-    assert segment.walking.distance == "500"
-    assert segment.walking.duration == "400"
-    assert [step] = segment.walking.steps
+    assert %Walking{} = walking = segment.walking
+    # The leg's own endpoints, which an `Amap.Direction.Path` has no slots for: a walk
+    # is between two points on the plan rather than between the route's two ends.
+    assert walking.origin == {116.481499, 39.990475}
+    assert walking.destination == {116.482, 39.991}
+    assert walking.distance == "500"
+    assert walking.duration == "400"
+    # The leg's steps are the v3 step shape, mapped by the same function a path uses.
+    assert [%Amap.Direction.Step{} = step] = walking.steps
     assert step.walk_type == "0"
     assert step.polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
   end
@@ -366,7 +372,7 @@ defmodule Amap.Direction.TransitTest do
 
     assert {:ok, %Transit{transits: [%Plan{segments: [segment]}]}} = call_transit(client)
 
-    assert %Amap.Direction.Path{distance: "800"} = segment.walking
+    assert %Walking{distance: "800", origin: nil, destination: nil} = segment.walking
     assert segment.bus == []
     assert segment.entrance == nil
     assert segment.exit == nil

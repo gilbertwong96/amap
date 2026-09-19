@@ -39,6 +39,9 @@ defmodule Amap.Direction.IntegrationTest do
   @origin {116.397428, 39.90923}
   @destination {116.461, 39.9087}
   @citycode "010"
+  # The trip is within Beijing, so the destination city is the same code; the wire
+  # demands it either way.
+  @city2 "010"
 
   # The six groups the v5 driving page documents, so its probe can ask for all of them
   # and see where each lands.
@@ -178,10 +181,22 @@ defmodule Amap.Direction.IntegrationTest do
     end
   end
 
-  describe "7. v5 transit without city2" do
-    test "the parameter table's 必填 cell is empty; its sample table says 是", %{client: client} do
-      result = NewRoute.transit(client, @origin, @destination, @citycode)
-      report("v5 transit, city1 only", fn -> summary(result) end)
+  describe "7. v5 transit: city2 is required, as the wire and the sample table say" do
+    test "a city1-only call is refused with 20001, and the SDK now demands city2", %{
+      client: client
+    } do
+      raw =
+        probe(client, "/v5/direction/transit/integrated",
+          origin: Param.location(@origin),
+          destination: Param.location(@destination),
+          city1: @citycode
+        )
+
+      report("v5 transit, city1 only", fn -> summary(raw) end)
+      accept!(raw)
+
+      result = NewRoute.transit(client, @origin, @destination, @citycode, @city2)
+      report("v5 transit, both cities", fn -> summary(result) end)
       accept!(result, &is_struct(&1, NewRoute.Transit))
     end
   end
@@ -333,8 +348,14 @@ defmodule Amap.Direction.IntegrationTest do
       report("v5 walking walk_type (mapped)", fn -> mapped_walk_type(result) end)
 
       case result do
-        {:ok, %{paths: [path | _]}} -> Enum.each(path.steps, &assert_scalar_or_nil!(&1.walk_type))
-        _error -> :ok
+        {:ok, %{paths: [path | _]}} ->
+          Enum.each(path.steps, fn step ->
+            navi = step.navi
+            assert is_nil(navi) or is_binary(navi.walk_type) or is_nil(navi.walk_type)
+          end)
+
+        _error ->
+          :ok
       end
 
       accept!(result, &is_struct(&1, NewRoute.Route))
@@ -348,7 +369,10 @@ defmodule Amap.Direction.IntegrationTest do
       time = ~T[09:54:00]
 
       scheduled =
-        NewRoute.transit(client, @origin, @destination, @citycode, date: date, time: time)
+        NewRoute.transit(client, @origin, @destination, @citycode, @city2,
+          date: date,
+          time: time
+        )
 
       report("v5 transit time=#{Param.time(time)}", fn -> summary(scheduled) end)
       accept!(scheduled, &is_struct(&1, NewRoute.Transit))
@@ -358,6 +382,7 @@ defmodule Amap.Direction.IntegrationTest do
           origin: Param.location(@origin),
           destination: Param.location(@destination),
           city1: @citycode,
+          city2: @city2,
           date: Param.date(date),
           time: "9-54"
         )
@@ -488,10 +513,17 @@ defmodule Amap.Direction.IntegrationTest do
 
   defp aggregation_shape(%{"paths" => [path | _]}) when is_map(path) do
     "path keys: #{inspect(Map.keys(path))}; roads: #{count_or_absent(path, "roads")}; " <>
-      "steps: #{count_or_absent(path, "steps")}"
+      "steps: #{count_or_absent(path, "steps")}; #{first_road(path)}"
   end
 
   defp aggregation_shape(route), do: "no path: #{inspect(route)}"
+
+  # The one piece of evidence a `Road` struct would need, and the reason the mapper
+  # carries the entries verbatim instead of naming fields nobody has seen.
+  defp first_road(%{"roads" => [road | _]}) when is_map(road),
+    do: "first road keys: #{inspect(Map.keys(road))}"
+
+  defp first_road(_path), do: "no roads key"
 
   defp mapped_steps({:ok, %{paths: [path | _]}}),
     do: "#{length(path.steps)} step(s) on the first path"
@@ -639,11 +671,11 @@ defmodule Amap.Direction.IntegrationTest do
 
   defp mapped_walk_type({:ok, %{paths: [path | _]}}) do
     steps = path.steps
-    walk_types = Enum.count(steps, &is_binary(&1.walk_type))
+    in_navi = Enum.count(steps, &(is_map(&1.navi) and is_binary(&1.navi.walk_type)))
     first = List.first(steps)
 
-    "#{walk_types}/#{length(steps)} step(s) have a walk_type; first: " <>
-      "#{inspect(first && first.walk_type)}, its navi: #{inspect(first && first.navi)}"
+    "#{in_navi}/#{length(steps)} step(s) have a walk_type inside navi; first navi: " <>
+      "#{inspect(first && first.navi)}"
   end
 
   defp mapped_walk_type(other), do: summary(other)
@@ -656,11 +688,6 @@ defmodule Amap.Direction.IntegrationTest do
   end
 
   defp assert_locations!(other), do: flunk("expected a point list or nil, got: #{inspect(other)}")
-
-  defp assert_scalar_or_nil!(value) when is_binary(value) or is_nil(value), do: :ok
-
-  defp assert_scalar_or_nil!(value),
-    do: flunk("expected a string or nil, got: #{inspect(value)}")
 
   defp type_of(nil), do: "nil"
   defp type_of(value) when is_integer(value), do: "integer"

@@ -24,13 +24,16 @@ defmodule Amap.NewRoute.Path do
   keep separate structs.
 
   The page prints its groups as objects without saying which level they hang from.
+  **The live run settled it: they hang on the step.** A driving payload asked for them
+  all carried `cost` on the path and `cost`, `tmcs`, `navi`, `cities` and `polyline` on
+  every step, so each group's data is read from wherever it arrives.
   **`tmcs` is the only group read in more than one wrapping**: an object, a one-element
   list of `tmc` objects, or `{"tmc": …}` — the group whose own rules leave the level
-  open, read the way `Amap.Direction` reads the `results`/`result` pair on `/v3/distance`.
-  `cost`, `navi`, `cities` and `district` are read **as an object or `nil`**, so one of
-  them sent wrapped raises rather than mapping, and `Amap.NewRoute.Step` has no
-  `cities`/`district` field at all, so a step carrying either drops it. Task 11's live
-  run records the shape that really arrives.
+  open, read the way `Amap.Direction` reads the `results`/`result` pair on
+  `/v3/distance`. `cost`, `navi`, `cities` and `district` are read **as an object or
+  `nil`**, so one of them sent wrapped raises rather than mapping. `Amap.NewRoute.Step`
+  has no `cities`/`district` field at all, and the live run saw `cities` on a step, so
+  that group is currently dropped when it arrives there rather than mapped.
   """
 
   alias Amap.NewRoute.City

@@ -102,11 +102,12 @@ defmodule Amap.Direction do
   `restriction`. `:cartype` is `:fuel` (the default), `:electric` or `:hybrid`.
   `:ferry` is `:use` (the default: the wire's `0` means *take* the ferry) or
   `:avoid`; the option is named after the intent so that `0` never reads as "off".
-  `:roadaggregation` asks Amap for a `roads` grouping above `steps` and travels as
-  the text `true`; **this module does not map that grouping**, so `steps` is what a
-  caller reads whether or not the flag is set, and the grouping is simply left out
-  rather than half-returned. `:nosteps` keeps the step list empty if only the totals
-  are wanted; and `:extensions` is `:base` or `:all` — only `all` carries the `tmcs`,
+  `:roadaggregation` asks Amap to aggregate the route by road and travels as the text
+  `true`; **it replaces `steps` with `roads` rather than adding a grouping above them** —
+  the page words it as 在 `steps` 上层增加 `roads` 做聚合, but the live run saw a path whose
+  keys held `roads` and no `steps` at all, so a caller who sets the flag reads the route
+  from `Amap.Direction.Path`'s `roads` and `steps` stays empty. `:nosteps` keeps the step
+  list empty if only the totals are wanted; and `:extensions` is `:base` or `:all` — only `all` carries the `tmcs`,
   `cities` and `districts` this module also maps. The page's parameter table marks
   `extensions` required while its own sample says otherwise, so it is sent only when
   given.
@@ -355,7 +356,7 @@ defmodule Amap.Direction do
 
   defp to_segment(payload) do
     %Segment{
-      walking: Routing.v3_path(payload["walking"]),
+      walking: Routing.v3_walking(payload["walking"]),
       bus: Routing.v3_buslines(payload["bus"]),
       entrance: Routing.v3_stop(payload["entrance"]),
       exit: Routing.v3_stop(payload["exit"]),

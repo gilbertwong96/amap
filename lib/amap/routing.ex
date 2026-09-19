@@ -21,11 +21,11 @@ defmodule Amap.Routing do
   these values rather than sharing one — which is also AGENTS.md's rule for a helper
   that touches a struct it does not own.
 
-  The v3-shaped mappers (`v3_path/1`, `v3_stop/1`, `v3_buslines/1`, `v3_railway/1`) live
-  here for the mirror reason: v5's transit page documents its `walking`, `bus` and
-  `railway` parts as 参考 v3 老接口, so those parts of a v5 answer really are v3's shapes,
-  and one set of functions maps them for both generations rather than each module keeping
-  a copy that would drift.
+  The v3-shaped mappers (`v3_path/1`, `v3_walking/1`, `v3_stop/1`, `v3_buslines/1`,
+  `v3_railway/1`) live here for the mirror reason: v5's transit page documents its
+  `walking`, `bus` and `railway` parts as 参考 v3 老接口, so those parts of a v5 answer
+  really are v3's shapes, and one set of functions maps them for both generations rather
+  than each module keeping a copy that would drift.
   """
 
   alias Amap.{Coord, Param, Validate}
@@ -188,10 +188,9 @@ defmodule Amap.Routing do
   fields, so v5's own paths have a different struct, but the parts v5 inherits from v3 are
   v3's and are mapped here rather than in either module.
 
-  `nil` means Amap returned no path at all — a transit segment's `walking` leg is absent
-  more often than not, because the leg often starts on the bus — and it stays `nil`, as
-  an absent group does beside `v3_stop/1` and `v3_railway/1`. A caller that gets a struct
-  back can read it; one that gets `nil` knows there was no leg.
+  `nil` means Amap returned no path at all, and it stays `nil` rather than becoming an
+  all-nil struct a truthiness check would accept — the same discipline `v3_walking/1`
+  and `v3_railway/1` keep for their own absent objects.
   """
   @spec v3_path(Amap.JSON.value()) :: Amap.Direction.Path.t() | nil
   def v3_path(nil), do: nil
@@ -208,7 +207,34 @@ defmodule Amap.Routing do
       steps: Enum.map(payload["steps"] || [], &v3_step/1),
       tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1),
       cities: Enum.map(payload["cities"] || [], &v3_city/1),
-      districts: Enum.map(payload["districts"] || [], &v3_district/1)
+      districts: Enum.map(payload["districts"] || [], &v3_district/1),
+      roads: payload["roads"] || []
+    }
+  end
+
+  @doc """
+  Maps a v3-shaped walking leg — the `walking` object inside a transit segment.
+
+  It builds `Amap.Direction.Transit.Walking` rather than `Amap.Direction.Path`, because
+  this leg carries its own `origin` and `destination`: a walk is between two points on a
+  plan, while a `Path` gets its endpoints from the `route` around it. Its `steps` are the
+  v3 step shape, so the same mapper `v3_path/1` uses fills them.
+
+  `nil` means Amap sent no walking leg at all — a segment that starts on the bus has
+  none — and it stays `nil`, as an absent group does beside `v3_stop/1` and
+  `v3_railway/1`. A caller that gets a struct back can read it; one that gets `nil`
+  knows there was no leg.
+  """
+  @spec v3_walking(Amap.JSON.value()) :: Amap.Direction.Transit.Walking.t() | nil
+  def v3_walking(nil), do: nil
+
+  def v3_walking(payload) do
+    %Amap.Direction.Transit.Walking{
+      origin: Coord.parse_location(payload["origin"]),
+      destination: Coord.parse_location(payload["destination"]),
+      distance: payload["distance"],
+      duration: payload["duration"],
+      steps: Enum.map(payload["steps"] || [], &v3_step/1)
     }
   end
 

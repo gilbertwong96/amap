@@ -5,7 +5,6 @@ defmodule Amap.NewRoute.BicyclingTest do
   alias Amap.NewRoute.Cost
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Route
-  alias Amap.NewRoute.Step
   alias Amap.TestServer
 
   @bicycling_path "/v5/direction/bicycling"
@@ -21,7 +20,7 @@ defmodule Amap.NewRoute.BicyclingTest do
             ~s("cost":{"duration":"1500","tolls":"0","toll_distance":"0"},) <>
             ~s("steps":[{"instruction":"骑行54米右转","orientation":"北",) <>
             ~s("road_name":"阜通东大街","step_distance":"54",) <>
-            ~s("walk_type":"1",) <>
+            ~s("navi":{"action":"骑行54米右转","assistant_action":"","walk_type":"1"},) <>
             ~s("polyline":"116.466485,39.995197;116.46424,40.020642"}]}]}})
 
   @base ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
@@ -140,13 +139,13 @@ defmodule Amap.NewRoute.BicyclingTest do
     assert [step] = path.steps
     assert step.instruction == "骑行54米右转"
     assert step.road_name == "阜通东大街"
-    # Its own group and a step-level field, as on every v5 routing page.
-    assert %Step{walk_type: "1"} = step
+    # The wire puts `walk_type` inside a step's `navi`, even though the page lists it
+    # as a `show_fields` group of its own.
+    assert %Navi{action: "骑行54米右转", walk_type: "1"} = step.navi
     assert step.step_distance == "54"
     assert step.polyline == [{116.466485, 39.995197}, {116.46424, 40.020642}]
-    # Not asked for, so the groups this endpoint does have stay empty.
+    # `tmcs` was not asked for, so the reader leaves it empty.
     assert step.tmcs == []
-    assert step.navi == nil
   end
 
   test "returns an error rather than raising for a refusal", %{server: server, client: client} do

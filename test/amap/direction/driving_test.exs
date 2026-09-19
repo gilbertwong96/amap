@@ -26,6 +26,18 @@ defmodule Amap.Direction.DrivingTest do
   # The envelope alone: Amap sends this when it found no route at all.
   @no_route ~s({"status":"1","info":"OK","infocode":"10000","count":"0"})
 
+  # `roadaggregation: true` replaces `steps` with `roads` on the wire, so this is the
+  # shape a caller who asks for aggregation really gets: no `steps` key at all. The
+  # entries stand in for whatever Amap sends — the page states no entry shape and the
+  # live run recorded only that there were seven, which is why the mapper carries them
+  # verbatim and this assertion pins exactly that.
+  @aggregated ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+                ~s("route":{"origin":"116.481028,39.989643","destination":"116.465302,40.004717",) <>
+                ~s("paths":[{"distance":"12345","duration":"1200","strategy":"速度优先",) <>
+                ~s("tolls":"5.0","restriction":"0","traffic_lights":"7","toll_distance":"3000",) <>
+                ~s("roads":[{"road_name":"示例路","traffic_status":"畅通"},) <>
+                ~s({"road_name":"示例二路","traffic_status":"缓行"}]}]}})
+
   setup do
     server = TestServer.start!()
 
@@ -312,6 +324,8 @@ defmodule Amap.Direction.DrivingTest do
     assert path.restriction == "0"
     assert path.traffic_lights == "7"
     assert path.toll_distance == "3000"
+    # Nothing asked for aggregation, and no `roads` key came back.
+    assert path.roads == []
 
     assert [step] = path.steps
     assert step.road == "阜通东大街"
@@ -349,6 +363,31 @@ defmodule Amap.Direction.DrivingTest do
     assert [%District{name: "朝阳区", adcode: "110105"}] = city.districts
 
     assert [%District{name: "朝阳区", adcode: "110105"}] = path.districts
+  end
+
+  test "maps the roads `roadaggregation` returns in place of steps", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v3/direction/driving", fn _req ->
+      {200, @aggregated}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             Direction.driving(client, {116.481028, 39.989643}, {116.465302, 40.004717},
+               roadaggregation: true,
+               extensions: :all
+             )
+
+    # The wire sent no `steps` key, because the flag replaces `steps` with `roads`
+    # rather than adding a grouping above them. Mapping only `steps` would answer `[]`
+    # and lose the whole route, which is the defect this test pins.
+    assert path.steps == []
+
+    assert path.roads == [
+             %{"road_name" => "示例路", "traffic_status" => "畅通"},
+             %{"road_name" => "示例二路", "traffic_status" => "缓行"}
+           ]
   end
 
   test "answers an empty Route when Amap sends no route at all", %{

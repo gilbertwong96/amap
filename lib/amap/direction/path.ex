@@ -14,6 +14,13 @@ defmodule Amap.Direction.Path do
   flow stretch by stretch and `cities`/`districts` the places the path crosses; Amap
   sends all three for driving, and only with `extensions: :all`.
 
+  **`roads` replaces `steps`, it does not sit above them.** It arrives only when
+  driving's `:roadaggregation` option is set, and the page words the flag as 在 `steps`
+  上层增加 `roads` 做聚合; the live run saw a path whose keys held `roads` and no `steps`
+  at all, so a caller who asks for aggregation reads the route from `roads` and from
+  nowhere else. Each entry is carried exactly as the wire sends it — the page states no
+  entry shape, and the live run recorded only that there were seven of them.
+
   **They keep the wire's form.** Amounts are strings, `restriction` and
   `traffic_lights` are strings, and nothing is parsed into a number here — a
   payload Amap never sends a value in stays `nil` rather than becoming a zero.
@@ -35,8 +42,16 @@ defmodule Amap.Direction.Path do
     steps: [],
     tmcs: [],
     cities: [],
-    districts: []
+    districts: [],
+    roads: []
   ]
+
+  @typedoc """
+  The `roads` grouping `:roadaggregation` produces, entries exactly as the wire sends
+  them. The page states no entry shape and the live run recorded only a count, so this
+  is deliberately the JSON value rather than a struct of guessed fields.
+  """
+  @type road :: Amap.JSON.value()
 
   @type t :: %__MODULE__{
           distance: String.t() | nil,
@@ -49,6 +64,7 @@ defmodule Amap.Direction.Path do
           steps: [Step.t()],
           tmcs: [Tmc.t()],
           cities: [City.t()],
-          districts: [District.t()]
+          districts: [District.t()],
+          roads: [road()]
         }
 end

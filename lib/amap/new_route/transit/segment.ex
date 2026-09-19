@@ -3,9 +3,9 @@ defmodule Amap.NewRoute.Transit.Segment do
   One leg of a plan — a member of its `segments`, in travel order.
 
   This page documents `walking`, `bus` and `railway` as **参考 v3 老接口**, so those
-  three keep the v3 structs (`Amap.Direction.Path`, `Amap.Direction.Transit.Busline` and
-  `.Railway`, with `.Stop` beneath them) rather than copies of them: the parts v5 inherits
-  are v3's, and a second struct for the same shape would drift.
+  three keep the v3 structs (`Amap.Direction.Transit.Walking`, `Amap.Direction.Transit.Busline`
+  and `.Railway`, with `.Stop` beneath them) rather than copies of them: the parts v5
+  inherits are v3's, and a second struct for the same shape would drift.
 
   `taxi` is this page's own addition — the alternative of hailing a car, as
   `Amap.NewRoute.Transit.Taxi`.
@@ -17,16 +17,16 @@ defmodule Amap.NewRoute.Transit.Segment do
   this level.
   """
 
-  alias Amap.Direction.Path
   alias Amap.Direction.Transit.Busline
   alias Amap.Direction.Transit.Railway
+  alias Amap.Direction.Transit.Walking
   alias Amap.NewRoute.Transit.Cost
   alias Amap.NewRoute.Transit.Taxi
 
   defstruct [:walking, :railway, :taxi, :cost, bus: []]
 
   @type t :: %__MODULE__{
-          walking: Path.t() | nil,
+          walking: Walking.t() | nil,
           bus: [Busline.t()],
           railway: Railway.t() | nil,
           taxi: Taxi.t() | nil,

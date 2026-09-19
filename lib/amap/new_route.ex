@@ -13,7 +13,9 @@ defmodule Amap.NewRoute do
   `district`, `polyline`) and four on walking, bicycling and electrobike (`cost`, `navi`,
   `walk_type`, `polyline`) —
   because Amap would answer a request it silently ignored and the typo would look like an
-  answer. **The strategies are a different enum**: `0`, `1`, `2` and `32`–`45`,
+  answer. Amap itself **ignores** an unknown group and answers `ok` with base fields (the
+  live run confirmed it), so raising here is a deliberate, stricter choice.
+  **The strategies are a different enum**: `0`, `1`, `2` and `32`–`45`,
   where `32` is Amap's own default and the rest are its app's combinations — v3's `10`,
   which means "give me several routes", is not one of them.
 
@@ -132,8 +134,9 @@ defmodule Amap.NewRoute do
   Plans a walking route.
 
   The same two `{lon, lat}` points as `driving/4`, and Amap's answer is the same skeleton
-  without `restriction` and `taxi_cost`, plus `walk_type` — a road-type code that is a
-  step-level field of its own, controlled by the group of the same name.
+  without `restriction` and `taxi_cost`, plus `walk_type` — a road-type code Amap sends
+  inside a step's `navi` object, even though its `show_fields` group shares the field's
+  name.
 
   `:alternative_route` takes `1`, `2` or `3` — the first of several routes, the first
   two, or three — and unset returns one, so it is sent only when named. `:isindoor` is
@@ -221,8 +224,9 @@ defmodule Amap.NewRoute do
     end
   end
 
-  # An unknown group is not passed through to Amap, which answers it with base fields
-  # and no complaint — so a typo would look like a request Amap chose to answer partly.
+  # An unknown group is not passed through to Amap, which ignores it and answers `ok`
+  # with base fields (the live run confirmed that), so a typo would look like a request
+  # Amap chose to answer partly. Raising here is stricter than Amap on purpose.
   defp optional_show_fields(opts, allowed) do
     case Keyword.get(opts, :show_fields) do
       nil ->
@@ -282,7 +286,6 @@ defmodule Amap.NewRoute do
       orientation: payload["orientation"],
       road_name: payload["road_name"],
       step_distance: payload["step_distance"],
-      walk_type: payload["walk_type"],
       cost: to_cost(payload["cost"]),
       tmcs: to_tmcs(payload["tmcs"]),
       navi: to_navi(payload["navi"]),
@@ -322,7 +325,8 @@ defmodule Amap.NewRoute do
   defp to_navi(payload) do
     %Navi{
       action: payload["action"],
-      assistant_action: payload["assistant_action"]
+      assistant_action: payload["assistant_action"],
+      walk_type: payload["walk_type"]
     }
   end
 
@@ -338,10 +342,11 @@ defmodule Amap.NewRoute do
   @doc """
   Plans a public transport route.
 
-  `city1` is required and positional — the page marks it 必填 — and takes a **citycode**
-  (`"010"`), not a name. `:city2` is the same thing for the other end of a 跨城 trip; the
-  page's parameter table leaves its 必填 cell empty while its own sample table says 是, so
-  it is sent only when given.
+  `city1` and `city2` are both required and positional — `city1` is the city the trip
+  starts in, `city2` the one it ends in, 跨城 or not — and each takes a **citycode**
+  (`"010"`), not a name. The page's 必填 column leaves `city2`'s cell empty while its own
+  sample table says 是; the wire settles it the sample table's way, refusing a
+  `city1`-only call with `20001 MISSING_REQUIRED_PARAMS`.
 
   `:strategy` is **a third enum**: `0` 推荐 (Amap's default), `1` 最经济, `2` 最少换乘,
   `3` 最少步行, `4` 最舒适, `5` 不乘地铁, `6` 地铁图模式, `7` 地铁优先 and `8` 时间短 —
@@ -373,10 +378,11 @@ defmodule Amap.NewRoute do
           {number(), number()},
           {number(), number()},
           String.t(),
+          String.t(),
           keyword()
         ) ::
           {:ok, Transit.t()} | {:error, Amap.Error.t()}
-  def transit(client, origin, destination, city1, opts \\ []) do
+  def transit(client, origin, destination, city1, city2, opts \\ []) do
     strategy =
       Validate.integer_one_of!(Keyword.get(opts, :strategy), ":strategy", @transit_strategies)
 
@@ -391,7 +397,7 @@ defmodule Amap.NewRoute do
       origin: Param.location(Validate.point!(origin, ":origin")),
       destination: Param.location(Validate.point!(destination, ":destination")),
       city1: Validate.present!(city1, ":city1"),
-      city2: Validate.optional_present!(Keyword.get(opts, :city2), ":city2"),
+      city2: Validate.present!(city2, ":city2"),
       originpoi: originpoi,
       destinationpoi: destinationpoi,
       ad1: Validate.optional_present!(Keyword.get(opts, :ad1), ":ad1"),
@@ -469,7 +475,7 @@ defmodule Amap.NewRoute do
 
   defp to_transit_segment(payload) do
     %TransitSegment{
-      walking: Routing.v3_path(payload["walking"]),
+      walking: Routing.v3_walking(payload["walking"]),
       bus: Routing.v3_buslines(payload["bus"]),
       railway: Routing.v3_railway(payload["railway"]),
       taxi: to_taxi(payload["taxi"]),
