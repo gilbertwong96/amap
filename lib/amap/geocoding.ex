@@ -52,7 +52,7 @@ defmodule Amap.Geocoding do
   def geo(client, address, opts \\ []) do
     params = [
       address: Validate.present!(address, ":address"),
-      city: Validate.optional!(&Validate.present!/2, Keyword.get(opts, :city), ":city")
+      city: Validate.optional_present!(Keyword.get(opts, :city), ":city")
     ]
 
     case Amap.request(client, :restapi, :get, @geo_path, params) do

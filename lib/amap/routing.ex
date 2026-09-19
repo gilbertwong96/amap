@@ -11,6 +11,8 @@ defmodule Amap.Routing do
   - waypoints: up to 16 pairs, planned in the order given, joined with `;` — the same
     sentence on both pages (经度和纬度用","分割 … 坐标点之间用";"分隔);
   - `:ferry`, whose wire value `0` means *take* the ferry on both pages;
+  - `:avoidpolygons`: at most 32 regions of at most 16 points each, **longitude first**
+    (经度在前，纬度在后) — the same limits and the same order on both pages;
   - the four fields a `route` object carries before either version wraps them in a
     struct: the two endpoints decoded into tuples, the taxi cost, and the raw `paths`.
 
@@ -23,8 +25,27 @@ defmodule Amap.Routing do
   alias Amap.{Coord, Param, Validate}
 
   @max_waypoints 16
+  @max_avoid_regions 32
+  @max_avoid_vertices 16
 
   @cartypes %{fuel: "0", electric: "1", hybrid: "2"}
+
+  @doc """
+  Encodes the `:avoidpolygons` option, longitude first.
+
+  Both pages document the same limits — at most 32 regions of at most 16 points each —
+  and both need 经度在前，纬度在后. `Amap.Param.polygon_lon_first/1` is the encoder;
+  `Amap.Param.polygon/1` is latitude-first and belongs to Falcon's search endpoints,
+  where the same code would transpose every vertex without the request failing.
+  """
+  @spec avoidpolygons(Validate.input()) :: String.t() | nil
+  def avoidpolygons(nil), do: nil
+
+  def avoidpolygons(rings) do
+    rings
+    |> Validate.polygons!(":avoidpolygons", @max_avoid_regions, @max_avoid_vertices)
+    |> Param.polygon_lon_first()
+  end
 
   @doc """
   Maps the `:cartype` option to the value the wire takes.

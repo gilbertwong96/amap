@@ -49,8 +49,8 @@ defmodule Amap.Traffic do
     params = [
       level: validate_level!(level),
       name: Validate.present!(name, ":name"),
-      city: optional_text(opts, :city),
-      adcode: optional_text(opts, :adcode)
+      city: Validate.optional_present!(Keyword.get(opts, :city), ":city"),
+      adcode: Validate.optional_present!(Keyword.get(opts, :adcode), ":adcode")
     ]
 
     request(client, @road_path, params ++ common_params(opts))
@@ -113,10 +113,6 @@ defmodule Amap.Traffic do
     if is_nil(Keyword.get(opts, :city)) and is_nil(Keyword.get(opts, :adcode)) do
       raise ArgumentError, ":city or :adcode is required: Amap takes one of the two"
     end
-  end
-
-  defp optional_text(opts, key) do
-    Validate.optional!(&Validate.present!/2, Keyword.get(opts, key), ":#{key}")
   end
 
   defp validate_level!(level), do: Validate.range!(level, ":level", 1, 6)

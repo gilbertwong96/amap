@@ -47,8 +47,6 @@ defmodule Amap.Direction do
   @bicycling_path "/v4/direction/bicycling"
 
   @max_origin_pairs 3
-  @max_avoid_regions 32
-  @max_avoid_vertices 16
   @max_origins 100
 
   # Amap documents 0/1/2/3/5 for this endpoint — not a range, and no 4.
@@ -80,8 +78,9 @@ defmodule Amap.Direction do
     params = [
       origin: Param.location(Validate.point!(origin, ":origin")),
       destination: Param.location(Validate.point!(destination, ":destination")),
-      origin_id: optional_present(opts, :origin_id),
-      destination_id: optional_present(opts, :destination_id)
+      origin_id: Validate.optional_present!(Keyword.get(opts, :origin_id), ":origin_id"),
+      destination_id:
+        Validate.optional_present!(Keyword.get(opts, :destination_id), ":destination_id")
     ]
 
     case Amap.request(client, :restapi, :get, @walking_path, params) do
@@ -140,18 +139,23 @@ defmodule Amap.Direction do
     params = [
       origin: encode_origin!(origin),
       destination: Param.location(Validate.point!(destination, ":destination")),
-      originid: optional_present(opts, :origin_id),
-      destinationid: optional_present(opts, :destination_id),
-      destinationtype: optional_present(opts, :destination_type),
+      originid: Validate.optional_present!(Keyword.get(opts, :origin_id), ":origin_id"),
+      destinationid:
+        Validate.optional_present!(Keyword.get(opts, :destination_id), ":destination_id"),
+      destinationtype:
+        Validate.optional_present!(Keyword.get(opts, :destination_type), ":destination_type"),
       strategy: Validate.optional_range!(Keyword.get(opts, :strategy), ":strategy", 0, 20),
       waypoints: Routing.waypoints(Keyword.get(opts, :waypoints)),
-      avoidpolygons: encode_avoidpolygons(opts),
-      province: optional_present(opts, :province),
-      number: optional_present(opts, :number),
+      avoidpolygons: Routing.avoidpolygons(Keyword.get(opts, :avoidpolygons)),
+      province: Validate.optional_present!(Keyword.get(opts, :province), ":province"),
+      number: Validate.optional_present!(Keyword.get(opts, :number), ":number"),
       cartype: Routing.cartype(Keyword.get(opts, :cartype)),
       ferry: Routing.ferry(Keyword.get(opts, :ferry)),
-      roadaggregation: optional_boolean(opts, :roadaggregation, :bool),
-      nosteps: optional_boolean(opts, :nosteps, :int),
+      roadaggregation:
+        Validate.optional_boolean!(Keyword.get(opts, :roadaggregation), ":roadaggregation",
+          as: :bool
+        ),
+      nosteps: Validate.optional_boolean!(Keyword.get(opts, :nosteps), ":nosteps", as: :int),
       extensions:
         Validate.optional_enum!(Keyword.get(opts, :extensions), ":extensions", [:base, :all])
     ]
@@ -196,11 +200,13 @@ defmodule Amap.Direction do
       origin: Param.location(Validate.point!(origin, ":origin")),
       destination: Param.location(Validate.point!(destination, ":destination")),
       city: Validate.present!(city, ":city"),
-      cityd: optional_present(opts, :cityd),
+      cityd: Validate.optional_present!(Keyword.get(opts, :cityd), ":cityd"),
       extensions:
         Validate.optional_enum!(Keyword.get(opts, :extensions), ":extensions", [:base, :all]),
-      strategy: validate_transit_strategy!(Keyword.get(opts, :strategy)),
-      nightflag: optional_boolean(opts, :nightflag, :int),
+      strategy:
+        Validate.integer_one_of!(Keyword.get(opts, :strategy), ":strategy", @transit_strategies),
+      nightflag:
+        Validate.optional_boolean!(Keyword.get(opts, :nightflag), ":nightflag", as: :int),
       date: optional_date(opts),
       time: optional_time(opts)
     ]
@@ -243,7 +249,7 @@ defmodule Amap.Direction do
     params = [
       origins: Param.pipe(Enum.map(origins, &Param.location/1)),
       destination: Param.location(Validate.point!(destination, ":destination")),
-      type: validate_distance_type!(Keyword.get(opts, :type))
+      type: Validate.integer_one_of!(Keyword.get(opts, :type), ":type", @distance_types)
     ]
 
     case Amap.request(client, :restapi, :get, @distance_path, params) do
@@ -288,10 +294,6 @@ defmodule Amap.Direction do
     end
   end
 
-  defp optional_present(opts, key) do
-    Validate.optional!(&Validate.present!/2, Keyword.get(opts, key), ":#{key}")
-  end
-
   # A single pair is the common case; a list is the 定位飘点 form, where only the
   # last pair is planned and the bearing from the first to it sets the 抓路 angle.
   defp encode_origin!(origin) do
@@ -315,44 +317,6 @@ defmodule Amap.Direction do
     end
   end
 
-  # 经度在前，纬度在后, the order this parameter's own rules give — which is why the
-  # work is `Param.polygon_lon_first/1` and *not* `Param.polygon/1`, whose
-  # latitude-first order belongs to the Falcon search endpoints.
-  defp encode_avoidpolygons(opts) do
-    case Keyword.get(opts, :avoidpolygons) do
-      nil ->
-        nil
-
-      rings ->
-        rings
-        |> Validate.polygons!(":avoidpolygons", @max_avoid_regions, @max_avoid_vertices)
-        |> Param.polygon_lon_first()
-    end
-  end
-
-  # Amap documents 0/1/2/3/5 for this endpoint — the values are not a range and
-  # there is no 4, unlike driving's 0–20. The check is its own function because
-  # `Validate.optional_enum!/3` takes atoms, not integers.
-  defp validate_transit_strategy!(nil), do: nil
-
-  defp validate_transit_strategy!(value) when value in @transit_strategies, do: value
-
-  defp validate_transit_strategy!(other) do
-    raise ArgumentError,
-          ":strategy must be one of #{inspect(@transit_strategies)}, got: #{inspect(other)}"
-  end
-
-  # 0, 1 and 3 are the three the page documents and 1 is its own default; like the
-  # transit strategies this is an integer set, which `Validate.optional_enum!/3`
-  # cannot express because that one takes atoms.
-  defp validate_distance_type!(nil), do: nil
-  defp validate_distance_type!(value) when value in @distance_types, do: value
-
-  defp validate_distance_type!(other) do
-    raise ArgumentError,
-          ":type must be one of #{inspect(@distance_types)}, got: #{inspect(other)}"
-  end
-
   defp optional_date(opts) do
     case Keyword.get(opts, :date) do
       nil -> nil
@@ -366,19 +330,6 @@ defmodule Amap.Direction do
       nil -> nil
       %Time{} = time -> Param.time(time)
       other -> raise ArgumentError, ":time must be a Time, got: #{inspect(other)}"
-    end
-  end
-
-  defp optional_boolean(opts, key, as) do
-    case Keyword.get(opts, key) do
-      nil ->
-        nil
-
-      value when is_boolean(value) ->
-        Param.boolean(value, as: as)
-
-      other ->
-        raise ArgumentError, ":#{key} must be a boolean, got: #{inspect(other)}"
     end
   end
 

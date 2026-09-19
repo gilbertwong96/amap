@@ -56,24 +56,20 @@ defmodule Amap.District do
   @spec district(Amap.Client.t(), keyword()) :: {:ok, Result.t()} | {:error, Amap.Error.t()}
   def district(client, opts \\ []) do
     params = [
-      keywords: optional_text(opts, :keywords),
+      keywords: Validate.optional_present!(Keyword.get(opts, :keywords), ":keywords"),
       subdistrict:
         Validate.optional_range!(Keyword.get(opts, :subdistrict), ":subdistrict", 0, 4),
       page: Validate.optional_range!(Keyword.get(opts, :page), ":page", 1, 1_000_000),
       offset: Validate.optional_range!(Keyword.get(opts, :offset), ":offset", 1, @max_offset),
       extensions:
         Validate.optional_enum!(Keyword.get(opts, :extensions), ":extensions", [:base, :all]),
-      filter: optional_text(opts, :filter)
+      filter: Validate.optional_present!(Keyword.get(opts, :filter), ":filter")
     ]
 
     case Amap.request(client, :restapi, :get, @path, params) do
       {:ok, payload} -> {:ok, to_result(payload)}
       {:error, _} = error -> error
     end
-  end
-
-  defp optional_text(opts, key) do
-    Validate.optional!(&Validate.present!/2, Keyword.get(opts, key), ":#{key}")
   end
 
   defp to_result(payload) do

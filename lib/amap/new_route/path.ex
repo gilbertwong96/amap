@@ -23,9 +23,14 @@ defmodule Amap.NewRoute.Path do
   `distance`, and its traffic objects carry `tmc_`-prefixed names, so the two versions
   keep separate structs.
 
-  The page prints its groups as objects without saying which level they hang from, so
-  the mapper reads them wherever Amap puts them — on the path, on a step, or wrapped in
-  a list of one. Task 11's live run records the shape that really arrives.
+  The page prints its groups as objects without saying which level they hang from.
+  **`tmcs` is the only group read in more than one wrapping**: an object, a one-element
+  list of `tmc` objects, or `{"tmc": …}` — the group whose own rules leave the level
+  open, read the way `Amap.Direction` reads the `results`/`result` pair on `/v3/distance`.
+  `cost`, `navi`, `cities` and `district` are read **as an object or `nil`**, so one of
+  them sent wrapped raises rather than mapping, and `Amap.NewRoute.Step` has no
+  `cities`/`district` field at all, so a step carrying either drops it. Task 11's live
+  run records the shape that really arrives.
   """
 
   alias Amap.NewRoute.City

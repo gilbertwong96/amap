@@ -138,4 +138,63 @@ defmodule Amap.ValidateTest do
       assert Validate.optional!(&Validate.name!/2, nil, ":desc") == nil
     end
   end
+
+  describe "optional_present!/2" do
+    test "passes a non-empty string through and treats nil as absent" do
+      assert Validate.optional_present!("B000A7BD6C", ":origin_id") == "B000A7BD6C"
+      assert Validate.optional_present!(nil, ":origin_id") == nil
+    end
+
+    test "refuses an empty string, which is not an id Amap can use" do
+      assert_raise ArgumentError, ~r/:city must be a non-empty string/, fn ->
+        Validate.optional_present!("", ":city")
+      end
+    end
+
+    test "applies present!'s own rules rather than the Falcon charset" do
+      # A plate has no letters-and-digits-only rule, and `/` is not in `text!`'s charset.
+      assert Validate.optional_present!("京AHA322", ":plate") == "京AHA322"
+      assert Validate.optional_present!("a/b", ":filter") == "a/b"
+    end
+  end
+
+  describe "optional_boolean!/3" do
+    test "writes the form the endpoint takes" do
+      assert Validate.optional_boolean!(true, ":nosteps", as: :int) == "1"
+      assert Validate.optional_boolean!(false, ":nosteps", as: :int) == "0"
+      assert Validate.optional_boolean!(true, ":roadaggregation", as: :bool) == "true"
+      assert Validate.optional_boolean!(false, ":roadaggregation", as: :bool) == "false"
+    end
+
+    test "treats nil as absent" do
+      assert Validate.optional_boolean!(nil, ":nosteps", as: :int) == nil
+    end
+
+    test "raises for a value that is neither boolean, naming the field" do
+      assert_raise ArgumentError, ~r/:isindoor must be a boolean, got: 1/, fn ->
+        Validate.optional_boolean!(1, ":isindoor", as: :int)
+      end
+    end
+  end
+
+  describe "integer_one_of!/3" do
+    test "returns the number for a documented value" do
+      assert Validate.integer_one_of!(32, ":strategy", [0, 1, 2] ++ Enum.to_list(32..45)) == 32
+      assert Validate.integer_one_of!(3, ":type", [0, 1, 3]) == 3
+    end
+
+    test "treats nil as absent" do
+      assert Validate.integer_one_of!(nil, ":strategy", [1, 2, 3]) == nil
+    end
+
+    test "raises, naming the allowed values, for anything else" do
+      assert_raise ArgumentError, ~r/:strategy must be one of \[1, 2, 3\], got: 4/, fn ->
+        Validate.integer_one_of!(4, ":strategy", [1, 2, 3])
+      end
+
+      assert_raise ArgumentError, ~r/:type must be one of \[0, 1, 3\], got: "1"/, fn ->
+        Validate.integer_one_of!("1", ":type", [0, 1, 3])
+      end
+    end
+  end
 end

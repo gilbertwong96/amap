@@ -38,9 +38,6 @@ defmodule Amap.NewRoute do
   @driving_path "/v5/direction/driving"
   @walking_path "/v5/direction/walking"
 
-  @max_avoid_regions 32
-  @max_avoid_vertices 16
-
   # 0 速度优先, 1 费用优先, 2 常规最快, 32 高德推荐 — Amap's own default — and 33–45, its
   # app-style combinations. Not v3's 0–20: the same digits mean other things there.
   @strategies [0, 1, 2] ++ Enum.to_list(32..45)
@@ -90,13 +87,15 @@ defmodule Amap.NewRoute do
     params = [
       origin: Param.location(Validate.point!(origin, ":origin")),
       destination: Param.location(Validate.point!(destination, ":destination")),
-      origin_id: optional_present(opts, :origin_id),
-      destination_id: optional_present(opts, :destination_id),
-      destination_type: optional_present(opts, :destination_type),
-      strategy: validate_strategy!(Keyword.get(opts, :strategy)),
+      origin_id: Validate.optional_present!(Keyword.get(opts, :origin_id), ":origin_id"),
+      destination_id:
+        Validate.optional_present!(Keyword.get(opts, :destination_id), ":destination_id"),
+      destination_type:
+        Validate.optional_present!(Keyword.get(opts, :destination_type), ":destination_type"),
+      strategy: Validate.integer_one_of!(Keyword.get(opts, :strategy), ":strategy", @strategies),
       waypoints: Routing.waypoints(Keyword.get(opts, :waypoints)),
-      avoidpolygons: encode_avoidpolygons(opts),
-      plate: optional_present(opts, :plate),
+      avoidpolygons: Routing.avoidpolygons(Keyword.get(opts, :avoidpolygons)),
+      plate: Validate.optional_present!(Keyword.get(opts, :plate), ":plate"),
       cartype: Routing.cartype(Keyword.get(opts, :cartype)),
       ferry: Routing.ferry(Keyword.get(opts, :ferry)),
       show_fields: optional_show_fields(opts, @driving_show_fields)
@@ -133,10 +132,16 @@ defmodule Amap.NewRoute do
     params = [
       origin: Param.location(Validate.point!(origin, ":origin")),
       destination: Param.location(Validate.point!(destination, ":destination")),
-      origin_id: optional_present(opts, :origin_id),
-      destination_id: optional_present(opts, :destination_id),
-      alternative_route: validate_alternative_route!(Keyword.get(opts, :alternative_route)),
-      isindoor: optional_boolean(opts, :isindoor),
+      origin_id: Validate.optional_present!(Keyword.get(opts, :origin_id), ":origin_id"),
+      destination_id:
+        Validate.optional_present!(Keyword.get(opts, :destination_id), ":destination_id"),
+      alternative_route:
+        Validate.integer_one_of!(
+          Keyword.get(opts, :alternative_route),
+          ":alternative_route",
+          @alternative_routes
+        ),
+      isindoor: Validate.optional_boolean!(Keyword.get(opts, :isindoor), ":isindoor", as: :int),
       show_fields: optional_show_fields(opts, @walking_show_fields)
     ]
 
@@ -144,36 +149,6 @@ defmodule Amap.NewRoute do
       {:ok, payload} -> {:ok, to_route(payload["route"])}
       {:error, _} = error -> error
     end
-  end
-
-  defp optional_present(opts, key) do
-    Validate.optional!(&Validate.present!/2, Keyword.get(opts, key), ":#{key}")
-  end
-
-  # 经度在前，纬度在后, which is what this parameter's rules say and what
-  # `Param.polygon_lon_first/1` writes — never `Param.polygon/1`, whose latitude-first
-  # order belongs to the Falcon search endpoints.
-  defp encode_avoidpolygons(opts) do
-    case Keyword.get(opts, :avoidpolygons) do
-      nil ->
-        nil
-
-      rings ->
-        rings
-        |> Validate.polygons!(":avoidpolygons", @max_avoid_regions, @max_avoid_vertices)
-        |> Param.polygon_lon_first()
-    end
-  end
-
-  # Amap documents 0/1/2 and 32–45 for this endpoint, which is not v3's range and not
-  # v3's meaning either. The check is its own function because
-  # `Validate.optional_enum!/3` takes atoms, not integers.
-  defp validate_strategy!(nil), do: nil
-  defp validate_strategy!(value) when value in @strategies, do: value
-
-  defp validate_strategy!(other) do
-    raise ArgumentError,
-          ":strategy must be one of #{inspect(@strategies)}, got: #{inspect(other)}"
   end
 
   # An unknown group is not passed through to Amap, which answers it with base fields
@@ -198,26 +173,6 @@ defmodule Amap.NewRoute do
         raise ArgumentError,
               ":show_fields must be a non-empty list of #{inspect(allowed)}, " <>
                 "got: #{inspect(other)}"
-    end
-  end
-
-  # 1 多备选路线中第一条, 2 前两条, 3 三条. Unset returns one route, so it is sent only when
-  # named; the page gives no other value.
-  defp validate_alternative_route!(nil), do: nil
-  defp validate_alternative_route!(value) when value in @alternative_routes, do: value
-
-  defp validate_alternative_route!(other) do
-    raise ArgumentError,
-          ":alternative_route must be one of #{inspect(@alternative_routes)}, got: #{inspect(other)}"
-  end
-
-  # 0 不需要室内算路, 1 需要 — this page takes no other value, so a boolean that is not
-  # one is a call-site mistake rather than something to pass through.
-  defp optional_boolean(opts, key) do
-    case Keyword.get(opts, key) do
-      nil -> nil
-      value when is_boolean(value) -> Param.boolean(value, as: :int)
-      other -> raise ArgumentError, ":#{key} must be a boolean, got: #{inspect(other)}"
     end
   end
 

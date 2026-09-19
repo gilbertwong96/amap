@@ -9,8 +9,9 @@ defmodule Amap.NewRoute.Step do
 
   The groups `show_fields` turns on live here too, because the page lists them without
   saying which level they hang from: `cost`, `tmcs`, `navi` (whose `walk_type` carries
-  the road-type code) and `polyline`. `Amap.NewRoute.Path` says the same about its own,
-  and the mapper fills whichever level Amap answers with.
+  the road-type code) and `polyline`. A group reaches this struct when the payload carries
+  it on a step — `Amap.NewRoute.Path` says which wrappings each group is read in, and only
+  `tmcs` is read in more than one.
   """
 
   alias Amap.NewRoute.Cost

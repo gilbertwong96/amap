@@ -110,6 +110,55 @@ defmodule Amap.Validate do
   def optional!(validator, value, field), do: validator.(value, field)
 
   @doc """
+  Validates an optional string that must be non-empty when it is given.
+
+  The optional companion to `present!/2`, and the way every Web-service module takes an
+  optional string — a POI id, a plate, a city, a district keyword. `nil` means the caller
+  left the parameter out, which the encoder turns into a missing parameter rather than an
+  empty one.
+  """
+  @spec optional_present!(input(), String.t()) :: String.t() | nil
+  def optional_present!(nil, _field), do: nil
+  def optional_present!(value, field), do: present!(value, field)
+
+  @doc """
+  Validates an optional boolean and encodes it the way the endpoint takes it.
+
+  `as: :int` writes `1`/`0` and `as: :bool` writes `true`/`false`: Amap is not consistent
+  between endpoints — some document `true/false`, others `0/1` — so the caller states
+  which one this parameter wants, and the value that reaches the wire is what this
+  returns. A non-boolean raises, because Amap would take it as neither.
+  """
+  @spec optional_boolean!(input(), String.t(), as: :int | :bool) :: String.t() | nil
+  def optional_boolean!(nil, _field, _opts), do: nil
+
+  def optional_boolean!(value, _field, as: as) when is_boolean(value),
+    do: Amap.Param.boolean(value, as: as)
+
+  def optional_boolean!(value, field, _opts),
+    do: raise(ArgumentError, "#{field} must be a boolean, got: #{inspect(value)}")
+
+  @doc """
+  Validates an optional integer against the set Amap documents.
+
+  The integer counterpart of `optional_enum!/3`, for the parameters whose values are
+  numbers — the routing strategies, whose same digits mean different things on different
+  pages, and the distance types. The number is returned as it was given; the encoder
+  writes it to the wire.
+  """
+  @spec integer_one_of!(input(), String.t(), [integer()]) :: integer() | nil
+  def integer_one_of!(nil, _field, _allowed), do: nil
+
+  def integer_one_of!(value, field, allowed) do
+    if value in allowed do
+      value
+    else
+      raise ArgumentError,
+            "#{field} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
+    end
+  end
+
+  @doc """
   Validates an optional integer against Amap's documented interval.
 
   `nil` means the parameter was left out and stays out of the request, which is the
