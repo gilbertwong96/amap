@@ -8,8 +8,9 @@ defmodule Amap.Direction.Distance do
 
   `info` and `code` are how Amap reports failure **per item**: both are absent on a
   result it could measure, and appear on the ones it could not — `code` distinguishes
-  no road between the two points (`"1"`), an origin or destination too far from every
-  road (`"2"`) and a point outside China (`"3"`). The call itself is still `{:ok, _}`,
+  no **drivable** road between the two points (`"1"` — the page's 可行车, which only
+  rules out roads a car can use), an origin or destination too far from every road
+  (`"2"`) and a point outside China (`"3"`). The call itself is still `{:ok, _}`,
   which is why the pair lives here instead of in `Amap.Error`: across a hundred origins
   one failure is data, and a caller that only checked the tuple would miss it.
 

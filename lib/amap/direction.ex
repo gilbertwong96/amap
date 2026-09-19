@@ -10,7 +10,10 @@ defmodule Amap.Direction do
   each of those is a list of legs. `distance/4` is the odd one out: it plans nothing —
   it measures how far each of up to a hundred origins is from one destination, which is
   why every result carries a per-item `code` and why it lives on its own path
-  (`/v3/distance`, not `/v3/direction/…`).
+  (`/v3/distance`, not `/v3/direction/…`). `bicycling/4` is the second odd one out:
+  the page documents it, it is the only endpoint here that is not `/v3/`, and it is
+  the only one that answers the **track family's** envelope while living on the Web
+  service host — the reason `family` and `host` are two axes and not one.
 
   Both ends go in as `{lon, lat}` tuples and come back the same way — including
   every step's `polyline`, which Amap writes as one `;`-separated string and this
@@ -40,6 +43,7 @@ defmodule Amap.Direction do
   @driving_path "/v3/direction/driving"
   @transit_path "/v3/direction/transit/integrated"
   @distance_path "/v3/distance"
+  @bicycling_path "/v4/direction/bicycling"
 
   @max_origin_pairs 3
   @max_waypoints 16
@@ -247,6 +251,42 @@ defmodule Amap.Direction do
 
     case Amap.request(client, :restapi, :get, @distance_path, params) do
       {:ok, payload} -> {:ok, to_distances(payload["results"])}
+      {:error, _} = error -> error
+    end
+  end
+
+  @doc """
+  Plans a cycling route, at most **500 km**.
+
+  This endpoint is why `family` and `host` are two axes rather than one. Amap
+  documents it on the same page as the four above, but it answers
+  `{errcode, errmsg, errdetail, data}` — the **track family's** envelope, not the
+  `{status, info, infocode}` the rest of this page uses — and it lives on
+  `restapi.amap.com` all the same. So the call names the family that parses and signs
+  (`:tsapi`, which signs nothing, since this page documents no `sig`) and names the
+  host separately. `/v4/grasproad/driving` is the second endpoint of that kind, which
+  is why §10 #10 of the design doc calls this a property of `/v4/` rather than one
+  accident.
+
+  It takes nothing but the two ends: the page documents only `key`, `origin` and
+  `destination` — no POI ids, no strategy, nothing optional — so the keyword list
+  exists for the shape the other four share and carries nothing.
+
+  Returns the route Amap planned, or `%Amap.Direction.Route{paths: []}` when it found
+  none, as `walking/4` does.
+  """
+  @spec bicycling(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+          {:ok, Route.t()} | {:error, Amap.Error.t()}
+  def bicycling(client, origin, destination, _opts \\ []) do
+    # A Falcon envelope on the Web service host: `:tsapi` decides the envelope and
+    # signing, `host: :restapi` decides where the request goes.
+    params = [
+      origin: Param.location(Validate.point!(origin, ":origin")),
+      destination: Param.location(Validate.point!(destination, ":destination"))
+    ]
+
+    case Amap.request(client, :tsapi, :get, @bicycling_path, params, host: :restapi) do
+      {:ok, payload} -> {:ok, to_route(payload)}
       {:error, _} = error -> error
     end
   end
@@ -483,8 +523,6 @@ defmodule Amap.Direction do
     %District{name: payload["name"], adcode: payload["adcode"]}
   end
 
-  # Same as the other two endpoints: no `route` in the answer means Amap found no
-  # plan, which is an answer rather than a failure.
   # The page prints both `results` and `result` for this list, the way driving's page
   # prints both `paths` and `path`; read whichever arrived.
   defp to_distances(%{"result" => nested}), do: to_distances(nested)
@@ -502,6 +540,8 @@ defmodule Amap.Direction do
     }
   end
 
+  # Same as the other two endpoints: no `route` in the answer means Amap found no
+  # plan, which is an answer rather than a failure.
   defp to_transit(nil), do: %Transit{transits: []}
 
   defp to_transit(payload) do
