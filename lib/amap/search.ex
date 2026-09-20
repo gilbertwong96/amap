@@ -131,22 +131,38 @@ defmodule Amap.Search do
   @doc """
   Reads both generations' `pois` wrapper into a list of entries.
 
-  Amap nests the list one level down (`pois.poi`); a bare list is read the same way because
-  the page also writes the field as a list, and an absent or emptied wrapper —
+  The place searches nest their rows one level down (`pois.poi`), which `rows/4` unwraps;
+  see it for the shapes an absent or emptied wrapper takes.
+  """
+  @spec pois(Amap.JSON.object(), (Amap.JSON.object() -> poi)) :: [poi] when poi: var
+  def pois(payload, mapper), do: rows(payload, "pois", "poi", mapper)
+
+  @doc """
+  Reads a `{plural: {singular: [...]}}` wrapper — `pois.poi`, `tips.tip` — into rows.
+
+  Amap nests these lists one level down; a bare list is read the same way because the
+  pages also write the field as a list, and an absent or emptied wrapper —
   `Amap.Response` turns an empty array into `nil` — answers `[]`. An entry that is not an
   object is dropped rather than handed to a mapper.
   """
-  @spec pois(Amap.JSON.object(), (Amap.JSON.object() -> poi)) :: [poi] when poi: var
-  def pois(payload, mapper) do
+  @spec rows(Amap.JSON.object(), String.t(), String.t(), (Amap.JSON.object() -> row)) :: [row]
+        when row: var
+  def rows(payload, wrapper, singular, mapper) do
     payload
-    |> Map.get("pois")
-    |> poi_list()
+    |> Map.get(wrapper)
+    |> row_list(singular)
     |> Enum.map(mapper)
   end
 
-  defp poi_list(%{"poi" => list}) when is_list(list), do: Enum.filter(list, &is_map/1)
-  defp poi_list(list) when is_list(list), do: Enum.filter(list, &is_map/1)
-  defp poi_list(_other), do: []
+  defp row_list(wrapper, singular) when is_map(wrapper) do
+    case wrapper[singular] do
+      list when is_list(list) -> Enum.filter(list, &is_map/1)
+      _other -> []
+    end
+  end
+
+  defp row_list(list, _singular) when is_list(list), do: Enum.filter(list, &is_map/1)
+  defp row_list(_other, _singular), do: []
 
   @doc """
   Issues the family's GET and hands the payload to the mapper.
