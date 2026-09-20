@@ -57,6 +57,13 @@ Notable changes to this project, newest first. The format follows
   `steps` with `roads` — the page words it as adding a grouping above them, and the
   live run saw the replacement — each entry an `Amap.Direction.Road` whose fields
   are the four keys the wire printed.
+- 公交信息查询 as `Amap.Bus`: `stopid/3`, `stopname/3`, `lineid/3` and `linename/3`,
+  with both nesting shapes — a station's lines as `Amap.Bus.Stop.Busline`, a line's
+  stops as `Amap.Bus.Line.Stop`. `count` stays the string Amap sends, the keyword
+  searches carry Amap's `suggestion` as `Amap.Bus.Suggestion`, and `linename`'s
+  documented 全国 default is real: omitting `city` searches the whole country,
+  which a probe confirmed. The page lists `lineid`'s `distance` twice at one level,
+  so it maps to one field and the duplicate row is recorded as a page defect.
 
 ### Changed
 

@@ -4,8 +4,10 @@ defmodule Amap.Bus.Lines do
 
   `count` is the size of the whole result set rather than of this page, and it
   stays the **string** Amap sent — `lineid`'s response table is the only one of the
-  page's four that lists it, while the wire sends it on every endpoint. `suggestion`
-  is `nil` for the id lookup, which has never sent one.
+  page's four that lists it, while the wire sent it on every probed endpoint.
+  `suggestion` is `nil` for the id lookup, which the page does not list; the live
+  run read `lineid` itself, but its `suggestion` is the one field no probe has
+  observed — the struct carries it all the same.
   """
 
   alias Amap.Bus.Line

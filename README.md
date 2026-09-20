@@ -250,6 +250,12 @@ now.temperature                      # "24"
 
 {:ok, [days]} = Amap.Weather.forecast(client, "110000")
 hd(days.casts).dayweather            # "晴"
+
+{:ok, stops} = Amap.Bus.stopname(client, "来广营路口西")
+hd(stops.busstops).buslines          # the lines serving a stop
+
+{:ok, lines} = Amap.Bus.linename(client, "地铁1号线", extensions: :all)
+hd(lines.buslines).busstops          # the stops a line serves, in sequence order
 ```
 
 `Amap.Traffic` reads the traffic along a road, inside a circle or inside a
@@ -262,6 +268,10 @@ all. `Amap.District` returns its matches beside Amap's suggestion list, which is
 only way to see what Amap thought you meant when a keyword matches nothing.
 `Amap.Weather`'s two modes answer different fields — current conditions or three
 days of forecast — which is why they are two functions rather than one.
+
+`Amap.Bus`'s two keyword searches take `city` optionally, and leaving it out
+searches the whole country: `linename`'s page promises a 全国 default and a probe
+without a city really did answer lines from another city.
 
 ## Route planning
 

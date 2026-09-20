@@ -65,11 +65,12 @@ defmodule Amap.Bus do
   @doc """
   Searches stations by name.
 
-  `keywords` is a single keyword. `:city` narrows the search and may be an
-  adcode, a citycode or a name; **leaving it out searches the whole country**,
-  which the page permits and a probe confirmed. `:offset` (1..100) and `:page`
-  (1..100) walk the answer, whose rows Amap caps at 100 per page; neither is sent
-  unless given, so Amap's own defaults (20 and 1) apply.
+  `keywords` is a single keyword. `:city` narrows the search and takes an
+  adcode or a citycode; **leaving it out searches without a city restriction**,
+  which the page permits (its row says 必填=否) and a probe confirmed — it
+  answered the same stations as the with-city control. `:offset` (1..100) and
+  `:page` (1..100) walk the answer, whose rows Amap caps at 100 per page;
+  neither is sent unless given, so Amap's own defaults (20 and 1) apply.
   """
   @spec stopname(Amap.Client.t(), String.t(), keyword()) ::
           {:ok, Stops.t()} | {:error, Amap.Error.t()}
