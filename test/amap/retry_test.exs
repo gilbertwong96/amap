@@ -264,18 +264,25 @@ defmodule Amap.RetryTest do
     # delay — so a directly-built client is the only way to reach the read, and the
     # value it lands on decides whether a `:backoff` retry waits before retrying.
     #
-    # Pinned two ways, because neither alone is sufficient here.
+    # Pinned one way, by the configured delay itself.
     #
-    # Relatively, against a `base_delay: 0` control: both measurements carry the
-    # same two local HTTP round trips and both wait on the same `Process.sleep/1`,
-    # so the contrast is ~100x. Measured, though, the control comes in at 0-2ms,
-    # which makes `control_ms * 10` collapse to 0 and reduces this to "elapsed >
-    # 0" — enough to catch the regression only when jitter happens to move one
-    # value. So the floor does the real work: `Process.sleep/1` cannot return
-    # early, so a call that pays the documented default is guaranteed to measure at
-    # least that long, while one that degrades to no delay measures like the
-    # control. The control is still read twice and the faster kept, so a stalled
-    # run cannot inflate the relative bar into a false failure.
+    # `Process.sleep/1` cannot return early, so a call that pays the documented
+    # default is guaranteed to measure at least that long, while one that degrades to
+    # no delay measures like the control. An earlier version also asserted
+    # `elapsed_ms > control_ms * 10`, and that bar was derived from the measurement it
+    # was checking against: a control inflated to 11ms by load set a 110ms bar for a
+    # call whose genuine wait is 100ms, and the suite saw it fail at 108ms while the
+    # floor passed. A bar built from a measurement can always be moved past the value
+    # it is meant to bound, so the floor carries the claim alone.
+    #
+    # The control is still measured, twice with the faster kept, but it is printed
+    # rather than asserted: it makes a failure legible without being able to fail one.
+    #
+    # What the floor cannot catch is a call that skipped the wait *and* spent longer
+    # than the default on its own round trips, which needs the environment to inflate
+    # a millisecond-scale call about a hundredfold. If that ever matters, arming a
+    # second failure so the retry pays the delay twice raises the guaranteed bar with
+    # it.
     test "an unusable :base_delay falls back to the default delay, not to none", %{
       server: server,
       base_urls: base_urls
@@ -298,12 +305,8 @@ defmodule Amap.RetryTest do
 
         assert elapsed_ms >= default_delay_ms,
                "base_delay: #{inspect(unusable)} must fall back to the #{default_delay_ms}ms " <>
-                 "default, but the call took #{elapsed_ms}ms"
-
-        assert elapsed_ms > control_ms * 10,
-               "base_delay: #{inspect(unusable)} must fall back to the #{default_delay_ms}ms " <>
-                 "default, so the call should be far slower than the #{control_ms}ms no-delay " <>
-                 "control, but it took #{elapsed_ms}ms"
+                 "default, but the call took #{elapsed_ms}ms — the #{control_ms}ms no-delay " <>
+                 "control is what a call that skipped the wait looks like"
       end
     end
   end
