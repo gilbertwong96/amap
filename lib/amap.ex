@@ -70,11 +70,12 @@ defmodule Amap do
   the host's description in `Amap.Host`.
 
   Raises `ArgumentError` if `host` is not a host this SDK describes, if `opts`
-  names an envelope the host does not answer, if the host's auth cannot be
-  computed (`:et_api`'s digest is not public), or if `params` supplies the
-  host's key parameter or `sig`. The client owns both key parameters: injecting a
-  second copy would put two of them on the wire, and the signed string would no
-  longer be the one the server reads.
+  names an envelope the host does not answer or carries anything but `:envelope`
+  and `:body` (the removed `:host:` raises by name rather than being ignored), if
+  the host's auth cannot be computed (`:et_api`'s digest is not public), or if
+  `params` supplies the host's key parameter or `sig`. The client owns both key
+  parameters: injecting a second copy would put two of them on the wire, and the
+  signed string would no longer be the one the server reads.
   """
   @spec request(
           Client.t(),

@@ -17,6 +17,7 @@ defmodule Amap.Request do
 
   @form_headers [{"content-type", "application/x-www-form-urlencoded"}]
   @json_headers [{"content-type", "application/json"}]
+  @request_options [:envelope, :body]
 
   # Reserved for every host rather than only the signing ones: a caller who passes
   # `sig` means the client's, and the client never injects one where the host does
@@ -56,10 +57,15 @@ defmodule Amap.Request do
   JSON body is not defined, and sending one unsigned to an envelope that expects
   signatures would be worse than refusing. A JSON value that is neither an object
   nor a non-empty list of objects is refused, so the guarantee stays narrow.
+
+  `opts` takes `:envelope` and `:body` only; anything else raises `ArgumentError`,
+  with the removed `:host:` named. The old shape pointed a call at a host the
+  positional argument now names, so ignoring it would misroute the call silently.
   """
   @spec build(Client.t(), Host.name(), :get | :post, String.t(), params(), keyword()) ::
           Finch.Request.t()
   def build(%Client{} = client, host, method, path, params, opts \\ []) do
+    validate_opts!(opts)
     host = Host.describe(host, Keyword.get(opts, :envelope))
     refuse_unbuildable!(host)
 
@@ -67,6 +73,25 @@ defmodule Amap.Request do
       :form -> build_form(client, host, method, path, params)
       :json -> build_json(client, host, method, path, params)
       other -> raise ArgumentError, ":body must be :form or :json, got: #{inspect(other)}"
+    end
+  end
+
+  defp validate_opts!(opts) do
+    case Keyword.keys(opts) -- @request_options do
+      [] -> :ok
+      unknown -> raise ArgumentError, option_message(unknown)
+    end
+  end
+
+  # The removed `:host` gets its own message rather than the generic one: a call site
+  # left over from the old shape would otherwise be sent to the positional host while
+  # the caller believed the ignored option won.
+  defp option_message(unknown) do
+    if :host in unknown do
+      "the :host option was removed: pass the host as the second argument of Amap.request/6, " <>
+        "and name the envelope with :envelope when the endpoint's is not the host's default"
+    else
+      "unknown option(s): #{inspect(unknown)}; expected #{inspect(@request_options)}"
     end
   end
 

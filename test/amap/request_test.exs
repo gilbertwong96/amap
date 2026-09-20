@@ -96,6 +96,28 @@ defmodule Amap.RequestTest do
       assert error.message =~ ":apilocate"
     end
 
+    test "rejects the removed :host option instead of ignoring it" do
+      # The old shape named the host in the options; ignoring it now would send the
+      # call to the positional host while the caller believed the option won.
+      error =
+        assert_raise ArgumentError, fn ->
+          Request.build(client(), :tsapi, :get, "/v4/direction/bicycling", %{}, host: :restapi)
+        end
+
+      assert error.message =~ ":host option was removed"
+      assert error.message =~ "second argument"
+    end
+
+    test "rejects an option it does not take, naming it" do
+      error =
+        assert_raise ArgumentError, fn ->
+          Request.build(client(), :restapi, :get, "/v3/ip", %{}, envelop: :tsapi)
+        end
+
+      assert error.message =~ "unknown option(s): [:envelop]"
+      assert error.message =~ "[:envelope, :body]"
+    end
+
     test "puts a JSON body on the host and envelope the caller names" do
       request =
         Request.build(client(), :restapi, :post, "/v1/track/match", %{"a" => 1},
