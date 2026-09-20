@@ -145,6 +145,43 @@ defmodule Amap.ResponseTest do
     end
   end
 
+  describe "normalize/3 for the apilocate envelope" do
+    test "strips status and info and keeps result, with no infocode beside them" do
+      body = %{
+        "status" => "1",
+        "info" => "OK",
+        "result" => %{"type" => "1", "location" => "116.481028,39.989643"}
+      }
+
+      assert {:ok, payload} = Response.normalize(:apilocate, body, 200)
+      assert payload == %{"result" => %{"type" => "1", "location" => "116.481028,39.989643"}}
+      refute Map.has_key?(payload, "status")
+      refute Map.has_key?(payload, "info")
+    end
+
+    test "reads an empty-array result as no value, like the flat envelope" do
+      body = %{"status" => "1", "info" => "OK", "result" => []}
+
+      assert {:ok, %{"result" => nil}} = Response.normalize(:apilocate, body, 200)
+    end
+
+    test "turns a failed status into an error that keeps the symbolic info" do
+      body = %{"status" => "0", "info" => "INVALID_USER_KEY"}
+
+      assert {:error, error} = Response.normalize(:apilocate, body, 200)
+      assert error.reason == :unknown
+      assert error.family == :apilocate
+      assert error.message == "INVALID_USER_KEY"
+      assert error.code == nil
+      assert error.retry == :no
+    end
+
+    test "rejects a body that is neither status value" do
+      assert {:error, error} = Response.normalize(:apilocate, %{"weird" => true}, 200)
+      assert error.reason == :unexpected_response
+    end
+  end
+
   describe "normalize/3 for unrecognized bodies" do
     test "rejects a body matching neither envelope" do
       assert {:error, error} = Response.normalize(:tsapi, %{"weird" => true}, 200)

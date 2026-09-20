@@ -8,6 +8,10 @@ defmodule Amap.Response do
   a bare payload map either way, so `Amap.Falcon.*` and `Amap.*` business
   modules never have to care which family they are talking to.
 
+  智能硬件定位 v1 (`apilocate.amap.com`) answers a third shape: `status`/`info`
+  around a `result`, with **no `infocode` row at all** and symbolic `info`
+  values, so its failures carry the text and no code.
+
   For the flat envelope it also applies Amap's empty-array convention, so that a
   field with no value reaches a caller as `nil` rather than as `[]` — the rule
   its own pages state — 当返回值不存在时，则以数组类型返回, "a value that is absent comes back as
@@ -19,9 +23,11 @@ defmodule Amap.Response do
   alias Amap.Numeric
 
   @typedoc "An envelope `normalize/3` parses."
-  @type envelope :: :restapi | :tsapi
+  @type envelope :: :restapi | :tsapi | :apilocate
 
   @envelope_restapi ~w(status info infocode)
+  # 智能硬件定位 v1 has no infocode row; status and info are the whole envelope.
+  @envelope_apilocate ~w(status info)
   # Falcon signals success with 10000 (`10000 OK` is the error table's first
   # row) and the documented examples also use 0. Accepting only 0 turned every
   # successful Falcon call into an error once the payload had already been
@@ -81,6 +87,22 @@ defmodule Amap.Response do
 
   def normalize(:restapi, %{"status" => "0"} = body, http_status) do
     {:error, Error.from_restapi(body, http_status)}
+  end
+
+  # The 智能硬件定位 v1 envelope, which has no infocode row and symbolic info
+  # values. Success keeps whatever `result` carries — the page calls it a list but
+  # nests scalars, and no sample body exists — and a failure keeps the info text
+  # with no code, since there is no numeric table to classify it by.
+  def normalize(:apilocate, %{"status" => "1"} = body, _http_status) do
+    {:ok, empty_to_nil(Map.drop(body, @envelope_apilocate))}
+  end
+
+  def normalize(:apilocate, %{"status" => "0"} = body, http_status) do
+    {:error, Error.from_apilocate(body, http_status)}
+  end
+
+  def normalize(:apilocate, body, http_status) do
+    {:error, Error.unexpected_response(http_status, body)}
   end
 
   def normalize(envelope, body, http_status) when envelope in [:restapi, :tsapi] do

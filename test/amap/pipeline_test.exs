@@ -57,6 +57,27 @@ defmodule Amap.PipelineTest do
              )
   end
 
+  test "carries a call to apilocate and parses its infocode-less envelope", %{server: server} do
+    # The fourth host, described with no endpoint module: the request path can
+    # already carry a call there — plain `key=`, no signature — and read the
+    # status/info/result envelope, whose failure surface is symbolic.
+    parent = self()
+
+    client =
+      Amap.new(key: "test-key", base_urls: %{apilocate: "http://localhost:#{server.port}"})
+
+    TestServer.expect_once(server, "GET", "/position", fn req ->
+      send(parent, {:query, req.query})
+      {200, ~s({"status":"1","info":"OK","result":{"location":"116.481028,39.989643"}})}
+    end)
+
+    assert {:ok, %{"result" => %{"location" => "116.481028,39.989643"}}} =
+             Amap.request(client, :apilocate, :get, "/position", %{})
+
+    assert_receive {:query, query}
+    assert URI.decode_query(query) == %{"key" => "test-key"}
+  end
+
   test "returns the payload when Falcon answers with 10000, as the live API does", %{
     server: server,
     client: client

@@ -63,6 +63,22 @@ defmodule Amap.ErrorTest do
     end
   end
 
+  describe "from_apilocate/2" do
+    test "keeps the symbolic info, with no code to classify it by" do
+      body = %{"status" => "0", "info" => "OVER_QUOTA"}
+      error = Error.from_apilocate(body, 200)
+
+      assert error.code == nil
+      assert error.message == "OVER_QUOTA"
+      assert error.detail == nil
+      assert error.reason == :unknown
+      assert error.family == :apilocate
+      assert error.http_status == 200
+      assert error.retry == :no
+      assert error.raw == body
+    end
+  end
+
   describe "client-side failures" do
     test "wraps a transport error" do
       error = Error.from_transport(%Mint.TransportError{reason: :econnrefused})

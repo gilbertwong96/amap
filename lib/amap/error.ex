@@ -114,6 +114,25 @@ defmodule Amap.Error do
     )
   end
 
+  @doc """
+  Builds an error from the 智能硬件定位 v1 envelope.
+
+  That host has no `infocode` row — its `info` carries symbolic names such as
+  `INVALID_USER_KEY` — so there is no numeric code to classify and `reason` is
+  `:unknown` rather than a guess. No endpoint module uses it yet; it exists so
+  the described envelope has a failure shape when one does.
+  """
+  @spec from_apilocate(body(), integer() | nil) :: t()
+  def from_apilocate(body, http_status) do
+    %__MODULE__{
+      message: body["info"],
+      reason: :unknown,
+      family: :apilocate,
+      http_status: http_status,
+      raw: body
+    }
+  end
+
   @doc "Builds an error for a failure that never reached the API."
   @spec from_transport(Exception.t()) :: t()
   def from_transport(exception) do
