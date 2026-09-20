@@ -86,6 +86,18 @@ defmodule Amap.NewRoute.BicyclingTest do
     assert_receive {:params, params}
     assert params["alternative_route"] == "2"
 
+    # The lower bound is sent for real: a list narrowed to 2..3 would still pass the
+    # assertion above.
+    expect_ride(server, @electrobike_path, @base, parent)
+
+    assert {:ok, %Route{}} =
+             NewRoute.electrobike(client, {116.466485, 39.995197}, {116.46424, 40.020642},
+               alternative_route: 1
+             )
+
+    assert_receive {:params, params}
+    assert params["alternative_route"] == "1"
+
     for count <- [0, 4] do
       assert_raise ArgumentError, ~r/:alternative_route must be one of/, fn ->
         NewRoute.electrobike(client, {116.466485, 39.995197}, {116.46424, 40.020642},

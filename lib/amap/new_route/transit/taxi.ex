@@ -11,7 +11,8 @@ defmodule Amap.NewRoute.Transit.Taxi do
   coordinates, decoded into `{lon, lat}` tuples.
 
   `startpoint`/`startname` and `endpoint`/`endname` are where the car collects and drops
-  off — the coordinates and the names Amap gives them.
+  off — the coordinates and the names Amap gives them, and all four stay the wire's
+  strings like the three above; `polyline` is the only field this struct decodes.
   """
 
   defstruct [

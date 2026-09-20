@@ -17,6 +17,9 @@ defmodule Amap.Direction.BicyclingTest do
   # What the page documents for a 抓路 failure: too few points, or too sparse.
   @failed ~s({"errcode":30001,"errdetail":"抓路失败","errmsg":"FAILED"})
 
+  # The same envelope carrying no `data` at all: Amap found nothing to report.
+  @no_route ~s({"errcode":0,"errmsg":"OK"})
+
   setup do
     server = TestServer.start!()
 
@@ -46,6 +49,28 @@ defmodule Amap.Direction.BicyclingTest do
     assert_receive {:query, query}
     assert query["origin"] == "116.466485,39.995197"
     assert query["destination"] == "116.46424,40.020642"
+  end
+
+  test "refuses a point that is not a {lon, lat} pair", %{client: client} do
+    assert_raise ArgumentError, ~r/:origin must be a \{lon, lat\} pair of numbers/, fn ->
+      Direction.bicycling(client, "116.466485,39.995197", {116.46424, 40.020642})
+    end
+
+    assert_raise ArgumentError, ~r/:destination must be a \{lon, lat\} pair of numbers/, fn ->
+      Direction.bicycling(client, {116.466485, 39.995197}, nil)
+    end
+  end
+
+  test "answers an empty Route when Amap sends no data at all", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v4/direction/bicycling", fn _req ->
+      {200, @no_route}
+    end)
+
+    assert {:ok, %Route{origin: nil, destination: nil, paths: []}} =
+             Direction.bicycling(client, {116.466485, 39.995197}, {116.46424, 40.020642})
   end
 
   test "is not signed, because this page documents no sig", %{server: server} do

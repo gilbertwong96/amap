@@ -111,6 +111,8 @@ defmodule Amap.NewRoute.TransitTest do
     assert params["city2"] == "021"
     refute Map.has_key?(params, "originpoi")
     refute Map.has_key?(params, "destinationpoi")
+    refute Map.has_key?(params, "ad1")
+    refute Map.has_key?(params, "ad2")
     refute Map.has_key?(params, "strategy")
     refute Map.has_key?(params, "nightflag")
     refute Map.has_key?(params, "date")
@@ -210,10 +212,28 @@ defmodule Amap.NewRoute.TransitTest do
     assert params["AlternativeRoute"] == "10"
     refute Map.has_key?(params, "alternative_route")
 
+    # The lower bound is sent for real: a list narrowed to 2..10 would still pass the
+    # assertion above, and 1 is where this page's range starts.
+    expect_transit(server, @base, parent)
+
+    assert {:ok, %Transit{}} =
+             NewRoute.transit(client, @origin, @destination, @city1, @city2, alternative_route: 1)
+
+    assert_receive {:params, params}
+    assert params["AlternativeRoute"] == "1"
+
     for count <- [0, 11] do
       assert_raise ArgumentError, ~r/:alternative_route must be one of/, fn ->
         NewRoute.transit(client, @origin, @destination, @city1, @city2, alternative_route: count)
       end
+    end
+
+    assert_raise ArgumentError, ~r/:origin must be a \{lon, lat\} pair of numbers/, fn ->
+      NewRoute.transit(client, "116.481499,39.990475", @destination, @city1, @city2)
+    end
+
+    assert_raise ArgumentError, ~r/:destination must be a \{lon, lat\} pair of numbers/, fn ->
+      NewRoute.transit(client, @origin, nil, @city1, @city2)
     end
 
     expect_transit(server, @base, parent)

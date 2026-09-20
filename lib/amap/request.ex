@@ -36,7 +36,9 @@ defmodule Amap.Request do
   endpoints answer the other family's envelope: `/v4/direction/bicycling` lives on
   `restapi.amap.com` and answers `{errcode, errmsg, errdetail, data}`, so it is
   built as `:tsapi` — the family keeps deciding the parser and the signature — with
-  `host: :restapi` deciding where it goes. The default is the family itself.
+  `host: :restapi` deciding where it goes. The default is the family itself, and a
+  host outside those two raises `ArgumentError` rather than falling back to the
+  family — the same refusal `Amap.request/6` documents.
   """
   @spec build(
           Client.t(),
@@ -148,6 +150,15 @@ defmodule Amap.Request do
   from a proxy or gateway rather than the API.
   """
   @spec send(Client.t(), Client.family(), :get | :post, String.t(), Amap.JSON.props() | keyword()) ::
+          {:ok, Finch.Response.t()} | {:error, Error.t()}
+  @spec send(
+          Client.t(),
+          Client.family(),
+          :get | :post,
+          String.t(),
+          Amap.JSON.props() | keyword(),
+          keyword()
+        ) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
   def send(%Client{} = client, family, method, path, params, opts \\ []) do
     result =

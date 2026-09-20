@@ -78,6 +78,10 @@ defmodule Amap.NewRoute.DrivingTest do
     refute Map.has_key?(params, "strategy")
     refute Map.has_key?(params, "show_fields")
     refute Map.has_key?(params, "plate")
+    # The three the id test sends: a default for any of them would show up here.
+    refute Map.has_key?(params, "origin_id")
+    refute Map.has_key?(params, "destination_id")
+    refute Map.has_key?(params, "destination_type")
   end
 
   test "sends the POI ids under the names this page documents", %{

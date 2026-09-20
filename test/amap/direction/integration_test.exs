@@ -519,7 +519,9 @@ defmodule Amap.Direction.IntegrationTest do
   defp first_path_step_keys(%{"paths" => [first | _]}), do: "first path: #{type_of(first)}"
   defp first_path_step_keys(%{"paths" => []}), do: "paths: empty list"
   defp first_path_step_keys(%{"paths" => paths}), do: "paths: #{type_of(paths)}"
-  defp first_path_step_keys(_route), do: "no paths key"
+  defp first_path_step_keys(%{}), do: "no paths key"
+
+  defp first_path_step_keys(other), do: "not a route: #{type_of(other)}"
 
   defp count_or_absent(map, key) do
     case map do

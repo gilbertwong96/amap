@@ -64,6 +64,24 @@ defmodule Amap.NewRoute.WalkingTest do
     refute Map.has_key?(params, "strategy")
   end
 
+  test "sends the POI ids under the names this page documents", %{
+    server: server,
+    client: client
+  } do
+    parent = self()
+    expect_walking(server, @base, parent)
+
+    assert {:ok, %Route{}} =
+             NewRoute.walking(client, {116.466485, 39.995197}, {116.46424, 40.020642},
+               origin_id: "B000A7BD6C",
+               destination_id: "B000A7BD6D"
+             )
+
+    assert_receive {:params, params}
+    assert params["origin_id"] == "B000A7BD6C"
+    assert params["destination_id"] == "B000A7BD6D"
+  end
+
   test "sends isindoor as 1 or 0", %{server: server, client: client} do
     parent = self()
     expect_walking(server, @base, parent)
