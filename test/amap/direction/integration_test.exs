@@ -124,6 +124,10 @@ defmodule Amap.Direction.IntegrationTest do
           report("v3 driving route keys", fn -> inspect(Map.keys(route)) end)
           report("v3 driving paths shape", fn -> paths_shape(route) end)
 
+          # The third run proved the aggregated step's keys; whether a v3 plain path's
+          # step carries `cities` has never been printed.
+          report("v3 driving first step keys", fn -> first_path_step_keys(route) end)
+
         other ->
           report("v3 driving raw", fn -> summary(other) end)
       end
@@ -503,6 +507,14 @@ defmodule Amap.Direction.IntegrationTest do
   end
 
   defp paths_shape(other), do: type_of(other)
+
+  defp first_path_step_keys(%{"paths" => [%{"steps" => [step | _]} | _]}) when is_map(step),
+    do: inspect(Map.keys(step))
+
+  defp first_path_step_keys(%{"paths" => [%{"steps" => steps} | _]}),
+    do: "steps: #{type_of(steps)}"
+
+  defp first_path_step_keys(_route), do: "no steps key"
 
   defp count_or_absent(map, key) do
     case map do
