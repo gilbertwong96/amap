@@ -265,6 +265,15 @@ hd(v5.pois).business.rating          # "4.7" — only because show_fields asked
 
 {:ok, tips} = Amap.InputTips.inputtips(client, "招商", city: "010")
 hd(tips.tips).name                   # "招商银行(北京分行)"
+
+{:ok, corrected} =
+  Amap.Grasproad.driving(client, [
+    %{location: {116.478928, 39.997761}, ag: 0, tm: 1_478_031_031, sp: 19},
+    %{location: {116.478907, 39.998422}, ag: 0, tm: 2, sp: 10}
+  ])
+
+corrected.points                     # the road coordinates Amap snapped the track to
+corrected.distance                   # the corrected track's length
 ```
 
 `Amap.Traffic` reads the traffic along a road, inside a circle or inside a
@@ -290,6 +299,18 @@ why the SDK caps the page number instead of letting it ask past the ceiling. v5'
 optional groups — `:children`, `:business`, `:indoor`, `:navi`, `:photos` — arrive only
 when `show_fields` asks for them. `Amap.InputTips` takes the singular `type` its page
 documents, and its `location` only has an effect when `city` is beside it.
+
+`Amap.Grasproad` is 轨迹纠偏 — the one basic page that is neither a route nor a POI.
+It takes a driven track of up to 500 points, each a `{lon, lat}` location plus the
+page's `ag` (heading from due north), `tm` (seconds: the first point's from 1970, the
+rest as differences from it) and `sp` (km/h), and answers where the track really ran.
+The body is a JSON **array**, the SDK's only other JSON body besides
+`Amap.Falcon.TrackMatch` — which is why `Amap.Request` accepts a non-empty list of
+maps as well as one object. The endpoint answers the track family's Falcon envelope
+from the Web service host, the second `/v4/` page to do so, so it is called with
+`family: :tsapi` and `host: :restapi` like `Amap.Direction.bicycling/4`; and `30001`,
+the page's 抓路失败 — usually too few or too sparse points — arrives as
+`:grasproad_failed` rather than a generic engine error.
 
 ## Route planning
 

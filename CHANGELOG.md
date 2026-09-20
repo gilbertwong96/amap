@@ -80,6 +80,16 @@ Notable changes to this project, newest first. The format follows
   a list or one object (`children`, `photos`) are typed as a union: the live run has only
   shown lists, and the object branch stays because the page draws one and no run has sent it.
 
+- 轨迹纠偏 as `Amap.Grasproad.driving/2`: a driven track of up to 500 points — each
+  `%{location: {lon, lat}, ag, tm, sp}`, with `tm` in seconds, the first point's from
+  1970 and the rest as differences from it — sent as a **JSON array**. It is the tree's
+  second JSON-body endpoint, which is why `Amap.Request` now accepts a non-empty list
+  of maps as a JSON body while still refusing every other JSON value. A single point
+  map and a list of them are both accepted, and both go out as the array the page
+  requires. The answer is the Falcon envelope from the Web service host, so the call
+  keeps S4's two axes (`family: :tsapi`, `host: :restapi`), and `30001` 抓路失败 maps
+  to `:grasproad_failed` with `retry: :no`.
+
 ### Changed
 
 - `Amap.Response` applies Amap's empty-array convention to the flat envelope too, so
