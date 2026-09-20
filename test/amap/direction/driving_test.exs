@@ -4,6 +4,7 @@ defmodule Amap.Direction.DrivingTest do
   alias Amap.Direction
   alias Amap.Direction.City
   alias Amap.Direction.District
+  alias Amap.Direction.Road
   alias Amap.Direction.Route
   alias Amap.Direction.Tmc
   alias Amap.TestServer
@@ -28,15 +29,20 @@ defmodule Amap.Direction.DrivingTest do
 
   # `roadaggregation: true` replaces `steps` with `roads` on the wire, so this is the
   # shape a caller who asks for aggregation really gets: no `steps` key at all. The
-  # entries stand in for whatever Amap sends — the page states no entry shape and the
-  # live run recorded only that there were seven, which is why the mapper carries them
-  # verbatim and this assertion pins exactly that.
+  # entries carry the four keys the second live run printed — `road_distance`,
+  # `road_name`, `steps`, `traffic_lights` — while the values under them stand in for
+  # what Amap sends: that run printed the keys and no values, which is why
+  # `Amap.Direction.Road`'s fields stay wide.
   @aggregated ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
                 ~s("route":{"origin":"116.481028,39.989643","destination":"116.465302,40.004717",) <>
                 ~s("paths":[{"distance":"12345","duration":"1200","strategy":"速度优先",) <>
                 ~s("tolls":"5.0","restriction":"0","traffic_lights":"7","toll_distance":"3000",) <>
-                ~s("roads":[{"road_name":"示例路","traffic_status":"畅通"},) <>
-                ~s({"road_name":"示例二路","traffic_status":"缓行"}]}]}})
+                ~s("roads":[{"road_distance":"1500","road_name":"示例路",) <>
+                ~s("steps":[{"instruction":"沿示例路行驶","road":"示例路"}],) <>
+                ~s("traffic_lights":"3"},) <>
+                ~s({"road_distance":"2200","road_name":"示例二路",) <>
+                ~s("steps":[{"instruction":"沿示例二路行驶","road":"示例二路"}],) <>
+                ~s("traffic_lights":"2"}]}]}})
 
   setup do
     server = TestServer.start!()
@@ -384,10 +390,15 @@ defmodule Amap.Direction.DrivingTest do
     # and lose the whole route, which is the defect this test pins.
     assert path.steps == []
 
-    assert path.roads == [
-             %{"road_name" => "示例路", "traffic_status" => "畅通"},
-             %{"road_name" => "示例二路", "traffic_status" => "缓行"}
-           ]
+    assert [%Road{} = first, %Road{} = second] = path.roads
+    assert first.road_name == "示例路"
+    assert first.road_distance == "1500"
+    assert first.traffic_lights == "3"
+
+    # Whatever sits under a road's `steps` is carried verbatim: no source has said
+    # what shape this key holds, so it is not mapped into `Amap.Direction.Step`.
+    assert first.steps == [%{"instruction" => "沿示例路行驶", "road" => "示例路"}]
+    assert second.steps == [%{"instruction" => "沿示例二路行驶", "road" => "示例二路"}]
   end
 
   test "answers an empty Route when Amap sends no route at all", %{

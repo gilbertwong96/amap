@@ -106,7 +106,9 @@ defmodule Amap.Direction do
   `true`; **it replaces `steps` with `roads` rather than adding a grouping above them** —
   the page words it as 在 `steps` 上层增加 `roads` 做聚合, but the live run saw a path whose
   keys held `roads` and no `steps` at all, so a caller who sets the flag reads the route
-  from `Amap.Direction.Path`'s `roads` and `steps` stays empty. `:nosteps` keeps the step
+  from `Amap.Direction.Path`'s `roads` — each entry an `Amap.Direction.Road`, whose field
+  names are the keys the wire printed and whose value types are still open — and `steps`
+  stays empty. `:nosteps` keeps the step
   list empty if only the totals are wanted; and `:extensions` is `:base` or `:all` — only `all` carries the `tmcs`,
   `cities` and `districts` this module also maps. The page's parameter table marks
   `extensions` required while its own sample says otherwise, so it is sent only when

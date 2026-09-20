@@ -208,7 +208,7 @@ defmodule Amap.Routing do
       tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1),
       cities: Enum.map(payload["cities"] || [], &v3_city/1),
       districts: Enum.map(payload["districts"] || [], &v3_district/1),
-      roads: payload["roads"] || []
+      roads: Enum.map(payload["roads"] || [], &v3_road/1)
     }
   end
 
@@ -275,6 +275,15 @@ defmodule Amap.Routing do
 
   defp v3_district(payload) do
     %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
+  end
+
+  defp v3_road(payload) do
+    %Amap.Direction.Road{
+      road_distance: payload["road_distance"],
+      road_name: payload["road_name"],
+      steps: payload["steps"],
+      traffic_lights: payload["traffic_lights"]
+    }
   end
 
   @doc """
