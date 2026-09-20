@@ -163,11 +163,19 @@ defmodule Amap.PipelineTest do
       {200, ~s({"status":"1","info":"OK","infocode":"10000"})}
     end)
 
-    assert {:ok, _} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
-
+    # The bucket holds one token and needs 1000ms to refund it, so the second call can
+    # only return once the refill has been served. Time the pair from before the first
+    # call: a window opened after it has already had part of its 1000ms spent by that
+    # call's own round trip, so under load the measured tail falls below any bar short
+    # of the interval — the recorded `left: 457, right: 500`. That is the same disease
+    # S4 fixed in `retry_test.exs`: a bar derived from a segment of the wait rather
+    # than from the wait. The floor asserted here is the bucket's own refill interval,
+    # and it cannot be spent early: the token is taken at or after `started`, and the
+    # next one exists only 1000ms after it was taken.
     started = System.monotonic_time(:millisecond)
     assert {:ok, _} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
-    assert System.monotonic_time(:millisecond) - started >= 500
+    assert {:ok, _} = Amap.request(client, :restapi, :get, "/v3/ip", %{})
+    assert System.monotonic_time(:millisecond) - started >= 1_000
   end
 
   test "routes a limiter timeout through the error struct", %{server: server} do
