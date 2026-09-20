@@ -131,10 +131,16 @@ defmodule Amap.Bus.IntegrationTest do
     end
   end
 
-  describe "lineid with extensions=all: the page's fare and rectangle fields" do
-    test "the fields the page lists around the second `distance` row", %{client: client} do
-      result = Bus.lineid(client, "110100014478", extensions: :all)
-      report("lineid all", fn -> lines_report(result) end)
+  describe "lineid's extensions=all, and the page's fare fields" do
+    test "what `all` adds, if anything, around the second `distance` row", %{client: client} do
+      id = "110100014478"
+      base_raw = raw_get(client, "/v3/bus/lineid", id: id)
+      all_raw = raw_get(client, "/v3/bus/lineid", id: id, extensions: :all)
+
+      report("lineid base vs all keys", fn -> key_diff(base_raw, all_raw) end)
+
+      result = Bus.lineid(client, id, extensions: :all)
+      report("lineid all mapped", fn -> lines_report(result) end)
       accept!(result, &is_struct(&1, Lines))
 
       case result do
@@ -194,6 +200,25 @@ defmodule Amap.Bus.IntegrationTest do
       _other -> "no decoded object"
     end
   end
+
+  # The inventory's open question 3: whether `all` adds a key `base` does not carry,
+  # at the envelope level and on the first line entry.
+  defp key_diff(base_raw, all_raw) do
+    with {:ok, base} when is_map(base) <- Response.decode(base_raw),
+         {:ok, all} when is_map(all) <- Response.decode(all_raw) do
+      base_line = base["buslines"] |> List.wrap() |> List.first()
+      all_line = all["buslines"] |> List.wrap() |> List.first()
+
+      "envelope: added #{inspect(Map.keys(all) -- Map.keys(base))}; first line: added " <>
+        "#{inspect(line_keys(all_line) -- line_keys(base_line))}, removed " <>
+        "#{inspect(line_keys(base_line) -- line_keys(all_line))}"
+    else
+      _other -> "could not decode both bodies as objects"
+    end
+  end
+
+  defp line_keys(line) when is_map(line), do: Enum.sort(Map.keys(line))
+  defp line_keys(_other), do: []
 
   # The comparison the ruling rests on: both calls asked the same keyword, and the
   # page-level claim is that omitting `city` changes nothing but the search area.
