@@ -65,6 +65,22 @@ defmodule Amap.Error.CodeTest do
       assert Amap.Error.Code.reason(30_001, :restapi) == :engine_response_error
     end
 
+    test "restapi 10022 stays :unknown: its two wire readings cannot share one entry" do
+      # S4's first live run (2026-09-19) saw `CGQPS_HAS_EXCEEDED_THE_LIMIT`, and S5's
+      # run (2026-09-20) saw `INVALID_PARAMS` for an over-length keyword — the same
+      # code on the same family. `reason/2` keys on code and family alone, so any
+      # single entry misclassifies one reading: `:qps_exceeded` would make the
+      # recorded parameter error retryable (`:backoff`), and `:invalid_params` would
+      # deny a QPS refusal its retry. The deliberate choice is the fall-through:
+      # never a wrong retry, and the caller can read the wire's `info` in
+      # `%Amap.Error{}.message`. See coverage inventory §6 #7.
+      assert Amap.Error.Code.reason(10022, :restapi) == :unknown
+      assert Amap.Error.Code.retry(:unknown) == :no
+
+      # Falcon documents the code as KQPS, and only QPS has been seen there.
+      assert Amap.Error.Code.reason(10022, :tsapi) == :qps_exceeded
+    end
+
     test "the engine range covers unlisted 3xxxx codes" do
       assert Amap.Error.Code.reason(30_001, :restapi) == :engine_response_error
       assert Amap.Error.Code.reason(32_203, :tsapi) == :engine_response_error

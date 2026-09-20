@@ -40,6 +40,15 @@ defmodule Amap.Error.Code do
 
   @restapi %{
     10021 => :qps_exceeded,
+    # 10022 is deliberately absent, and not only because the Web-service table omits it.
+    # The wire has carried it both ways on this family: `CGQPS_HAS_EXCEEDED_THE_LIMIT`
+    # (S4's first live run, 2026-09-19) and `INVALID_PARAMS` for an over-length keyword
+    # (S5's live run, 2026-09-20). `reason/2` sees only code and family, so a
+    # `:qps_exceeded` entry would make the recorded parameter error retryable
+    # (`:backoff`), and an `:invalid_params` entry would deny a QPS refusal its retry.
+    # It falls through to `:unknown` with `retry: :no`: no wrong retry, and the caller
+    # can read the wire's own `info` in `%Amap.Error{}.message`. See coverage
+    # inventory §6 #7 for the decision and what it leaves unknown.
     10026 => :account_banned,
     10029 => :abroad_daily_quota_exceeded,
     10041 => :interface_privilege_expired,
