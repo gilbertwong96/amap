@@ -42,6 +42,22 @@ defmodule Amap.SearchTest do
     end
   end
 
+  describe "keyword/2" do
+    test "treats nil as absent and holds a length rule only when one is given" do
+      assert Search.keyword(nil) == nil
+      assert Search.keyword("北大") == "北大"
+      assert Search.keyword(String.duplicate("a", 200)) == String.duplicate("a", 200)
+
+      assert_raise ArgumentError, ~r/:keywords must be at most 80 characters, got: 81/, fn ->
+        Search.keyword(String.duplicate("北", 81), 80)
+      end
+
+      assert_raise ArgumentError, ~r/:keywords must be a non-empty string/, fn ->
+        Search.keyword("", 80)
+      end
+    end
+  end
+
   describe "keyword_or_types/2" do
     test "returns whichever of the pair was given" do
       assert Search.keyword_or_types(keywords: "北京大学") ==

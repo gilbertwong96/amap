@@ -56,6 +56,20 @@ defmodule Amap.Search do
   end
 
   @doc """
+  Validates an optional keyword, with the v5 pages' 80-character rule when it is given.
+
+  The length is optional because only the 2.0 pages state it (文本总长度不可超过80字符) and
+  they state it on every keyword endpoint, which is why `around/3` and `polygon/3` use this
+  rather than `optional_present!` directly.
+  """
+  @spec keyword(Validate.input(), pos_integer() | nil) :: String.t() | nil
+  def keyword(value, max_length \\ nil) do
+    value
+    |> Validate.optional_present!(":keywords")
+    |> validate_length(max_length)
+  end
+
+  @doc """
   Validates the one-of pair the two 关键字搜索 pages state — `keywords` or `types`.
 
   Returns the two as a keyword list, the one that was not given as `nil`, for a function to
@@ -67,12 +81,7 @@ defmodule Amap.Search do
   """
   @spec keyword_or_types(keyword(), pos_integer() | nil) :: keyword()
   def keyword_or_types(opts, max_keywords_length \\ nil) do
-    keywords =
-      opts
-      |> Keyword.get(:keywords)
-      |> Validate.optional_present!(":keywords")
-      |> validate_length(max_keywords_length)
-
+    keywords = keyword(Keyword.get(opts, :keywords), max_keywords_length)
     types = types(Keyword.get(opts, :types), ":types")
 
     if is_nil(keywords) and is_nil(types) do
@@ -82,6 +91,7 @@ defmodule Amap.Search do
     [keywords: keywords, types: types]
   end
 
+  defp validate_length(nil, _max), do: nil
   defp validate_length(keywords, nil), do: keywords
 
   defp validate_length(keywords, max) do
