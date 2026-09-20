@@ -112,6 +112,11 @@ defmodule Amap.ErrorTest do
     test "does not redact unrelated parameters" do
       assert Error.mask(address: "beijing") == %{"address" => "beijing"}
     end
+
+    test "masks every map of a JSON array body" do
+      assert Error.mask([%{key: "secret", x: 1}, %{"sig" => "abc", "y" => 2}]) ==
+               [%{"key" => "[FILTERED]", "x" => 1}, %{"sig" => "[FILTERED]", "y" => 2}]
+    end
   end
 
   describe "attach_request/4" do

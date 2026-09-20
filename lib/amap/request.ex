@@ -16,6 +16,13 @@ defmodule Amap.Request do
   # Supplied by the client, never by the caller — see `reject_reserved!/1`.
   @reserved_params ~w(key sig)
 
+  @typedoc """
+  The parameters of a call: the map a form body or the one JSON object
+  `track_match` sends, a non-empty list of maps for the JSON array
+  `/v4/grasproad/driving` sends, or a keyword list.
+  """
+  @type params :: Amap.JSON.props() | [Amap.JSON.props()] | keyword()
+
   @doc """
   Builds a Finch request for the given call.
 
@@ -25,12 +32,14 @@ defmodule Amap.Request do
   documentation never mentions digital signatures, so signing a Falcon request
   would be guessing.
 
-  `body: :json` sends the parameters as a JSON object instead of a form, which one
-  Amap endpoint asks for. It keeps the map's shape — nested objects stay nested,
-  because `Param.encode/1` would flatten them into string pairs — and is only
-  supported for `:tsapi`, where nothing is signed: signing a JSON body is not
-  defined, and sending one unsigned to a family that expects signatures would be
-  worse than refusing.
+  `body: :json` sends the parameters as a JSON document instead of a form: an
+  object for `/v1/track/match`, and a non-empty list of objects for
+  `/v4/grasproad/driving`, whose body is a JSON array. It keeps the map's shape —
+  nested objects stay nested, because `Param.encode/1` would flatten them into
+  string pairs — and is only supported for `:tsapi`, where nothing is signed:
+  signing a JSON body is not defined, and sending one unsigned to a family that
+  expects signatures would be worse than refusing. A JSON value that is neither an
+  object nor a non-empty list of objects is refused, so the guarantee stays narrow.
 
   `host:` names the base URL when the endpoint's host is not its family's. Some
   endpoints answer the other family's envelope: `/v4/direction/bicycling` lives on
@@ -45,7 +54,7 @@ defmodule Amap.Request do
           Client.family(),
           :get | :post,
           String.t(),
-          Amap.JSON.props() | keyword(),
+          params(),
           keyword()
         ) ::
           Finch.Request.t()
@@ -104,19 +113,35 @@ defmodule Amap.Request do
       |> Map.put("key", client.key)
       |> Amap.JSON.encode!()
 
-    # The key goes in the query string as well as the body. A live call with it only in
-    # the JSON body answered 10001 INVALID_USER_KEY, so this service does not read it from
-    # there -- and the 轨迹重合度分析 (trajectory overlap) page says nothing about where the key
-    # goes. The only page carrying a "key needs to be appended to the url" note is
-    # 轨迹上传及管理 (trajectory upload and management), on trace/add,
-    # where the key in the form body succeeds. Collected with the other page-versus-service
+    json_request(client, host, method, path, body)
+  end
+
+  defp build_json(%Client{} = client, :tsapi, host, method, path, params) when is_list(params) do
+    if params != [] and Enum.all?(params, &is_map/1) do
+      json_request(client, host, method, path, Amap.JSON.encode!(params))
+    else
+      raise ArgumentError, json_body_message(params)
+    end
+  end
+
+  defp build_json(%Client{}, :tsapi, _host, _method, _path, params) do
+    raise ArgumentError, json_body_message(params)
+  end
+
+  # The key goes in the query string as well as the body. A live call with it only in
+  # the JSON body answered 10001 INVALID_USER_KEY, so `/v1/track/match` does not read it
+  # from there -- and the 轨迹重合度分析 (trajectory overlap) page says nothing about where
+  # the key goes. The 轨迹纠偏 page is the first that says: its 通用参数 belong in the
+  # query string. Both JSON bodies carry it there, and the object body carries a second
+  # copy because that live call needed one.
+  defp json_request(client, host, method, path, body) do
     url = client.base_urls[host] <> path <> "?" <> URI.encode_query(key: client.key)
 
     Finch.build(method, url, @json_headers, body)
   end
 
-  defp build_json(%Client{}, :tsapi, _host, _method, _path, params) do
-    raise ArgumentError, "a JSON body must be a map, got: #{inspect(params)}"
+  defp json_body_message(params) do
+    "a JSON body must be a map or a non-empty list of maps, got: #{inspect(params)}"
   end
 
   # Rejected rather than resolved by a precedence rule, because no rule here can
@@ -149,14 +174,14 @@ defmodule Amap.Request do
   signals its own failures in the body with a 200 status, so anything else came
   from a proxy or gateway rather than the API.
   """
-  @spec send(Client.t(), Client.family(), :get | :post, String.t(), Amap.JSON.props() | keyword()) ::
+  @spec send(Client.t(), Client.family(), :get | :post, String.t(), params()) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
   @spec send(
           Client.t(),
           Client.family(),
           :get | :post,
           String.t(),
-          Amap.JSON.props() | keyword(),
+          params(),
           keyword()
         ) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}

@@ -196,6 +196,27 @@ defmodule Amap.PipelineTest do
     assert {:ok, nil} = Amap.request(client, :tsapi, :get, "/v1/track/terminal/delete", %{})
   end
 
+  test "sends a JSON array body through the whole pipeline", %{server: server} do
+    # The second JSON-body endpoint: `/v4/grasproad/driving` takes an array of point
+    # objects, answers the Falcon envelope, and lives on the Web service host, so the
+    # call is `:tsapi` for the envelope and `host: :restapi` for the destination.
+    client =
+      Amap.new(
+        key: "test-key",
+        base_urls: %{restapi: "http://localhost:#{server.port}", tsapi: "http://localhost:1"}
+      )
+
+    TestServer.expect_once(server, "POST", "/v4/grasproad/driving", fn _req ->
+      {200, ~s({"errcode":0,"errmsg":"OK","data":{"distance":"1","points":[]}})}
+    end)
+
+    assert {:ok, %{"distance" => "1"}} =
+             Amap.request(client, :tsapi, :post, "/v4/grasproad/driving", [%{"x" => 1.0}],
+               body: :json,
+               host: :restapi
+             )
+  end
+
   test "sends a JSON body through the whole pipeline, and retries it", %{
     server: server,
     client: client

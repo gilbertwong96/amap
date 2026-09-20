@@ -98,6 +98,36 @@ defmodule Amap.RequestTest do
       assert request.host == "restapi.amap.com"
     end
 
+    test "accepts a list of maps as a JSON body, which one endpoint sends as an array" do
+      request =
+        Request.build(
+          client(),
+          :tsapi,
+          :post,
+          "/v4/grasproad/driving",
+          [%{"x" => 116.478928, "y" => 39.997761}],
+          body: :json,
+          host: :restapi
+        )
+
+      assert request.host == "restapi.amap.com"
+      assert request.method == "POST"
+      assert {"content-type", "application/json"} in request.headers
+      assert JSON.decode!(request.body) == [%{"x" => 116.478928, "y" => 39.997761}]
+    end
+
+    test "refuses a JSON body that is neither an object nor a non-empty list of objects" do
+      for payload <- ["text", 123, [], [1, 2], [%{"a" => 1}, "b"], [["nested"]]] do
+        assert_raise ArgumentError,
+                     ~r/a JSON body must be a map or a non-empty list of maps/,
+                     fn ->
+                       Request.build(client(), :tsapi, :post, "/v4/grasproad/driving", payload,
+                         body: :json
+                       )
+                     end
+      end
+    end
+
     test "url-encodes values only after signing" do
       request =
         Request.build(
@@ -261,6 +291,58 @@ defmodule Amap.RequestTest do
                "baseline" => %{"sid" => 1, "tid" => 2, "trid" => 3},
                "isPoints" => 1
              }
+    end
+
+    test "sends a JSON array body when asked", %{server: server, client: client} do
+      parent = self()
+
+      TestServer.expect_once(server, "POST", "/v4/grasproad/driving", fn req ->
+        send(parent, {:body, req.headers["content-type"], req.body, req.query})
+        {200, ~s({"errcode":0,"errmsg":"OK","data":{}})}
+      end)
+
+      assert {:ok, %Finch.Response{status: 200}} =
+               Request.send(
+                 client,
+                 :tsapi,
+                 :post,
+                 "/v4/grasproad/driving",
+                 [%{"x" => 116.478928, "y" => 39.997761}, %{"x" => 116.478907}],
+                 body: :json,
+                 host: :restapi
+               )
+
+      assert_receive {:body, "application/json", body, query}
+      assert URI.decode_query(query) == %{"key" => "test-key"}
+
+      assert JSON.decode!(body) == [
+               %{"x" => 116.478928, "y" => 39.997761},
+               %{"x" => 116.478907}
+             ]
+    end
+
+    test "keeps the request context for a failed array-body call", %{
+      server: server,
+      client: client
+    } do
+      TestServer.expect_once(server, "POST", "/v4/grasproad/driving", fn _req ->
+        {502, "<html>bad gateway</html>"}
+      end)
+
+      assert {:error, error} =
+               Request.send(
+                 client,
+                 :tsapi,
+                 :post,
+                 "/v4/grasproad/driving",
+                 [%{"x" => 116.478928}],
+                 body: :json,
+                 host: :restapi
+               )
+
+      assert error.request.method == :post
+      assert error.request.path == "/v4/grasproad/driving"
+      assert error.request.params == [%{"x" => 116.478928}]
     end
 
     test "a JSON body reserves the same parameter names as a form", %{client: client} do

@@ -68,12 +68,13 @@ defmodule Amap.Error do
 
   @typedoc """
   The call that failed: its method, its path, and its parameters with credentials
-  masked. Empty for a failure that never reached `attach_request/4`.
+  masked. A JSON array body is stored as the list it was, each element masked.
+  Empty for a failure that never reached `attach_request/4`.
   """
   @type request :: %{
           optional(:method) => :get | :post,
           optional(:path) => String.t(),
-          optional(:params) => Amap.JSON.object()
+          optional(:params) => Amap.JSON.object() | [Amap.JSON.object()]
         }
 
   @type t :: %__MODULE__{
@@ -150,9 +151,29 @@ defmodule Amap.Error do
     %__MODULE__{reason: :limiter_timeout, retry: :no}
   end
 
-  @doc "Redacts credentials from a parameter map."
-  @spec mask(keyword() | Amap.JSON.props()) :: Amap.JSON.object()
-  def mask(params) do
+  @doc """
+  Redacts credentials from a call's parameters: a map or keyword list, or a JSON
+  array body's list of maps.
+
+  Only the top level is walked. An array body's elements are that top level — each
+  one is masked — while a value nested inside a map is left as it was sent.
+  """
+  @spec mask(keyword() | Amap.JSON.props() | [Amap.JSON.props()]) ::
+          Amap.JSON.object() | [Amap.JSON.object()]
+  def mask(params) when is_map(params), do: mask_map(params)
+
+  def mask(params) when is_list(params) do
+    if Keyword.keyword?(params) do
+      mask_map(params)
+    else
+      Enum.map(params, &mask_element/1)
+    end
+  end
+
+  defp mask_element(element) when is_map(element), do: mask_map(element)
+  defp mask_element(element), do: element
+
+  defp mask_map(params) do
     params
     |> Map.new(fn {k, v} -> {to_string(k), v} end)
     |> Map.new(fn {k, v} -> if k in @sensitive, do: {k, @filtered}, else: {k, v} end)
@@ -164,7 +185,12 @@ defmodule Amap.Error do
   `params` must be the raw parameters after `Amap.Param.encode/1`, before
   signing, so the stored copy never contains a `sig` derived from a private key.
   """
-  @spec attach_request(t(), :get | :post, String.t(), keyword() | Amap.JSON.props()) :: t()
+  @spec attach_request(
+          t(),
+          :get | :post,
+          String.t(),
+          keyword() | Amap.JSON.props() | [Amap.JSON.props()]
+        ) :: t()
   def attach_request(%__MODULE__{} = error, method, path, params) do
     %{error | request: %{method: method, path: path, params: mask(params)}}
   end

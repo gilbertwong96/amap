@@ -74,7 +74,7 @@ defmodule Amap do
           Client.family(),
           :get | :post,
           String.t(),
-          Amap.JSON.props() | keyword()
+          Request.params()
         ) ::
           {:ok, Response.payload()} | {:error, Error.t()}
   @spec request(
@@ -82,7 +82,7 @@ defmodule Amap do
           Client.family(),
           :get | :post,
           String.t(),
-          Amap.JSON.props() | keyword(),
+          Request.params(),
           keyword()
         ) ::
           {:ok, Response.payload()} | {:error, Error.t()}
