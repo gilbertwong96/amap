@@ -141,9 +141,13 @@ Notable changes to this project, newest first. The format follows
   `opts[:envelope]` names the response envelope when the endpoint's is not the
   host's default. The `host:` option is gone, and the family no longer decides the
   URL, the signature or the account key's name — `Amap.Host` does.
-  `/v4/direction/bicycling` and `/v4/grasproad/driving` are now called as
-  `Amap.request(client, :restapi, :post, path, params, envelope: :tsapi)`. Telemetry's
-  start metadata carries `host:` where it carried `family:`.
+  `/v4/direction/bicycling` is now
+  `Amap.request(client, :restapi, :get, path, params, envelope: :tsapi)`, and
+  `/v4/grasproad/driving` the same with `:post`; passing the removed `:host:` (or any
+  other option the call does not take) raises `ArgumentError` instead of being
+  ignored, so a call site left over from the old shape fails loudly rather than going
+  to the positional host. Telemetry's start metadata carries `host:` where it carried
+  `family:`.
 - **Not included in this release:** toll estimation (`Amap.Falcon.Etc`), which Amap
   opens only to enterprise developers. It is deferred rather than guessed at until an
   account exists for it.

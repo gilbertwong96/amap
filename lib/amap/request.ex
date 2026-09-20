@@ -95,9 +95,10 @@ defmodule Amap.Request do
     end
   end
 
-  # `:digest` is described because the page states the shape, but Amap publishes
-  # the digest algorithm only with the commercial grant, so a request that would
-  # need it cannot be built honestly.
+  # `:digest` is described because the page states the shape, but the page gives no
+  # algorithm — only 使用说明's 「根据授权文档进行动态鉴权访问」, which points at the
+  # commercial grant's own document — so a request that would need it cannot be built
+  # honestly.
   defp refuse_unbuildable!(%Host{auth: :digest} = host) do
     raise ArgumentError,
           "cannot build a request for the #{inspect(host.name)} host: it authenticates with " <>

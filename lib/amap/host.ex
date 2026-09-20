@@ -21,9 +21,9 @@ defmodule Amap.Host do
   The two further described hosts differ in what is missing:
 
     * `:et_api` (交通事件) cannot be called: it authenticates with `clientKey` +
-      `timestamp` + `digest`, and Amap publishes the digest algorithm only with
-      the commercial grant — `Amap.Request` describes the shape but refuses to
-      build it;
+      `timestamp` + `digest`, whose algorithm no public page gives — the 交通事件 page
+      only refers to the commercial grant's 授权文档 — so `Amap.Request` describes the
+      shape but refuses to build it;
     * `:apilocate` (智能硬件定位 v1) can be called through `Amap.request/6` —
       plain `key=`, no `sig` — and its envelope (no `infocode` row, symbolic
       `info` values) parses, but no endpoint module uses it.
