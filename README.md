@@ -17,8 +17,9 @@ service API (`restapi.amap.com`) and the Falcon track service
 
 ## Status
 
-Core only. Business modules (`Amap.Geocoding`, `Amap.Falcon.*`, …) land next;
-`Amap.request/5` is the stable entry point they build on.
+The Web service API and the Falcon track service are both implemented, in the
+modules the sections below name; `Amap.request/6` is the stable entry point they
+build on.
 
 ## Installation
 
@@ -267,7 +268,7 @@ days of forecast — which is why they are two functions rather than one.
 Two generations of the same idea, on the same host. `Amap.Direction` is the v3
 page — `driving/4`, `walking/4`, `transit/5` and the measuring `distance/4` — plus
 the v4 `bicycling/4`; `Amap.NewRoute` is v5's, where optional groups arrive only
-when `show_fields` asks for them. Both take and return `{lon, lat}` tuples:
+when `show_fields` asks for them. Both take their points as `{lon, lat}` tuples:
 
 ```elixir
 {:ok, route} =
@@ -293,10 +294,10 @@ its sample says otherwise.
 
 [path | _] = route.paths
 path.cost.duration         # "1317" — a group that was asked for
-hd(path.steps).navi.action # "右转" — `walk_type` arrives in here too, not on the step
+hd(path.steps).navi.action # "右转" — the group arrives on the step
 ```
 
-Four things this pair of pages will not tell you. `Amap.Direction.bicycling/4`
+Five things this pair of pages will not tell you. `Amap.Direction.bicycling/4`
 lives on the Web service host and answers the **track family's** envelope, which
 is why `family` and `host` are two axes and why `Amap.request/6` takes `host:`;
 `Amap.NewRoute.bicycling/4` is its v5 sibling, and `/v4/grasproad/driving` is the
@@ -308,7 +309,12 @@ option is named after the intent rather than the number. v5's `driving/4` takes
 answered with `:unexpected_response` while POST answered the route. And a v5
 `show_fields` group that was not asked for leaves its fields `nil` — or `[]` where
 the field holds a collection — so a `nil` there means "not requested" rather
-than "Amap sent nothing".
+than "Amap sent nothing"; `tmcs` is the one list that cannot say which it is,
+because an unasked group and an asked-but-empty one both arrive `[]`. And on the
+walking and riding endpoints `walk_type` arrives **inside each step's `navi`**
+rather than on the step where those pages list it as a `show_fields` group — the
+probe that saw it there was `/v5/direction/walking`; driving does not return it at
+all.
 
 ## Swapping the JSON library
 

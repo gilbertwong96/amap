@@ -514,14 +514,16 @@ defmodule Amap.Direction.IntegrationTest do
 
   defp aggregation_shape(%{"paths" => [path | _]}) when is_map(path) do
     "path keys: #{inspect(Map.keys(path))}; roads: #{count_or_absent(path, "roads")}; " <>
-      "steps: #{count_or_absent(path, "steps")}; #{first_road(path)}"
+      "steps: #{count_or_absent(path, "steps")}; #{first_road(path)}; #{road_key_sets(path)}"
   end
 
   defp aggregation_shape(route), do: "no path: #{inspect(route)}"
 
   # What `Amap.Direction.Road`'s field types wait on: the key list is already known,
   # so this prints the first entry whole to pin the values, and the first inner step's
-  # keys in case this `steps` is the same shape as a path's.
+  # keys in case this `steps` is the same shape as a path's. `road_key_sets/1` lists
+  # every entry's keys — the struct maps the four it knows and drops the rest, so a
+  # fifth key on any entry but the first would otherwise go unseen.
   defp first_road(%{"roads" => [road | _]}) when is_map(road) do
     "first road: #{inspect(road)}; #{first_road_step(road)}"
   end
@@ -534,6 +536,18 @@ defmodule Amap.Direction.IntegrationTest do
   defp first_road_step(%{"steps" => steps}), do: "inner steps: #{type_of(steps)}"
 
   defp first_road_step(_road), do: "no inner steps key"
+
+  defp road_key_sets(%{"roads" => roads}) when is_list(roads) do
+    "road key sets: " <>
+      inspect(
+        Enum.map(roads, fn
+          road when is_map(road) -> Enum.sort(Map.keys(road))
+          other -> type_of(other)
+        end)
+      )
+  end
+
+  defp road_key_sets(_path), do: "no roads key"
 
   defp mapped_roads({:ok, %{paths: [path | _]}}),
     do: "#{length(path.roads)} road(s); first mapped: #{inspect(List.first(path.roads))}"

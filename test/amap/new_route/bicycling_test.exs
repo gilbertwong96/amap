@@ -12,7 +12,8 @@ defmodule Amap.NewRoute.BicyclingTest do
 
   # The v5 cycling answer: walking's skeleton, no `taxi_cost` and no `restriction`, and
   # `walk_type` inside each step's `navi` — the page prints it as a `show_fields` group
-  # of its own, but the wire puts it there.
+  # of its own. The one probe that saw where it arrives was `/v5/direction/walking`;
+  # bicycling and electrobike share that page and mapper but were not probed.
   @ridden ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
             ~s("route":{"origin":"116.466485,39.995197","destination":"116.46424,40.020642",) <>
             ~s("paths":[{"distance":"4300",) <>
@@ -140,8 +141,9 @@ defmodule Amap.NewRoute.BicyclingTest do
     assert [step] = path.steps
     assert step.instruction == "骑行54米右转"
     assert step.road_name == "阜通东大街"
-    # The wire puts `walk_type` inside a step's `navi`, even though the page lists it
-    # as a `show_fields` group of its own.
+    # `walk_type` arrives inside a step's `navi` rather than flat on the step, even
+    # though the page lists it as a `show_fields` group of its own — the live run saw
+    # this on `/v5/direction/walking`, and this fixture stands in for the same shape.
     assert %Navi{action: "骑行54米右转", walk_type: "1"} = step.navi
     assert step.step_distance == "54"
     assert step.polyline == [{116.466485, 39.995197}, {116.46424, 40.020642}]

@@ -30,9 +30,10 @@ defmodule Amap.Direction.DrivingTest do
   # `roadaggregation: true` replaces `steps` with `roads` on the wire, so this is the
   # shape a caller who asks for aggregation really gets: no `steps` key at all. The
   # entries carry the four keys the second live run printed — `road_distance`,
-  # `road_name`, `steps`, `traffic_lights` — while the values under them stand in for
-  # what Amap sends: that run printed the keys and no values, which is why
-  # `Amap.Direction.Road`'s fields stay wide.
+  # `road_name`, `steps`, `traffic_lights` — while the values under them and the keys
+  # of the inner `steps`, which no run has printed yet, stand in for what Amap sends:
+  # that run printed the outer keys and no values, which is why `Amap.Direction.Road`'s
+  # fields stay wide.
   @aggregated ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
                 ~s("route":{"origin":"116.481028,39.989643","destination":"116.465302,40.004717",) <>
                 ~s("paths":[{"distance":"12345","duration":"1200","strategy":"速度优先",) <>

@@ -45,8 +45,10 @@ Notable changes to this project, newest first. The format follows
   `host` into two axes: `Amap.request/6` takes `host:`, while the family keeps
   deciding the parser and the signature.
 - `Amap.NewRoute`'s optional groups arrive only when `show_fields` names them, and
-  the wire puts the riding pages' `walk_type` inside each step's `navi` rather than
-  on the step, where those pages print it.
+  `walk_type` arrives inside each step's `navi` rather than on the step where the
+  walking and riding pages list it as a group of its own — as the live probe on
+  `/v5/direction/walking` showed; `bicycling/4` and `electrobike/4` share that
+  mapper and page but were not probed.
 - v5's `driving/4` takes `method: :post` for parameters a URL cannot carry: with the
   documented maxima, 16 waypoints and 32 avoid-polygons, the query measured 12,129
   bytes, which GET answered with `:unexpected_response` and POST answered with the

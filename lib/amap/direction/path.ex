@@ -22,9 +22,10 @@ defmodule Amap.Direction.Path do
   wire's entry keys, so its fields are named after them, while the value types under
   those names are the part still open.
 
-  **They keep the wire's form.** Amounts are strings, `restriction` and
-  `traffic_lights` are strings, and nothing is parsed into a number here — a
-  payload Amap never sends a value in stays `nil` rather than becoming a zero.
+  **The path's own scalars keep the wire's form.** Amounts are strings,
+  `restriction` and `traffic_lights` are strings, and nothing is parsed into a
+  number here — a payload Amap never sends a value in stays `nil` rather than
+  becoming a zero.
   """
 
   alias Amap.Direction.City

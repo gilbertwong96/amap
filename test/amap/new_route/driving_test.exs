@@ -310,8 +310,9 @@ defmodule Amap.NewRoute.DrivingTest do
     assert step.road_name == "阜通东大街"
     assert step.step_distance == "500"
 
-    # The wire puts `walk_type` inside `navi`, even though the page lists it as a
-    # `show_fields` group of its own.
+    # `walk_type` arrives inside `navi` on the endpoints that return it — the live
+    # run saw that on `/v5/direction/walking`. Driving's own answer carries none, so
+    # this payload stands in for the shape the mapper reads.
     assert %Navi{action: "直行", assistant_action: "", walk_type: "0"} = step.navi
     assert step.polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
   end
