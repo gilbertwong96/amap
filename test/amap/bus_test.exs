@@ -175,6 +175,25 @@ defmodule Amap.BusTest do
     assert stop.name == "来广营路口西(公交站)"
   end
 
+  test "keeps a non-empty suggestion's keywords and cities in their own fields", %{
+    server: server,
+    client: client
+  } do
+    payload = ~S"""
+    {"status":"1","info":"OK","infocode":"10000","count":"0",
+     "suggestion":{"keywords":["来广营","望京"],"cities":["北京市","广州市"]},
+     "busstops":[]}
+    """
+
+    TestServer.expect_once(server, "GET", "/v3/bus/stopname", fn _req -> {200, payload} end)
+
+    assert {:ok, %Stops{suggestion: %Suggestion{} = suggestion}} =
+             Bus.stopname(client, "来广营")
+
+    assert suggestion.keywords == ["来广营", "望京"]
+    assert suggestion.cities == ["北京市", "广州市"]
+  end
+
   test "answers with nothing when Amap sent no entries", %{server: server, client: client} do
     bare = ~s<{"status":"1","info":"OK","infocode":"10000","count":"0"}>
 
