@@ -54,6 +54,12 @@ defmodule Amap.ValidateTest do
       assert_raise ArgumentError, ~r/must be at most 128 characters/, fn ->
         Validate.text!(String.duplicate("a", 129), ":desc")
       end
+
+      # Not a string is still `text!`'s own error: the clause that reads
+      # `String.length/1` is guarded, so this has to stay a raised ArgumentError.
+      assert_raise ArgumentError, ~r/:desc must be a string/, fn ->
+        Validate.text!(1, ":desc")
+      end
     end
   end
 

@@ -62,14 +62,13 @@ defmodule Amap.Validate do
   The character and length rules still apply; only emptiness is allowed.
   """
   @spec text!(input(), String.t()) :: String.t()
-  def text!(value, field) do
-    cond do
-      not is_binary(value) ->
-        raise ArgumentError, "#{field} must be a string"
+  def text!(value, field) when is_binary(value) do
+    length = String.length(value)
 
-      String.length(value) > @max_name_length ->
+    cond do
+      length > @max_name_length ->
         raise ArgumentError,
-              "#{field} must be at most #{@max_name_length} characters, got: #{String.length(value)}"
+              "#{field} must be at most #{@max_name_length} characters, got: #{length}"
 
       value == "" ->
         value
@@ -84,6 +83,8 @@ defmodule Amap.Validate do
         value
     end
   end
+
+  def text!(_value, field), do: raise(ArgumentError, "#{field} must be a string")
 
   @doc """
   Validates that a required string is present.

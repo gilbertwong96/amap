@@ -123,7 +123,9 @@ defmodule Amap.Falcon.TerminalSearch do
     Enum.map_join(terms, "&&", fn {key, value} -> filter_term(to_string(key), value) end)
   end
 
-  defp filter_term("name", names) when is_list(names), do: "name=" <> Enum.join(names, "|")
+  # Iodata rather than `"name=" <> …`: this is the one term assembled from another
+  # string, and `encode_filter/1`'s `Enum.map_join/3` flattens chardata.
+  defp filter_term("name", names) when is_list(names), do: ["name=", Enum.join(names, "|")]
 
   defp filter_term(key, {op, ts}) when op in [:>=, :<] and is_integer(ts),
     do: "#{key}#{op}#{ts}"

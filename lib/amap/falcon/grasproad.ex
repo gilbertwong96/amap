@@ -133,10 +133,6 @@ defmodule Amap.Falcon.Grasproad do
   defp encode_points(points),
     do: Amap.JSON.encode!(Enum.map(points, &Amap.Falcon.Point.encode/1))
 
-  # `Wire.decode_flag/1` turns Amap's 1/0 back into a boolean; `Wire.flag!/1` is
-  # the encoding direction, for request options.
-  defp decode_flag(value), do: Wire.decode_flag(value)
-
   defp encode_car_type(nil), do: nil
   defp encode_car_type(:bus), do: "0"
   defp encode_car_type(:truck), do: "1"
@@ -155,7 +151,7 @@ defmodule Amap.Falcon.Grasproad do
   defp to_degraded(nil), do: nil
 
   defp to_degraded(payload) when is_map(payload),
-    do: %Degraded{threshold: decode_flag(payload["threshold"])}
+    do: %Degraded{threshold: Wire.decode_flag(payload["threshold"])}
 
   defp to_track(payload) do
     %Track{
@@ -182,8 +178,8 @@ defmodule Amap.Falcon.Grasproad do
       speed_limit: Numeric.to_integer(payload["speedLimit"]),
       road_class: Numeric.to_integer(payload["roadClass"]),
       road_class_name: payload["roadClassName"],
-      is_toll: decode_flag(payload["isToll"]),
-      is_ownership: decode_flag(payload["isOwnership"]),
+      is_toll: Wire.decode_flag(payload["isToll"]),
+      is_ownership: Wire.decode_flag(payload["isOwnership"]),
       points: Enum.map(Map.get(payload, "points", []), &Position.from_payload/1)
     }
   end

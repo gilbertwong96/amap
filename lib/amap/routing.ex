@@ -165,6 +165,11 @@ defmodule Amap.Routing do
   defp route_values(payload) when is_map(payload), do: read_route(payload)
   defp route_values(_other), do: empty_route()
 
+  # The declared `route_values()` intermediate, deliberately not either generation's
+  # `Route` struct: the doc on `route_fields/2` says why a shared module must not hold
+  # one generation's fields for both. reach.check reads this map as a duplicate of the
+  # two structs; the four names are the wire's, and both structs are built from these
+  # values by the modules that own them.
   defp read_route(payload) do
     %{
       origin: Coord.parse_location(payload["origin"]),
