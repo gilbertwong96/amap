@@ -24,7 +24,8 @@ defmodule Amap.NewRoute.DrivingTest do
             ~s("steps":[{"instruction":"沿阜通东大街向西行驶500米","orientation":"西",) <>
             ~s("road_name":"阜通东大街","step_distance":"500",) <>
             ~s("navi":{"action":"直行","assistant_action":"","walk_type":"0"},) <>
-            ~s("cities":{"adcode":"110000","citycode":"010","city":"北京市"},) <>
+            ~s("cities":[{"adcode":"110000","city":"北京市",) <>
+            ~s("citycode":"010","districts":[{"name":"东城区","adcode":"110101"}]}],) <>
             ~s("polyline":"116.481247,39.990704;116.481270,39.990726"}]}]}})
 
   # What arrives when show_fields was not asked for: base fields only.
@@ -319,13 +320,13 @@ defmodule Amap.NewRoute.DrivingTest do
     assert step.polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
 
     # The key's home is wire evidence — the live run's step keys were `["cost", "tmcs",
-    # "navi", "cities", "polyline"]` while the path carried `cost` alone. The object's
-    # inner shape here is borrowed from the city object v3 established, which item 12's
-    # live helper prints for the next run to confirm.
-    assert %City{adcode: "110000", citycode: "010", city: "北京市"} = step.cities
+    # "navi", "cities", "polyline"]` while the path carried `cost` alone — and the third
+    # run printed what it holds there: a list, not the single object v3's `cities` is.
+    assert [%City{adcode: "110000", citycode: "010", city: "北京市"} = city] = step.cities
+    assert [%District{name: "东城区", adcode: "110101"}] = city.districts
   end
 
-  test "reads a step's cities as an object or a list, and nil for any other shape", %{
+  test "reads a step's cities as the list the wire sends, and nil for any other shape", %{
     server: server,
     client: client
   } do
@@ -333,9 +334,11 @@ defmodule Amap.NewRoute.DrivingTest do
       ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
         ~s("route":{"origin":"116.434307,39.90909","destination":"116.434446,39.90816",) <>
         ~s("paths":[{"distance":"12345","steps":[) <>
-        ~s({"instruction":"object","cities":{"adcode":"110000","city":"北京市"}},) <>
         ~s({"instruction":"list",) <>
-        ~s("cities":[{"adcode":"110000","city":"北京市"},{"adcode":"110100"}]},) <>
+        ~s("cities":[{"adcode":"110000","city":"北京市",) <>
+        ~s("districts":[{"name":"东城区","adcode":"110101"}]},) <>
+        ~s({"adcode":"110100"}]},) <>
+        ~s({"instruction":"object","cities":{"adcode":"110000","city":"北京市"}},) <>
         ~s({"instruction":"string","cities":"北京市"},) <>
         ~s({"instruction":"absent"}]}]}})
 
@@ -346,9 +349,17 @@ defmodule Amap.NewRoute.DrivingTest do
     assert {:ok, %Route{paths: [path]}} =
              NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
 
-    assert [object, list, other, absent] = path.steps
-    assert %City{adcode: "110000", city: "北京市"} = object.cities
-    assert [%City{adcode: "110000"}, %City{adcode: "110100", city: nil}] = list.cities
+    assert [list, object, other, absent] = path.steps
+
+    assert [
+             %City{adcode: "110000", city: "北京市"} = city,
+             %City{adcode: "110100", city: nil}
+           ] = list.cities
+
+    assert [%District{name: "东城区", adcode: "110101"}] = city.districts
+    # The object the v3 page documents is not what this endpoint sends, and reading it
+    # would guess which of the two shapes Amap meant, so it answers `nil`.
+    assert object.cities == nil
     assert other.cities == nil
     assert absent.cities == nil
   end

@@ -3,28 +3,22 @@ defmodule Amap.Direction.Road do
   One road in the `roads` grouping `:roadaggregation` produces, in place of a driving
   path's `steps`.
 
-  **The field names are the wire's; the value types under them are not.** The page
-  states no entry shape, and the second live run printed the first entry's keys —
-  `road_distance`, `road_name`, `steps`, `traffic_lights` — and nothing about their
-  values. So each field carries `Amap.JSON.value()` rather than a type no source has
-  shown, and the integration check prints the first entry in full, which is what a
-  later run narrows them from.
-
-  `steps` shares a path's key name without being evidence of a path's step shape:
-  nothing here maps it into `Amap.Direction.Step`, because no source has said what
-  this key holds.
+  The third live run printed a whole entry: `road_distance` is how far the stretch
+  runs, `road_name` the road it is on, `traffic_lights` how many lights it meets, and
+  `steps` the legs it is made of — the shape `Amap.Direction.Step` reads for a path's
+  own steps, which is why they are mapped rather than carried verbatim. The scalars
+  keep the wire's form and arrive as strings, as v3's other distances and counts do.
+  All seven entries in that run carried the same four keys.
   """
+
+  alias Amap.Direction.Step
 
   defstruct [:road_distance, :road_name, :steps, :traffic_lights]
 
-  @typedoc """
-  One aggregated road: the four keys the wire proved, each still whatever Amap sends
-  under it, because no value type has been seen yet.
-  """
   @type t :: %__MODULE__{
-          road_distance: Amap.JSON.value(),
-          road_name: Amap.JSON.value(),
-          steps: Amap.JSON.value(),
-          traffic_lights: Amap.JSON.value()
+          road_distance: String.t() | nil,
+          road_name: String.t() | nil,
+          steps: [Step.t()],
+          traffic_lights: String.t() | nil
         }
 end

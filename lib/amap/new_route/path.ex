@@ -35,8 +35,8 @@ defmodule Amap.NewRoute.Path do
   `/v3/distance`. `cost`, `navi`, `cities` and `district` are read **as an object or
   `nil`** for the path, so one of them sent wrapped raises rather than mapping. The live
   run put `cities` on a step though the call asked for it, so `Amap.NewRoute.Step`
-  carries that group too, on its own terms; `district` arrived at neither level in that
-  run, so it stays where its page puts it.
+  carries that group too, as the list of city objects the third run printed; `district`
+  arrived at neither level in that run, so it stays where its page puts it.
   """
 
   alias Amap.NewRoute.City

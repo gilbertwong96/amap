@@ -14,12 +14,10 @@ defmodule Amap.NewRoute.Step do
   page prints it as a group of its own, and the wire disagrees; `Amap.NewRoute.Navi`
   says so.
 
-  `cities` is the one group whose home and shape disagree across the sources: the page
-  lists it with the path's groups, the live run's step keys carried it while the path
-  carried `cost` alone, and no run has printed what it holds. So this field reads the
-  object `Amap.NewRoute.City` documents, or a list of them the way v3 wraps the same
-  group, and stays `nil` for any other shape — item 12's live helper prints the raw
-  value, and the next run narrows this to one of the two.
+  `cities` is the one group whose home differs from the page's: the page lists it with
+  the path's groups, and the wire puts it on the step. The third live run printed what
+  it holds there — a **list** of the objects `Amap.NewRoute.City` documents — so this
+  field reads that list and stays `nil` for any other shape.
   """
 
   alias Amap.NewRoute.City
@@ -46,7 +44,7 @@ defmodule Amap.NewRoute.Step do
           step_distance: String.t() | nil,
           cost: Cost.t() | nil,
           navi: Navi.t() | nil,
-          cities: City.t() | [City.t()] | nil,
+          cities: [City.t()] | nil,
           polyline: [{float(), float()}] | nil,
           tmcs: [Tmc.t()]
         }

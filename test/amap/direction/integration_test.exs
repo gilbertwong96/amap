@@ -635,10 +635,9 @@ defmodule Amap.Direction.IntegrationTest do
 
         values = for group <- at_path, do: "#{group}=#{outer_shape(path[group])}"
 
-        # The one group whose level and value the page leaves open: the step carries the
-        # key, and what it holds is what the next run narrows `Amap.NewRoute.Step.cities`
-        # to. Printed in full because a key list alone cannot say whether it is an object
-        # or a list.
+        # The one group whose level the page leaves open: the step carries the key, and
+        # the third run settled that it holds a list of city objects. Printed in full so
+        # the shape the mapper reads stays visible.
         step_cities =
           if is_map(step), do: "; first step cities: #{inspect(step["cities"])}", else: ""
 

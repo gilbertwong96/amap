@@ -19,8 +19,14 @@ defmodule Amap.Direction.Step do
   `tolls`, `toll_distance` and `toll_road` are driving's and stay `nil` elsewhere,
   as does `tmcs` — the traffic flow along this leg, which driving sends with
   `extensions: :all` only.
+
+  `cities` is the places this leg crosses: the list of `Amap.Direction.City` objects a
+  path's own `cities` uses. The third live run carried it inside a `roadaggregation`
+  road's steps, which are this shape; a plain path's step carrying it has not been
+  printed, so this reads the key wherever a step sends it.
   """
 
+  alias Amap.Direction.City
   alias Amap.Direction.Tmc
 
   defstruct [
@@ -36,7 +42,8 @@ defmodule Amap.Direction.Step do
     :tolls,
     :toll_distance,
     :toll_road,
-    tmcs: []
+    tmcs: [],
+    cities: []
   ]
 
   @type t :: %__MODULE__{
@@ -49,6 +56,7 @@ defmodule Amap.Direction.Step do
           action: String.t() | nil,
           assistant_action: String.t() | nil,
           walk_type: String.t() | nil,
+          cities: [City.t()],
           tolls: String.t() | nil,
           toll_distance: String.t() | nil,
           toll_road: String.t() | nil,

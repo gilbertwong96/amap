@@ -257,6 +257,7 @@ defmodule Amap.Routing do
       tolls: payload["tolls"],
       toll_distance: payload["toll_distance"],
       toll_road: payload["toll_road"],
+      cities: Enum.map(payload["cities"] || [], &v3_city/1),
       tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1)
     }
   end
@@ -286,7 +287,7 @@ defmodule Amap.Routing do
     %Amap.Direction.Road{
       road_distance: payload["road_distance"],
       road_name: payload["road_name"],
-      steps: payload["steps"],
+      steps: Enum.map(payload["steps"] || [], &v3_step/1),
       traffic_lights: payload["traffic_lights"]
     }
   end

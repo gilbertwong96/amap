@@ -302,12 +302,10 @@ defmodule Amap.NewRoute do
   end
 
   # The wire puts a step's `cities` on the step (the live run's step keys named it while
-  # the path carried `cost` alone), but its value has never been printed. So this reads
-  # the object the group is documented as, or a list of them the way v3 wraps the same
-  # group, and answers `nil` for anything else rather than raising on a shape nobody has
-  # seen — item 12's live helper prints the raw value, and the next run settles it.
+  # the path carried `cost` alone), and the third run printed what it holds there: a list
+  # of the objects `Amap.NewRoute.City` documents. Anything else answers `nil` rather
+  # than raising on a shape no source has shown.
   defp to_step_cities(nil), do: nil
-  defp to_step_cities(payload) when is_map(payload), do: to_city(payload)
 
   defp to_step_cities(payload) when is_list(payload) do
     if Enum.all?(payload, &is_map/1), do: Enum.map(payload, &to_city/1), else: nil
@@ -355,7 +353,12 @@ defmodule Amap.NewRoute do
   defp to_city(nil), do: nil
 
   defp to_city(payload) do
-    %City{adcode: payload["adcode"], citycode: payload["citycode"], city: payload["city"]}
+    %City{
+      adcode: payload["adcode"],
+      citycode: payload["citycode"],
+      city: payload["city"],
+      districts: Enum.map(payload["districts"] || [], &to_district/1)
+    }
   end
 
   defp to_district(nil), do: nil

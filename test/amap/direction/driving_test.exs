@@ -6,6 +6,7 @@ defmodule Amap.Direction.DrivingTest do
   alias Amap.Direction.District
   alias Amap.Direction.Road
   alias Amap.Direction.Route
+  alias Amap.Direction.Step
   alias Amap.Direction.Tmc
   alias Amap.TestServer
 
@@ -28,21 +29,30 @@ defmodule Amap.Direction.DrivingTest do
   @no_route ~s({"status":"1","info":"OK","infocode":"10000","count":"0"})
 
   # `roadaggregation: true` replaces `steps` with `roads` on the wire, so this is the
-  # shape a caller who asks for aggregation really gets: no `steps` key at all. The
-  # entries carry the four keys the second live run printed — `road_distance`,
-  # `road_name`, `steps`, `traffic_lights` — while the values under them and the keys
-  # of the inner `steps`, which no run has printed yet, stand in for what Amap sends:
-  # that run printed the outer keys and no values, which is why `Amap.Direction.Road`'s
-  # fields stay wide.
+  # shape a caller who asks for aggregation really gets: no `steps` key at all. The third
+  # live run printed the first entry in full and every entry's key set, so the four keys,
+  # the string scalars and the step-shaped inner `steps` here are the wire's; the first
+  # road's values are the ones that run printed, trimmed to one step, and the second
+  # road's stand in for Amap's own.
   @aggregated ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
                 ~s("route":{"origin":"116.481028,39.989643","destination":"116.465302,40.004717",) <>
                 ~s("paths":[{"distance":"12345","duration":"1200","strategy":"速度优先",) <>
                 ~s("tolls":"5.0","restriction":"0","traffic_lights":"7","toll_distance":"3000",) <>
-                ~s("roads":[{"road_distance":"1500","road_name":"示例路",) <>
-                ~s("steps":[{"instruction":"沿示例路行驶","road":"示例路"}],) <>
-                ~s("traffic_lights":"3"},) <>
+                ~s("roads":[{"road_distance":"391","road_name":"内部道路",) <>
+                ~s("steps":[{"instruction":"向北行驶391米右转","orientation":"北",) <>
+                ~s("distance":"391","duration":"90","action":"右转","assistant_action":null,) <>
+                ~s("cities":[{"name":"北京城区","citycode":"010","adcode":"110100",) <>
+                ~s("districts":[{"name":"东城区","adcode":"110101"}]}],) <>
+                ~s("polyline":"116.397437,39.90923;116.397383,39.910373",) <>
+                ~s("tmcs":[{"distance":"127","status":"未知",) <>
+                ~s("polyline":"116.397437,39.90923;116.397383,39.910373"}],) <>
+                ~s("tolls":"0","toll_distance":"0","toll_road":null}],) <>
+                ~s("traffic_lights":"0"},) <>
                 ~s({"road_distance":"2200","road_name":"示例二路",) <>
-                ~s("steps":[{"instruction":"沿示例二路行驶","road":"示例二路"}],) <>
+                ~s("steps":[{"instruction":"沿示例二路行驶","orientation":"南",) <>
+                ~s("distance":"2200","duration":"300","action":"直行","assistant_action":"",) <>
+                ~s("polyline":"116.397437,39.90923;116.397383,39.910373",) <>
+                ~s("tolls":"0","toll_distance":"0","toll_road":null}],) <>
                 ~s("traffic_lights":"2"}]}]}})
 
   setup do
@@ -402,14 +412,29 @@ defmodule Amap.Direction.DrivingTest do
     assert path.steps == []
 
     assert [%Road{} = first, %Road{} = second] = path.roads
-    assert first.road_name == "示例路"
-    assert first.road_distance == "1500"
-    assert first.traffic_lights == "3"
+    assert first.road_name == "内部道路"
+    assert first.road_distance == "391"
+    assert first.traffic_lights == "0"
+    assert second.road_name == "示例二路"
+    assert second.road_distance == "2200"
+    assert second.traffic_lights == "2"
 
-    # Whatever sits under a road's `steps` is carried verbatim: no source has said
-    # what shape this key holds, so it is not mapped into `Amap.Direction.Step`.
-    assert first.steps == [%{"instruction" => "沿示例路行驶", "road" => "示例路"}]
-    assert second.steps == [%{"instruction" => "沿示例二路行驶", "road" => "示例二路"}]
+    # A road's inner `steps` are the v3 step shape, so they go through the same mapper a
+    # path's own steps use — `cities` included, the key a verbatim carry would drop.
+    assert [%Step{} = step] = first.steps
+    assert step.instruction == "向北行驶391米右转"
+    assert step.action == "右转"
+    assert step.assistant_action == nil
+    assert step.toll_road == nil
+    assert [%Tmc{distance: "127"}] = step.tmcs
+    assert step.polyline == [{116.397437, 39.90923}, {116.397383, 39.910373}]
+
+    assert [%City{} = city] = step.cities
+    assert city.name == "北京城区"
+    assert city.adcode == "110100"
+    assert [%District{name: "东城区", adcode: "110101"}] = city.districts
+
+    assert [%Step{instruction: "沿示例二路行驶"}] = second.steps
   end
 
   test "answers an empty Route when Amap sends no route at all", %{
