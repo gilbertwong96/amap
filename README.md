@@ -256,6 +256,15 @@ hd(stops.busstops).buslines          # the lines serving a stop
 
 {:ok, lines} = Amap.Bus.linename(client, "地铁1号线", extensions: :all)
 hd(lines.buslines).busstops          # the stops a line serves, in sequence order
+
+{:ok, found} = Amap.Place.text(client, keywords: "北京大学", city: "北京")
+hd(found.pois).location              # {116.310791, 39.992521}
+
+{:ok, v5} = Amap.NewPlace.text(client, keywords: "北京大学", show_fields: [:business])
+hd(v5.pois).business.rating          # "4.7" — only because show_fields asked
+
+{:ok, tips} = Amap.InputTips.inputtips(client, "招商", city: "010")
+hd(tips.tips).name                   # "招商银行(北京分行)"
 ```
 
 `Amap.Traffic` reads the traffic along a road, inside a circle or inside a
@@ -272,6 +281,15 @@ days of forecast — which is why they are two functions rather than one.
 `Amap.Bus`'s two keyword searches take `city` optionally, and leaving it out
 searches the whole country: `linename`'s page promises a 全国 default and a probe
 without a city really did answer lines from another city.
+
+`Amap.Place` and `Amap.NewPlace` are the two generations of POI search — keyword,
+around and polygon search plus lookup by id. `city` biases the answer where
+`city_limit: true` restricts it; v3 pages with `offset`/`page`, v5 with
+`page_size`/`page_num`, and both pages answer at most 200 rows for one query, which is
+why the SDK caps the page number instead of letting it ask past the ceiling. v5's
+optional groups — `:children`, `:business`, `:indoor`, `:navi`, `:photos` — arrive only
+when `show_fields` asks for them. `Amap.InputTips` takes the singular `type` its page
+documents, and its `location` only has an effect when `city` is beside it.
 
 ## Route planning
 

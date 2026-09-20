@@ -64,6 +64,21 @@ Notable changes to this project, newest first. The format follows
   documented 全国 default is real: omitting `city` searches the whole country,
   which a probe confirmed. The page lists `lineid`'s `distance` twice at one level,
   so it maps to one field and the duplicate row is recorded as a page defect.
+- Place search on both generations, plus 输入提示: `Amap.Place` covers v3's
+  `/v3/place/{text,around,polygon,detail}` and `Amap.NewPlace` v5's
+  `/v5/place/{text,around,polygon,detail}`, sharing `Amap.Search`; `Amap.InputTips`
+  covers `/v3/assistant/inputtips`. Paging is `offset` (1..25, the page's own strong
+  advice) and `page` (1..200) on v3 against `page_size` (1..25) and `page_num`
+  (1..200) on v5 — both pages answer at most 200 rows for one set of parameters,
+  which is what the page bound encodes. `region` adds search weight where
+  `city_limit` makes it strict, `show_fields` must name the v5 groups a caller wants,
+  and detail takes one id on v3 against up to ten on v5. `/v5/aoi/polyline` is
+  recorded as needing a 工单 and is not implemented.
+- The two search generations keep their pages' field depths: v3 leaves
+  `parking_type`, `alias`, `rating` and `cost` flat beside `biz_ext`, v5 nests them
+  under `business` and `indoor`. The v5 groups whose page cannot say whether they are
+  a list or one object (`children`, `photos`) are typed as either until a live run
+  narrows them; the search integration file prints every group raw.
 
 ### Changed
 
