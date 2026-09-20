@@ -74,6 +74,12 @@ defmodule Amap.Error.Code do
     20100 => :partial_success,
     20101 => :nothing_success,
     20150 => :beyond_limit,
+    # 抓路失败 (a grasp-road/map-matching failure), documented only on the 轨迹纠偏 page.
+    # The code is a v4 Web-service one, but that page's `/v4/grasproad/driving` answers the
+    # Falcon envelope, so the lookup that reaches it is this family's — the envelope selects
+    # the table. Deliberately not in `@retry`: Amap says the cause is the input (传入点数较少
+    # 或较稀疏), so the same request fails again and `retry/1` defaults to `:no`.
+    30001 => :grasproad_failed,
     32005 => :too_long_track
   }
 

@@ -57,6 +57,14 @@ defmodule Amap.Error.CodeTest do
       assert Amap.Error.Code.reason(32005, :tsapi) == :too_long_track
     end
 
+    test "30001 is the grasp-road failure, looked up by the family that answers it" do
+      assert Amap.Error.Code.reason(30_001, :tsapi) == :grasproad_failed
+      # The code belongs to the v4 Web-service generation, but the envelope selects
+      # the table: `/v4/grasproad/driving` is parsed as Falcon, and no flat-envelope
+      # page documents 30001. On restapi it still falls through to the engine range.
+      assert Amap.Error.Code.reason(30_001, :restapi) == :engine_response_error
+    end
+
     test "the engine range covers unlisted 3xxxx codes" do
       assert Amap.Error.Code.reason(30_001, :restapi) == :engine_response_error
       assert Amap.Error.Code.reason(32_203, :tsapi) == :engine_response_error
@@ -82,7 +90,8 @@ defmodule Amap.Error.CodeTest do
             :service_not_available,
             :invalid_params,
             :missing_required_params,
-            :no_roads_nearby
+            :no_roads_nearby,
+            :grasproad_failed
           ] do
         assert Amap.Error.Code.retry(reason) == :no
       end
