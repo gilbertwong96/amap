@@ -16,7 +16,7 @@ defmodule AmapTest do
       assert client.retry == []
     end
 
-    test "defaults both family base URLs" do
+    test "defaults the restapi and tsapi base URLs" do
       client = Amap.new(key: "abc")
 
       assert client.base_urls.restapi == "https://restapi.amap.com"

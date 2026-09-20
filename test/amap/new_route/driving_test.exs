@@ -269,7 +269,7 @@ defmodule Amap.NewRoute.DrivingTest do
 
     assert_receive {:params, body_params}
     assert body_params["origin"] == "116.434307,39.90909"
-    # Signing follows the family, not the verb.
+    # Signing follows the host and envelope, not the verb.
     assert Map.has_key?(body_params, "sig")
 
     assert_receive {:query, query}

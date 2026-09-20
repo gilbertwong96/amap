@@ -11,7 +11,7 @@ defmodule Amap.RequestTest do
   end
 
   describe "build/5" do
-    test "targets the family host and path" do
+    test "targets the :restapi host and path" do
       request =
         Request.build(client(), :restapi, :get, "/v3/geocode/geo", %{"address" => "beijing"})
 
@@ -21,7 +21,7 @@ defmodule Amap.RequestTest do
       assert request.method == "GET"
     end
 
-    test "targets the Falcon host for the tsapi family" do
+    test "targets the Falcon host for a :tsapi call" do
       request = Request.build(client(), :tsapi, :post, "/v1/track/service/list", %{})
 
       assert request.host == "tsapi.amap.com"
@@ -40,7 +40,7 @@ defmodule Amap.RequestTest do
       refute request.query =~ "sig="
     end
 
-    test "adds sig for the Web service family when a private key is configured" do
+    test "adds sig for the :restapi envelope when a private key is configured" do
       request =
         Request.build(client(private_key: "priv"), :restapi, :get, "/v3/ip", %{"a" => "1"})
 
@@ -50,7 +50,7 @@ defmodule Amap.RequestTest do
       assert request.query =~ "sig=#{expected}"
     end
 
-    test "never adds sig for the Falcon family" do
+    test "never adds sig for the :tsapi envelope" do
       request =
         Request.build(client(private_key: "priv"), :tsapi, :get, "/v1/track/service/list", %{})
 
@@ -218,9 +218,9 @@ defmodule Amap.RequestTest do
       end
     end
 
-    test "rejects a reserved parameter on the Falcon family too" do
+    test "rejects a reserved parameter on the Falcon host too" do
       # `sig` is never injected for `:tsapi`, but `key` always is, and the guard
-      # runs before the family is considered so both are rejected either way.
+      # runs before the host is resolved so both are rejected either way.
       assert_raise ArgumentError, ~r/request parameter "key"/, fn ->
         Request.build(client(), :tsapi, :post, "/v1/track/service/list", %{"key" => "user-key"})
       end

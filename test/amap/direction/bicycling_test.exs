@@ -74,9 +74,9 @@ defmodule Amap.Direction.BicyclingTest do
   end
 
   test "is not signed, because this page documents no sig", %{server: server} do
-    # A private key on purpose: signing follows the family, so a call wired as
-    # `:restapi` — its neighbours' family, and the mistake this test exists to catch —
-    # would sign, and the refutation below would bite.
+    # A private key on purpose: signing follows the host and envelope, so a call
+    # wired as `:restapi` without `envelope: :tsapi` — the mistake this test exists
+    # to catch — would sign, and the refutation below would bite.
     client =
       Amap.new(
         key: "test-key",

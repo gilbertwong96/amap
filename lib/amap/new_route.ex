@@ -99,8 +99,8 @@ defmodule Amap.NewRoute do
   reads it; `district` stays where its page puts it. `:method` is
   `:get`, the verb the page documents, or `:post`, which the page asks for when the
   parameters grow too long for a URL: the same parameters then travel as a form body,
-  and the request is signed either way, because signing follows the family rather than
-  the verb.
+  and the request is signed either way, because signing follows the host and envelope
+  rather than the verb.
 
   Returns the route Amap planned, or `%Amap.NewRoute.Route{paths: []}` when it found
   none, as `Amap.Direction.walking/4` does.
@@ -195,7 +195,7 @@ defmodule Amap.NewRoute do
   goes.
 
   `Amap.Direction.bicycling/4` asks the same question of the older `/v4/` page, which
-  documents nothing but the two points and answers in the other family's envelope.
+  documents nothing but the two points and answers in the Falcon envelope.
   """
   @spec bicycling(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}

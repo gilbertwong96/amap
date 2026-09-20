@@ -38,6 +38,12 @@ client = Amap.new(key: System.fetch_env!("AMAP_KEY"))
   Amap.request(client, :restapi, :get, "/v3/ip", %{})
 ```
 
+The second argument names the host — `Amap.Host.names()` — and `envelope:`
+names the response envelope when the endpoint's is not that host's default,
+as the `/v4/` generation on `restapi.amap.com` is not: it answers the Falcon
+envelope, so those calls pass `envelope: :tsapi`. `Amap.Host` is also where a
+host's base URL, signing and account-key name are stated.
+
 The key can live in config instead of at every call site:
 
 ```elixir
@@ -56,8 +62,11 @@ things in each.
 
 ### Signing
 
-Set `private_key:` to enable Amap's digital signature. Signatures are sent to
-the Web service family only; the Falcon documentation does not describe them.
+Set `private_key:` to enable Amap's digital signature. Signing is part of the
+host's description in `Amap.Host`: the flat envelope on `restapi.amap.com` is
+signed, the Falcon envelope is not, and neither is the `/v4/` generation on the
+Web service host — the Falcon documentation and those pages do not describe
+signatures.
 
 ```elixir
 Amap.new(key: key, private_key: private_key)
@@ -97,7 +106,7 @@ of two minutes. There is no total-deadline option; lower `:max` to bound it.
 
 ## Falcon track service
 
-Falcon is Amap's track service, on its own host and its own family. It is reached
+Falcon is Amap's track service, on its own host and its own envelope. It is reached
 through module functions rather than API paths, so no caller needs to know a wire
 format:
 
@@ -224,7 +233,7 @@ service and was deferred rather than guessed at until an account exists for it.
 
 ## Web service API
 
-The other family — `restapi.amap.com` — answers with a flat `{status, info,
+The Web service host — `restapi.amap.com` — answers with a flat `{status, info,
 infocode, …}` envelope, which the same client collapses for you. The simple queries:
 
 ```elixir
@@ -309,9 +318,9 @@ The live run settles the page's untyped scalars: `distance` is a **number** here
 distances the v3 and v5 routes send — and Amap **densifies** the corrected track, so 8
 sent points came back as 28. The body is a JSON **array**, the SDK's only other JSON
 body besides `Amap.Falcon.TrackMatch` — which is why `Amap.Request` accepts a non-empty
-list of maps as well as one object. The endpoint answers the track family's Falcon
+list of maps as well as one object. The endpoint answers the Falcon
 envelope from the Web service host, the second `/v4/` page to do so, so it is called
-with `family: :tsapi` and `host: :restapi` like `Amap.Direction.bicycling/4`; and
+with host `:restapi` and `envelope: :tsapi` like `Amap.Direction.bicycling/4`; and
 `30001`, the page's 抓路失败 — too few or too sparse points, and what a single point
 gets too — arrives as `:grasproad_failed` rather than a generic engine error, though
 the wire's own `errmsg` is the generic `ENGINE_RESPONSE_DATA_ERROR`. The SDK refuses a
@@ -353,8 +362,8 @@ hd(path.steps).navi.action # "右转" — the group arrives on the step
 ```
 
 Five things this pair of pages will not tell you. `Amap.Direction.bicycling/4`
-lives on the Web service host and answers the **track family's** envelope, which
-is why `family` and `host` are two axes and why `Amap.request/6` takes `host:`;
+lives on the Web service host and answers the **Falcon** envelope, which is why
+host and envelope are two axes and why `Amap.request/6` takes `envelope:`;
 `Amap.NewRoute.bicycling/4` is its v5 sibling, and `/v4/grasproad/driving` is the
 other endpoint of that kind. `ferry: :use` is the **default** on both
 generations' driving endpoints: the wire's `0` means *take* the ferry, so the

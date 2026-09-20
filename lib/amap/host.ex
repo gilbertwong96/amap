@@ -18,14 +18,15 @@ defmodule Amap.Host do
   and, when the endpoint's envelope is not the host's default, that envelope, to
   the axes one request needs.
 
-  Two described hosts are deliberately not callable:
+  The two further described hosts differ in what is missing:
 
-    * `:et_api` (交通事件) authenticates with `clientKey` + `timestamp` +
-      `digest`, and Amap publishes the digest algorithm only with the commercial
-      grant — `Amap.Request` can describe the shape but refuses to build it;
-    * `:apilocate` (智能硬件定位 v1) is described down to its envelope, which has
-      no `infocode` row and symbolic `info` values, but no endpoint module exists
-      for it.
+    * `:et_api` (交通事件) cannot be called: it authenticates with `clientKey` +
+      `timestamp` + `digest`, and Amap publishes the digest algorithm only with
+      the commercial grant — `Amap.Request` describes the shape but refuses to
+      build it;
+    * `:apilocate` (智能硬件定位 v1) can be called through `Amap.request/6` —
+      plain `key=`, no `sig` — and its envelope (no `infocode` row, symbolic
+      `info` values) parses, but no endpoint module uses it.
   """
 
   @enforce_keys [:name, :base_url, :envelope, :auth, :key_param]

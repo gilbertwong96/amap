@@ -2,10 +2,13 @@ defmodule Amap do
   @moduledoc """
   Amap (高德地图) Web API client.
 
-  Two API families share one core: the Web service API (`restapi.amap.com`) and
-  the Falcon track service (`tsapi.amap.com`). Both authenticate with the same
-  Web service type key, and both return HTTP 200 even when the body reports an
-  error, so status codes are never used to detect failures.
+  One core serves every host this SDK describes. `Amap.Host` states each once —
+  its base URL, the envelopes it answers and how each authenticates — for the Web
+  service API (`restapi.amap.com`), the Falcon track service (`tsapi.amap.com`),
+  交通事件 (`et-api.amap.com`) and 智能硬件定位 v1 (`apilocate.amap.com`). The hosts
+  a request can reach present the same account key, and every host answers HTTP
+  200 even when the body reports an error, so status codes are never used to
+  detect failures.
   """
 
   alias Amap.Client
@@ -41,9 +44,9 @@ defmodule Amap do
   @doc """
   Performs one Amap call, retrying it when the failure says that is worth doing.
 
-  This is the entry point every business module uses. It normalizes both API
-  families, so callers get the bare payload map regardless of which envelope
-  came back.
+  This is the entry point every business module uses. It normalizes every
+  envelope it can parse, so callers get the bare payload map regardless of which
+  one came back.
 
   Retrying is off by default (`retry: [max: 0]`) and, when enabled, is driven by
   the failure itself: `Amap.Error`'s `retry` field is `:immediate` for

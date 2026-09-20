@@ -7,8 +7,9 @@ defmodule Amap.Signature do
   key appended. The request path is *not* part of the signed string, and values
   are signed raw — URL encoding happens later, when the request is sent.
 
-  Signatures apply to the Web service family only. The Falcon documentation
-  never mentions them, so this module is wired into `:restapi` requests only.
+  Signatures apply to the flat Web service envelope only: `Amap.Host` gives it
+  `:signature` auth, and the Falcon documentation never mentions signatures, so
+  the Falcon envelope is key-only and this module is not used for it.
   """
 
   @doc """

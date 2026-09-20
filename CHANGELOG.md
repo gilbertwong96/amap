@@ -40,10 +40,9 @@ Notable changes to this project, newest first. The format follows
 - Route planning on both generations: `Amap.Direction` covers v3's `driving/4`,
   `walking/4`, `transit/5` and the measuring `distance/4` plus the v4 `bicycling/4`,
   and `Amap.NewRoute` covers v5's `driving/4`, `walking/4`, `bicycling/4`,
-  `electrobike/4` and `transit/5`. `Amap.Direction.bicycling/4` answers the track
-  family's envelope from the Web service host, which is what turned `family` and
-  `host` into two axes: `Amap.request/6` takes `host:`, while the family keeps
-  deciding the parser and the signature.
+  `electrobike/4` and `transit/5`. `Amap.Direction.bicycling/4` answers the Falcon
+  envelope from the Web service host, which is why a call names both axes:
+  `Amap.request/6` takes the host as `:restapi` and `envelope: :tsapi`.
 - `Amap.NewRoute`'s optional groups arrive only when `show_fields` names them, and
   `walk_type` arrives inside each step's `navi` rather than on the step where the
   walking and riding pages list it as a group of its own — as the live probe on
@@ -87,7 +86,7 @@ Notable changes to this project, newest first. The format follows
   of maps as a JSON body while still refusing every other JSON value. A single point
   map and a list of them are both accepted, and both go out as the array the page
   requires. The answer is the Falcon envelope from the Web service host, so the call
-  keeps S4's two axes (`family: :tsapi`, `host: :restapi`), and `30001` 抓路失败 maps
+  names host `:restapi` and envelope `:tsapi`, and `30001` 抓路失败 maps
   to `:grasproad_failed` with `retry: :no`. A live run (2026-09-21) confirmed the page's
   untyped shapes: success is `errcode: 0`, `distance` and each `points[]` `x`/`y` arrive
   as JSON numbers (floats) rather than the v3/v5 routes' strings, and Amap **densifies**
@@ -95,6 +94,15 @@ Notable changes to this project, newest first. The format follows
   generic `ENGINE_RESPONSE_DATA_ERROR`/引擎返回数据异常 for a raw empty array, a one-point
   track and a sparse one, and a raw 501-object body with `20000`/`INVALID_PARAMS` and a
   500-specific message, which is Amap's own side of the SDK's 1..500 bound.
+- `Amap.Host`, one table stating per host its base URL, the envelopes it answers,
+  the auth each envelope uses, and the name it gives the account key. The request
+  path reads it instead of inferring the envelope and the signature from one family
+  flag. It also describes the two hosts the SDK cannot call yet:
+  `et-api.amap.com` (`code`/`msg` envelope, `clientKey` + `timestamp` + `digest`,
+  whose algorithm Amap does not publish) and `apilocate.amap.com` (`status`/`info`
+  around `result`, with **no `infocode` row** and symbolic `info` values). A request
+  that would need the unobtainable digest raises rather than sending; the
+  `apilocate` envelope is parsed, though no endpoint module exists for it.
 
 ### Changed
 
@@ -129,6 +137,13 @@ Notable changes to this project, newest first. The format follows
 - `Amap.Falcon.TrackMatch` compares how much two trajectories overlap. It is the
   one Amap endpoint that takes a JSON body, so `Amap.request/6` grew a
   `body: :form | :json` option rather than a second pipeline.
+- **Breaking:** `Amap.request/6`'s second argument names the host, and
+  `opts[:envelope]` names the response envelope when the endpoint's is not the
+  host's default. The `host:` option is gone, and the family no longer decides the
+  URL, the signature or the account key's name — `Amap.Host` does.
+  `/v4/direction/bicycling` and `/v4/grasproad/driving` are now called as
+  `Amap.request(client, :restapi, :post, path, params, envelope: :tsapi)`. Telemetry's
+  start metadata carries `host:` where it carried `family:`.
 - **Not included in this release:** toll estimation (`Amap.Falcon.Etc`), which Amap
   opens only to enterprise developers. It is deferred rather than guessed at until an
   account exists for it.
