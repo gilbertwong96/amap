@@ -392,6 +392,34 @@ defmodule Amap.Direction.DrivingTest do
     assert [%District{name: "朝阳区", adcode: "110105"}] = path.districts
   end
 
+  test "drops the cities and districts it cannot read instead of raising", %{
+    server: server,
+    client: client
+  } do
+    malformed =
+      ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+        ~s("route":{"origin":"116.481028,39.989643","destination":"116.465302,40.004717",) <>
+        ~s("paths":[{"distance":"12345",) <>
+        ~s("cities":[{"name":"北京市","adcode":"110000",) <>
+        ~s("districts":[{"name":"朝阳区","adcode":"110105"},"朝阳区"]},"北京市"],) <>
+        ~s("districts":"朝阳区"}]}})
+
+    TestServer.expect_once(server, "GET", "/v3/direction/driving", fn _req ->
+      {200, malformed}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             Direction.driving(client, {116.481028, 39.989643}, {116.465302, 40.004717})
+
+    # A city that is not an object loses itself, and so does a district that is not one;
+    # nothing raises on a shape no page or run has shown.
+    assert [%City{} = city] = path.cities
+    assert city.name == "北京市"
+    assert [%District{name: "朝阳区", adcode: "110105"}] = city.districts
+
+    assert path.districts == []
+  end
+
   test "maps the roads `roadaggregation` returns in place of steps", %{
     server: server,
     client: client

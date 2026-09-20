@@ -22,7 +22,7 @@ defmodule Amap.Direction.Step do
 
   `cities` is the places this leg crosses: the list of `Amap.Direction.City` objects a
   path's own `cities` uses. The third live run carried it inside a `roadaggregation`
-  road's steps, which are this shape; a plain path's step carrying it has not been
+  road's steps, which are this shape; a v3 plain path's step carrying it has not been
   printed, so this reads the key wherever a step sends it.
   """
 

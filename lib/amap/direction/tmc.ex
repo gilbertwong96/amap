@@ -10,6 +10,10 @@ defmodule Amap.Direction.Tmc do
 
   `polyline` is the stretch's points as a flat list of `{lon, lat}` tuples, the same
   shape a step's own polyline takes.
+
+  The third live run's elements also carried an `lcode` key — `nil` in all four — which no
+  struct here reads: a v3 stretch can arrive with one, and nothing is claimed about what
+  a non-nil value would mean until a run or a page shows it.
   """
 
   defstruct [:distance, :status, :polyline]

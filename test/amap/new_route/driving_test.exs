@@ -364,6 +364,34 @@ defmodule Amap.NewRoute.DrivingTest do
     assert absent.cities == nil
   end
 
+  test "drops the districts it cannot read instead of raising", %{server: server, client: client} do
+    steps =
+      ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+        ~s("route":{"origin":"116.434307,39.90909","destination":"116.434446,39.90816",) <>
+        ~s("paths":[{"distance":"12345","steps":[) <>
+        ~s({"instruction":"mixed",) <>
+        ~s("cities":[{"adcode":"110000","city":"北京市",) <>
+        ~s("districts":[{"name":"东城区","adcode":"110101"},"东城区"]}]},) <>
+        ~s({"instruction":"not-a-list",) <>
+        ~s("cities":[{"adcode":"110100","city":"北京城区","districts":"东城区"}]}]}]}})
+
+    TestServer.expect_once(server, "GET", "/v5/direction/driving", fn _req ->
+      {200, steps}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+
+    assert [mixed, not_a_list] = path.steps
+
+    # A district the mapper cannot read loses itself and the city around it survives,
+    # which is the totality `to_city/1` promises for every shape no source has shown.
+    assert [%City{adcode: "110000"} = city] = mixed.cities
+    assert [%District{name: "东城区", adcode: "110101"}] = city.districts
+
+    assert [%City{adcode: "110100", districts: []}] = not_a_list.cities
+  end
+
   test "leaves the optional groups empty when show_fields was not asked for", %{
     server: server,
     client: client

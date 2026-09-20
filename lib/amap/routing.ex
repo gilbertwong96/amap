@@ -211,8 +211,8 @@ defmodule Amap.Routing do
       toll_distance: payload["toll_distance"],
       steps: Enum.map(payload["steps"] || [], &v3_step/1),
       tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1),
-      cities: Enum.map(payload["cities"] || [], &v3_city/1),
-      districts: Enum.map(payload["districts"] || [], &v3_district/1),
+      cities: v3_cities(payload["cities"]),
+      districts: v3_districts(payload["districts"]),
       roads: Enum.map(payload["roads"] || [], &v3_road/1)
     }
   end
@@ -257,7 +257,7 @@ defmodule Amap.Routing do
       tolls: payload["tolls"],
       toll_distance: payload["toll_distance"],
       toll_road: payload["toll_road"],
-      cities: Enum.map(payload["cities"] || [], &v3_city/1),
+      cities: v3_cities(payload["cities"]),
       tmcs: Enum.map(payload["tmcs"] || [], &v3_tmc/1)
     }
   end
@@ -270,18 +270,35 @@ defmodule Amap.Routing do
     }
   end
 
-  defp v3_city(payload) do
+  # The city mappers stay total for the same reason the v5 ones do: a shape they do not
+  # read answers `nil` rather than raising, and a list holding something that is not an
+  # object drops that element - a malformed entry loses itself, not the city or the
+  # path around it.
+  defp v3_city(payload) when is_map(payload) do
     %Amap.Direction.City{
       name: payload["name"],
       citycode: payload["citycode"],
       adcode: payload["adcode"],
-      districts: Enum.map(payload["districts"] || [], &v3_district/1)
+      districts: v3_districts(payload["districts"])
     }
   end
 
-  defp v3_district(payload) do
-    %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
-  end
+  defp v3_city(_other), do: nil
+
+  defp v3_cities(list) when is_list(list),
+    do: list |> Enum.filter(&is_map/1) |> Enum.map(&v3_city/1)
+
+  defp v3_cities(_other), do: []
+
+  defp v3_districts(list) when is_list(list),
+    do: list |> Enum.filter(&is_map/1) |> Enum.map(&v3_district/1)
+
+  defp v3_districts(_other), do: []
+
+  defp v3_district(payload) when is_map(payload),
+    do: %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
+
+  defp v3_district(_other), do: nil
 
   defp v3_road(payload) do
     %Amap.Direction.Road{

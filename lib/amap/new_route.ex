@@ -350,19 +350,30 @@ defmodule Amap.NewRoute do
     }
   end
 
-  defp to_city(nil), do: nil
-
-  defp to_city(payload) do
+  # The city mapper stays total: a shape it does not read answers `nil` rather than
+  # raising, and a `districts` value that is not a list, or holds an element that is not
+  # an object, drops that value - a malformed element loses itself, not the city around
+  # it, which is the tolerance `to_tmcs/1` keeps too.
+  defp to_city(payload) when is_map(payload) do
     %City{
       adcode: payload["adcode"],
       citycode: payload["citycode"],
       city: payload["city"],
-      districts: Enum.map(payload["districts"] || [], &to_district/1)
+      districts: to_districts(payload["districts"])
     }
   end
 
-  defp to_district(nil), do: nil
-  defp to_district(payload), do: %District{name: payload["name"], adcode: payload["adcode"]}
+  defp to_city(_other), do: nil
+
+  defp to_districts(list) when is_list(list),
+    do: list |> Enum.filter(&is_map/1) |> Enum.map(&to_district/1)
+
+  defp to_districts(_other), do: []
+
+  defp to_district(payload) when is_map(payload),
+    do: %District{name: payload["name"], adcode: payload["adcode"]}
+
+  defp to_district(_other), do: nil
 
   @doc """
   Plans a public transport route.
