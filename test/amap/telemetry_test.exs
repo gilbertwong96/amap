@@ -37,7 +37,7 @@ defmodule Amap.TelemetryTest do
              end)
 
     assert_receive {:telemetry, [_, _, :start], %{system_time: _}, start_meta}
-    assert start_meta.family == :restapi
+    assert start_meta.host == :restapi
     assert start_meta.method == :get
     assert start_meta.path == "/v3/ip"
     assert start_meta.timeout == 5_000

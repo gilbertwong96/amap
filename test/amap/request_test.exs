@@ -4,7 +4,7 @@ defmodule Amap.RequestTest do
   alias Amap.Signature
   alias Amap.TestServer
 
-  alias Amap.{Client, Request}
+  alias Amap.{Client, Host, Request}
 
   defp client(opts \\ []) do
     struct!(Client, [key: "test-key"] ++ opts)
@@ -57,42 +57,50 @@ defmodule Amap.RequestTest do
       refute request.query =~ "sig="
     end
 
-    test "sends a call to a host its family does not own" do
+    test "sends a /v4/ call to the host and envelope it names" do
       request =
-        Request.build(client(private_key: "priv"), :tsapi, :get, "/v4/direction/bicycling", %{},
-          host: :restapi
+        Request.build(client(private_key: "priv"), :restapi, :get, "/v4/direction/bicycling", %{},
+          envelope: :tsapi
         )
 
       assert request.host == "restapi.amap.com"
       refute request.query =~ "sig="
     end
 
-    test "signs by family even when the host is the other family's" do
-      request =
-        Request.build(client(private_key: "priv"), :restapi, :get, "/v3/ip", %{}, host: :tsapi)
+    test "refuses an envelope the host does not answer" do
+      error =
+        assert_raise ArgumentError, fn ->
+          Request.build(client(private_key: "priv"), :tsapi, :get, "/v3/ip", %{},
+            envelope: :restapi
+          )
+        end
 
-      assert request.host == "tsapi.amap.com"
-      assert request.query =~ "sig="
+      assert error.message =~ "invalid envelope: :restapi for the :tsapi host"
     end
 
-    test "defaults the host to the family" do
+    test "sends each host to its own base URL" do
       custom = client(base_urls: %{restapi: "http://rest", tsapi: "http://track"})
 
       assert Request.build(custom, :restapi, :get, "/v3/ip", %{}).host == "rest"
       assert Request.build(custom, :tsapi, :get, "/v3/ip", %{}).host == "track"
     end
 
-    test "rejects a host that is not an API family" do
-      assert_raise ArgumentError, "invalid host: :bogus; expected :restapi or :tsapi", fn ->
-        Request.build(client(), :restapi, :get, "/v3/ip", %{}, host: :bogus)
-      end
+    test "rejects a host it does not describe" do
+      error =
+        assert_raise ArgumentError, fn ->
+          Request.build(client(), :bogus, :get, "/v3/ip", %{})
+        end
+
+      assert error.message =~ "invalid host: :bogus"
+      assert error.message =~ ":restapi"
+      assert error.message =~ ":apilocate"
     end
 
-    test "puts a JSON body on the host that was named" do
+    test "puts a JSON body on the host and envelope the caller names" do
       request =
-        Request.build(client(), :tsapi, :post, "/v1/track/match", %{"a" => 1},
+        Request.build(client(), :restapi, :post, "/v1/track/match", %{"a" => 1},
           body: :json,
-          host: :restapi
+          envelope: :tsapi
         )
 
       assert request.host == "restapi.amap.com"
@@ -102,18 +110,44 @@ defmodule Amap.RequestTest do
       request =
         Request.build(
           client(),
-          :tsapi,
+          :restapi,
           :post,
           "/v4/grasproad/driving",
           [%{"x" => 116.478928, "y" => 39.997761}],
           body: :json,
-          host: :restapi
+          envelope: :tsapi
         )
 
       assert request.host == "restapi.amap.com"
       assert request.method == "POST"
       assert {"content-type", "application/json"} in request.headers
       assert JSON.decode!(request.body) == [%{"x" => 116.478928, "y" => 39.997761}]
+    end
+
+    test "describes the et-api host, and refuses to build its digest auth" do
+      # `clientKey` + `timestamp` + `digest` is the whole auth on that host, and
+      # the digest algorithm is not public, so the request path can state the
+      # shape but cannot send it.
+      assert Host.describe(:et_api).key_param == "clientKey"
+
+      error =
+        assert_raise ArgumentError, fn ->
+          Request.build(client(), :et_api, :get, "/event/queryByAdcode", %{})
+        end
+
+      assert error.message =~ "cannot build a request for the :et_api host"
+      assert error.message =~ "clientKey + timestamp + digest"
+    end
+
+    test "sends to apilocate with its own key name and no signature" do
+      request =
+        Request.build(client(key: "abc", private_key: "priv"), :apilocate, :get, "/position", %{
+          "imei" => "1"
+        })
+
+      assert request.host == "apilocate.amap.com"
+      assert request.query =~ "key=abc"
+      refute request.query =~ "sig="
     end
 
     test "refuses a JSON body that is neither an object nor a non-empty list of objects" do
@@ -304,12 +338,12 @@ defmodule Amap.RequestTest do
       assert {:ok, %Finch.Response{status: 200}} =
                Request.send(
                  client,
-                 :tsapi,
+                 :restapi,
                  :post,
                  "/v4/grasproad/driving",
                  [%{"x" => 116.478928, "y" => 39.997761}, %{"x" => 116.478907}],
                  body: :json,
-                 host: :restapi
+                 envelope: :tsapi
                )
 
       assert_receive {:body, "application/json", body, query}
@@ -332,12 +366,12 @@ defmodule Amap.RequestTest do
       assert {:error, error} =
                Request.send(
                  client,
-                 :tsapi,
+                 :restapi,
                  :post,
                  "/v4/grasproad/driving",
                  [%{"x" => 116.478928}],
                  body: :json,
-                 host: :restapi
+                 envelope: :tsapi
                )
 
       assert error.request.method == :post
@@ -351,10 +385,13 @@ defmodule Amap.RequestTest do
       end
     end
 
-    test "refuses a JSON body for the signing family, where it is undefined", %{client: client} do
-      assert_raise ArgumentError, ~r/only supported for the :tsapi family/, fn ->
-        Request.build(client, :restapi, :post, "/v3/ip", %{}, body: :json)
-      end
+    test "refuses a JSON body where the request would be signed", %{client: client} do
+      error =
+        assert_raise ArgumentError, fn ->
+          Request.build(client, :restapi, :post, "/v3/ip", %{}, body: :json)
+        end
+
+      assert error.message =~ "a JSON body is only supported where the request is not signed"
     end
 
     test "rejects a body encoding Amap does not take", %{client: client} do

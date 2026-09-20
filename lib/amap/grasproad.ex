@@ -9,8 +9,8 @@ defmodule Amap.Grasproad do
       `errcode`/`errmsg`/`errdetail` around a `data` object. It is the second of the
       three known `/v4/`-on-`restapi` endpoints that do this (the first is
       `Amap.Direction.bicycling/4`; `/v4/etd/driving` is the third), which is why the
-      call is `family: :tsapi` for the envelope and `host: :restapi` for the
-      destination;
+      call names host `:restapi` for the destination and envelope `:tsapi` for the
+      answer;
     * its request body is a **JSON array** of up to 500 point objects, the only
       endpoint in this SDK besides `Amap.Falcon.TrackMatch` that sends JSON at all.
 
@@ -87,9 +87,9 @@ defmodule Amap.Grasproad do
   @spec driving(Amap.Client.t(), point() | [point()]) ::
           {:ok, Result.t()} | {:error, Amap.Error.t()}
   def driving(client, points) do
-    case Amap.request(client, :tsapi, :post, @path, encode_points(points!(points)),
+    case Amap.request(client, :restapi, :post, @path, encode_points(points!(points)),
            body: :json,
-           host: :restapi
+           envelope: :tsapi
          ) do
       {:ok, payload} -> {:ok, to_result(payload)}
       {:error, _} = error -> error

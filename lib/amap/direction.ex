@@ -12,8 +12,8 @@ defmodule Amap.Direction do
   why every result carries a per-item `code` and why it lives on its own path
   (`/v3/distance`, not `/v3/direction/…`). `bicycling/4` is the second odd one out:
   the page documents it, it is the only endpoint here that is not `/v3/`, and it is
-  the only one that answers the **track family's** envelope while living on the Web
-  service host — the reason `family` and `host` are two axes and not one.
+  the only one that answers the **Falcon** envelope while living on the Web
+  service host — the reason `host` and `envelope` are two axes and not one.
 
   Both ends go in as `{lon, lat}` tuples and come back the same way — including
   every step's `polyline`, which Amap writes as one `;`-separated string and this
@@ -253,13 +253,13 @@ defmodule Amap.Direction do
   @doc """
   Plans a cycling route, at most **500 km**.
 
-  This endpoint is why `family` and `host` are two axes rather than one. Amap
+  This endpoint is why `host` and `envelope` are two axes rather than one. Amap
   documents it on the same page as the four above, but it answers
-  `{errcode, errmsg, errdetail, data}` — the **track family's** envelope, not the
+  `{errcode, errmsg, errdetail, data}` — the **Falcon** envelope, not the
   `{status, info, infocode}` the rest of this page uses — and it lives on
-  `restapi.amap.com` all the same. So the call names the family that parses and signs
-  (`:tsapi`, which signs nothing, since this page documents no `sig`) and names the
-  host separately. `/v4/grasproad/driving` is the second endpoint of that kind, which
+  `restapi.amap.com` all the same. So the call names the host `:restapi` and the
+  envelope `:tsapi`: the Falcon envelope signs nothing, and this page documents no
+  `sig` either. `/v4/grasproad/driving` is the second endpoint of that kind, which
   is why §10 #10 of the design doc calls this a property of `/v4/` rather than one
   accident.
 
@@ -277,14 +277,14 @@ defmodule Amap.Direction do
   @spec bicycling(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def bicycling(client, origin, destination, _opts \\ []) do
-    # A Falcon envelope on the Web service host: `:tsapi` decides the envelope and
-    # signing, `host: :restapi` decides where the request goes.
+    # A Falcon envelope on the Web service host: the host `:restapi` decides where
+    # the request goes, the envelope `:tsapi` how the answer is parsed.
     params = [
       origin: Param.location(Validate.point!(origin, ":origin")),
       destination: Param.location(Validate.point!(destination, ":destination"))
     ]
 
-    case Amap.request(client, :tsapi, :get, @bicycling_path, params, host: :restapi) do
+    case Amap.request(client, :restapi, :get, @bicycling_path, params, envelope: :tsapi) do
       {:ok, payload} -> {:ok, to_route(payload)}
       {:error, _} = error -> error
     end

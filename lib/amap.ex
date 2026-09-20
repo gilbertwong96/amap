@@ -10,6 +10,7 @@ defmodule Amap do
 
   alias Amap.Client
   alias Amap.Error
+  alias Amap.Host
   alias Amap.Limiter
   alias Amap.Request
   alias Amap.Response
@@ -58,20 +59,23 @@ defmodule Amap do
 
   Returns `{:ok, nil}` for Falcon endpoints that answer without a `data` body.
 
-  `opts` may carry `host:` (defaulting to `family`), naming the base URL to use
-  when an endpoint's host is not its family's. `/v4/direction/bicycling` is one
-  such endpoint: it answers the Falcon envelope from `restapi.amap.com`, so it is
-  called as `:tsapi` with `host: :restapi`. The family keeps deciding the envelope
-  and the signature — only the destination changes.
+  `host` names the destination — one of `Amap.Host.names()`. `opts[:envelope]`
+  names the response envelope when the endpoint's is not the host's default: the
+  `/v4/` generation on `restapi.amap.com` answers the Falcon envelope, so
+  `/v4/direction/bicycling` is called with host `:restapi` and
+  `envelope: :tsapi`. Base URL, signing and the account key's name all come from
+  the host's description in `Amap.Host`.
 
-  Raises `ArgumentError` if `family` is neither `:restapi` nor `:tsapi`, if `opts`
-  names a `:host` other than those two, or if `params` supplies `key` or `sig`. The
-  client owns both of those: injecting a second copy would put two `key` parameters
-  on the wire, and the signed string would no longer be the one the server reads.
+  Raises `ArgumentError` if `host` is not a host this SDK describes, if `opts`
+  names an envelope the host does not answer, if the host's auth cannot be
+  computed (`:et_api`'s digest is not public), or if `params` supplies the
+  host's key parameter or `sig`. The client owns both key parameters: injecting a
+  second copy would put two of them on the wire, and the signed string would no
+  longer be the one the server reads.
   """
   @spec request(
           Client.t(),
-          Client.family(),
+          Host.name(),
           :get | :post,
           String.t(),
           Request.params()
@@ -79,25 +83,16 @@ defmodule Amap do
           {:ok, Response.payload()} | {:error, Error.t()}
   @spec request(
           Client.t(),
-          Client.family(),
+          Host.name(),
           :get | :post,
           String.t(),
           Request.params(),
           keyword()
         ) ::
           {:ok, Response.payload()} | {:error, Error.t()}
-  def request(client, family, method, path, params, opts \\ [])
-
-  def request(%Amap.Client{} = client, family, method, path, params, opts)
-      when family in [:restapi, :tsapi] do
-    attempt(client, family, method, path, params, opts, 0)
-  end
-
-  # An unknown family would otherwise reach `client.base_urls[family]`, which is
-  # nil, and die with "construction of binary failed: ... got: nil" — naming
-  # neither the argument nor its valid values.
-  def request(%Amap.Client{}, family, _method, _path, _params, _opts) do
-    raise ArgumentError, "invalid family: #{inspect(family)}; expected :restapi or :tsapi"
+  def request(%Amap.Client{} = client, host, method, path, params, opts \\ []) do
+    descriptor = Host.describe(host, Keyword.get(opts, :envelope))
+    attempt(client, descriptor, method, path, params, opts, 0)
   end
 
   # One attempt, plus at most `max_attempts/1` more. Each attempt gets its own
@@ -107,13 +102,13 @@ defmodule Amap do
   # Exhaustion returns the last failure unchanged — same struct, same reason —
   # because callers branch on `%Amap.Error{}` and `Amap.Telemetry.stop_meta/1`
   # has no catch-all clause.
-  defp attempt(client, family, method, path, params, opts, attempt) do
+  defp attempt(client, %Host{} = descriptor, method, path, params, opts, attempt) do
     result =
-      Telemetry.span(client, family, method, path, fn ->
-        with :ok <- acquire(client, family, path),
-             {:ok, response} <- Request.send(client, family, method, path, params, opts),
+      Telemetry.span(client, descriptor.name, method, path, fn ->
+        with :ok <- acquire(client, descriptor.name, path),
+             {:ok, response} <- Request.send(client, descriptor.name, method, path, params, opts),
              {:ok, payload} <- decode(response.body, response.status) do
-          Response.normalize(family, payload, response.status)
+          Response.normalize(descriptor.envelope, payload, response.status)
         end
       end)
 
@@ -121,7 +116,7 @@ defmodule Amap do
       {:error, %Amap.Error{} = error} ->
         if attempt < max_attempts(client) and error.retry != :no do
           Process.sleep(delay(error, client, attempt))
-          attempt(client, family, method, path, params, opts, attempt + 1)
+          attempt(client, descriptor, method, path, params, opts, attempt + 1)
         else
           result
         end
@@ -188,9 +183,9 @@ defmodule Amap do
   # The wrapped error's reason is `:no` for retry, so a limiter timeout is never
   # retried — waiting longer for a token that never came is not a request that
   # failed for a transient reason.
-  defp acquire(%Amap.Client{limiter: nil}, _family, _path), do: :ok
+  defp acquire(%Amap.Client{limiter: nil}, _host, _path), do: :ok
 
-  defp acquire(%Amap.Client{limiter: limiter, timeout: timeout}, family, path) do
+  defp acquire(%Amap.Client{limiter: limiter, timeout: timeout}, host, path) do
     started = System.monotonic_time()
 
     result =
@@ -199,7 +194,7 @@ defmodule Amap do
         {:error, :timeout} -> {:error, Error.limiter_timeout()}
       end
 
-    report_queue_wait(started, family, path)
+    report_queue_wait(started, host, path)
     result
   end
 
@@ -212,7 +207,7 @@ defmodule Amap do
   # the difference between a quota problem and a transport one.
   #
   # Metadata is request shape only, as `Amap.Telemetry` does for requests.
-  defp report_queue_wait(started, family, path) do
+  defp report_queue_wait(started, host, path) do
     wait_ms =
       System.monotonic_time()
       |> Kernel.-(started)
@@ -220,7 +215,7 @@ defmodule Amap do
 
     if wait_ms > 0 do
       :telemetry.execute([:amap, :limiter, :queued], %{wait_ms: wait_ms}, %{
-        family: family,
+        host: host,
         path: path
       })
     end

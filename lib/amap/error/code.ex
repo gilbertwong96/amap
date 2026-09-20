@@ -97,7 +97,14 @@ defmodule Amap.Error.Code do
 
   @engine_range 30_000..39_999
 
-  @spec reason(integer(), Amap.Client.family()) :: atom()
+  @typedoc """
+  An envelope with a numeric code table. The other two described envelopes,
+  `:code_msg` and `:apilocate`, carry no numeric codes, so they are not families
+  here.
+  """
+  @type family :: :restapi | :tsapi
+
+  @spec reason(integer(), family()) :: atom()
   def reason(10000, _family), do: :ok
 
   def reason(code, family) when is_integer(code) do

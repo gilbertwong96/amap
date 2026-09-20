@@ -36,11 +36,11 @@ defmodule Amap.PipelineTest do
              Amap.request(client, :tsapi, :get, "/v1/track/service/list", %{})
   end
 
-  test "sends to the host the caller names, and parses by the family", %{server: server} do
-    # `/v4/direction/bicycling` is a Falcon envelope on the Web service host: it is
-    # called as `:tsapi`, which decides the envelope and signing, with
-    # `host: :restapi`, which decides where it goes. The tsapi base URL here points
-    # at a closed port, so a call that ignored `host:` would fail in transport.
+  test "sends to the host the caller names, and parses by the envelope", %{server: server} do
+    # `/v4/direction/bicycling` is the Falcon envelope on the Web service host:
+    # `host: :restapi` decides where it goes, `envelope: :tsapi` decides how the
+    # answer is parsed. The tsapi base URL here points at a closed port, so a call
+    # that sent to the wrong host would fail in transport.
     client =
       Amap.new(
         key: "test-key",
@@ -52,7 +52,9 @@ defmodule Amap.PipelineTest do
     end)
 
     assert {:ok, %{"paths" => []}} =
-             Amap.request(client, :tsapi, :get, "/v4/direction/bicycling", %{}, host: :restapi)
+             Amap.request(client, :restapi, :get, "/v4/direction/bicycling", %{},
+               envelope: :tsapi
+             )
   end
 
   test "returns the payload when Falcon answers with 10000, as the live API does", %{
@@ -199,7 +201,7 @@ defmodule Amap.PipelineTest do
   test "sends a JSON array body through the whole pipeline", %{server: server} do
     # The second JSON-body endpoint: `/v4/grasproad/driving` takes an array of point
     # objects, answers the Falcon envelope, and lives on the Web service host, so the
-    # call is `:tsapi` for the envelope and `host: :restapi` for the destination.
+    # call names host `:restapi` and envelope `:tsapi`.
     client =
       Amap.new(
         key: "test-key",
@@ -211,9 +213,9 @@ defmodule Amap.PipelineTest do
     end)
 
     assert {:ok, %{"distance" => "1"}} =
-             Amap.request(client, :tsapi, :post, "/v4/grasproad/driving", [%{"x" => 1.0}],
+             Amap.request(client, :restapi, :post, "/v4/grasproad/driving", [%{"x" => 1.0}],
                body: :json,
-               host: :restapi
+               envelope: :tsapi
              )
   end
 
@@ -243,13 +245,14 @@ defmodule Amap.PipelineTest do
     refute_receive {:hit, _content_type}, 50
   end
 
-  test "names an invalid family instead of failing on the URL", %{client: client} do
+  test "names an invalid host instead of failing on the URL", %{client: client} do
     error =
       assert_raise ArgumentError, fn ->
         Amap.request(client, :typo, :get, "/v3/ip", %{})
       end
 
-    assert error.message =~ "invalid family: :typo"
-    assert error.message =~ ":restapi or :tsapi"
+    assert error.message =~ "invalid host: :typo"
+    assert error.message =~ ":restapi"
+    assert error.message =~ ":et_api"
   end
 end

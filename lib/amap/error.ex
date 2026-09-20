@@ -9,6 +9,7 @@ defmodule Amap.Error do
   """
 
   alias Amap.Error.Code
+  alias Amap.Host
   alias Amap.Numeric
 
   @filtered "[FILTERED]"
@@ -82,7 +83,7 @@ defmodule Amap.Error do
           message: String.t() | nil,
           detail: String.t() | nil,
           reason: atom(),
-          family: Amap.Client.family() | nil,
+          family: Host.envelope() | nil,
           retry: :no | :immediate | :backoff,
           retry_after: pos_integer() | nil,
           http_status: integer() | nil,

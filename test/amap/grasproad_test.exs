@@ -41,9 +41,9 @@ defmodule Amap.GrasproadTest do
   setup do
     server = TestServer.start!()
 
-    # The tsapi base URL points at a closed port on purpose. This endpoint answers
-    # the Falcon envelope but lives on the Web service host, so a call that ignored
-    # `host: :restapi` fails in transport rather than passing quietly.
+    # The tsapi base URL points at a closed port on purpose: this endpoint answers
+    # the Falcon envelope but lives on the Web service host, so a call that sent to
+    # the tsapi host would fail in transport rather than passing quietly.
     client =
       Amap.new(
         key: "test-key",

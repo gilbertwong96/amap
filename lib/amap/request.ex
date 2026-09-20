@@ -6,15 +6,22 @@ defmodule Amap.Request do
   `application/x-www-form-urlencoded` body on POST, matching what the API
   accepts. Signing happens on raw values before URL encoding, which is what the
   signature algorithm specifies.
+
+  A call names the host it goes to and, when the endpoint's envelope is not that
+  host's default, the envelope it answers. The rest — the base URL, whether to
+  sign, and the name of the account key — is read from `Amap.Host`, so none of
+  those axes is inferred from another.
   """
 
-  alias Amap.{Client, Error, Param, Signature}
+  alias Amap.{Client, Error, Host, Param, Signature}
 
   @form_headers [{"content-type", "application/x-www-form-urlencoded"}]
   @json_headers [{"content-type", "application/json"}]
 
-  # Supplied by the client, never by the caller — see `reject_reserved!/1`.
-  @reserved_params ~w(key sig)
+  # Reserved for every host rather than only the signing ones: a caller who passes
+  # `sig` means the client's, and the client never injects one where the host does
+  # not sign — sending theirs instead would be guessing at their intent.
+  @reserved_sig "sig"
 
   @typedoc """
   The parameters of a call: the map a form body or the one JSON object
@@ -26,73 +33,63 @@ defmodule Amap.Request do
   @doc """
   Builds a Finch request for the given call.
 
-  The key is always injected, and `key` and `sig` are therefore reserved: a
-  caller-supplied copy raises, because the SDK cannot tell which one the caller
-  meant. `sig` is added only for the Web service family: the Falcon
-  documentation never mentions digital signatures, so signing a Falcon request
-  would be guessing.
+  `host` names the destination — one of `Amap.Host.names()`. `envelope:` names
+  the response envelope when the endpoint is not the host's default: the `/v4/`
+  generation on `restapi.amap.com` answers the Falcon envelope, so
+  `/v4/direction/bicycling` is built as host `:restapi` with `envelope: :tsapi`.
+  A host that does not answer the named envelope raises `ArgumentError` rather
+  than falling back.
+
+  The account key is always injected, under the name the host gives it (`key`
+  everywhere today except `et-api`, which says `clientKey`), so the key
+  parameter and `sig` are reserved: a caller-supplied copy raises, because the
+  SDK cannot tell which one the caller meant. `sig` is added only where the
+  host's envelope is signed: the Falcon documentation never mentions digital
+  signatures, and neither do the `/v4/` pages on the Web service host, so
+  signing those would be guessing.
 
   `body: :json` sends the parameters as a JSON document instead of a form: an
   object for `/v1/track/match`, and a non-empty list of objects for
   `/v4/grasproad/driving`, whose body is a JSON array. It keeps the map's shape —
   nested objects stay nested, because `Param.encode/1` would flatten them into
-  string pairs — and is only supported for `:tsapi`, where nothing is signed:
-  signing a JSON body is not defined, and sending one unsigned to a family that
-  expects signatures would be worse than refusing. A JSON value that is neither an
-  object nor a non-empty list of objects is refused, so the guarantee stays narrow.
-
-  `host:` names the base URL when the endpoint's host is not its family's. Some
-  endpoints answer the other family's envelope: `/v4/direction/bicycling` lives on
-  `restapi.amap.com` and answers `{errcode, errmsg, errdetail, data}`, so it is
-  built as `:tsapi` — the family keeps deciding the parser and the signature — with
-  `host: :restapi` deciding where it goes. The default is the family itself, and a
-  host outside those two raises `ArgumentError` rather than falling back to the
-  family — the same refusal `Amap.request/6` documents.
+  string pairs — and is only supported where the request is not signed: signing a
+  JSON body is not defined, and sending one unsigned to an envelope that expects
+  signatures would be worse than refusing. A JSON value that is neither an object
+  nor a non-empty list of objects is refused, so the guarantee stays narrow.
   """
-  @spec build(
-          Client.t(),
-          Client.family(),
-          :get | :post,
-          String.t(),
-          params(),
-          keyword()
-        ) ::
+  @spec build(Client.t(), Host.name(), :get | :post, String.t(), params(), keyword()) ::
           Finch.Request.t()
-  def build(%Client{} = client, family, method, path, params, opts \\ []) do
-    host = host!(opts, family)
+  def build(%Client{} = client, host, method, path, params, opts \\ []) do
+    host = Host.describe(host, Keyword.get(opts, :envelope))
+    refuse_unbuildable!(host)
 
     case Keyword.get(opts, :body, :form) do
-      :form -> build_form(client, family, host, method, path, params)
-      :json -> build_json(client, family, host, method, path, params)
+      :form -> build_form(client, host, method, path, params)
+      :json -> build_json(client, host, method, path, params)
       other -> raise ArgumentError, ":body must be :form or :json, got: #{inspect(other)}"
     end
   end
 
-  # A host is where a request goes, not how its body reads. Amap pairs the two
-  # most of the time — `restapi.amap.com` answers the flat envelope, `tsapi.amap.com`
-  # the Falcon one — but not always: `/v4/direction/bicycling` and
-  # `/v4/grasproad/driving` both live on `restapi.amap.com` and answer the Falcon
-  # envelope, so a call has to be able to name a host its family does not own.
-  # Collected with the other page-versus-service differences in
-  defp host!(opts, family) do
-    case Keyword.get(opts, :host, family) do
-      host when host in [:restapi, :tsapi] ->
-        host
-
-      other ->
-        raise ArgumentError, "invalid host: #{inspect(other)}; expected :restapi or :tsapi"
-    end
+  # `:digest` is described because the page states the shape, but Amap publishes
+  # the digest algorithm only with the commercial grant, so a request that would
+  # need it cannot be built honestly.
+  defp refuse_unbuildable!(%Host{auth: :digest} = host) do
+    raise ArgumentError,
+          "cannot build a request for the #{inspect(host.name)} host: it authenticates with " <>
+            "#{host.key_param} + timestamp + digest, and the digest algorithm is not public"
   end
 
-  defp build_form(client, family, host, method, path, params) do
+  defp refuse_unbuildable!(%Host{}), do: :ok
+
+  defp build_form(client, %Host{} = host, method, path, params) do
     params =
       params
       |> Param.encode()
-      |> reject_reserved!()
-      |> Keyword.put(:key, client.key)
-      |> maybe_sign(client, family, path)
+      |> reject_reserved!(host)
+      |> put_key(client, host)
+      |> maybe_sign(client, host)
 
-    url = client.base_urls[host] <> path
+    url = base_url(client, host) <> path
     encoded = URI.encode_query(params)
 
     case method do
@@ -101,22 +98,25 @@ defmodule Amap.Request do
     end
   end
 
-  defp build_json(_client, family, _host, _method, _path, _params) when family != :tsapi do
+  defp build_json(_client, %Host{auth: :signature} = host, _method, _path, _params) do
     raise ArgumentError,
-          "a JSON body is only supported for the :tsapi family, since signing one is not defined"
+          "a JSON body is only supported where the request is not signed: the " <>
+            "#{inspect(host.name)} host signs its requests, and signing a JSON body " <>
+            "is not defined"
   end
 
-  defp build_json(%Client{} = client, :tsapi, host, method, path, params) when is_map(params) do
+  defp build_json(%Client{} = client, %Host{} = host, method, path, params) when is_map(params) do
     body =
       params
-      |> reject_reserved_map!()
-      |> Map.put("key", client.key)
+      |> reject_reserved_map!(host)
+      |> Map.put(host.key_param, client.key)
       |> Amap.JSON.encode!()
 
     json_request(client, host, method, path, body)
   end
 
-  defp build_json(%Client{} = client, :tsapi, host, method, path, params) when is_list(params) do
+  defp build_json(%Client{} = client, %Host{} = host, method, path, params)
+       when is_list(params) do
     if params != [] and Enum.all?(params, &is_map/1) do
       json_request(client, host, method, path, Amap.JSON.encode!(params))
     else
@@ -124,7 +124,7 @@ defmodule Amap.Request do
     end
   end
 
-  defp build_json(%Client{}, :tsapi, _host, _method, _path, params) do
+  defp build_json(%Client{}, %Host{}, _method, _path, params) do
     raise ArgumentError, json_body_message(params)
   end
 
@@ -134,8 +134,9 @@ defmodule Amap.Request do
   # the key goes. The 轨迹纠偏 page is the first that says: its 通用参数 belong in the
   # query string. Both JSON bodies carry it there, and the object body carries a second
   # copy because that live call needed one.
-  defp json_request(client, host, method, path, body) do
-    url = client.base_urls[host] <> path <> "?" <> URI.encode_query(key: client.key)
+  defp json_request(client, %Host{} = host, method, path, body) do
+    url =
+      base_url(client, host) <> path <> "?" <> URI.encode_query([{host.key_param, client.key}])
 
     Finch.build(method, url, @json_headers, body)
   end
@@ -145,17 +146,17 @@ defmodule Amap.Request do
   end
 
   # Rejected rather than resolved by a precedence rule, because no rule here can
-  # be right. `Param.encode/1` produces string keys while the injection above
-  # uses an atom, so a caller's `"key"` is not replaced but *joined*: the wire
-  # carries `key=real&key=user`, server-side parsing keeps the caller's value,
-  # and the signature covers both entries in an order a server may read
-  # differently. The failure reaches the caller as `invalid_key` or
-  # `invalid_user_signature` and traces to nothing they configured.
+  # be right. The injection below adds the host's key parameter under the name the
+  # host gives it, and a caller's copy would be *joined* rather than replaced: the
+  # wire carries two entries, server-side parsing keeps the caller's value, and
+  # the signature covers both in an order a server may read differently. The
+  # failure reaches the caller as `invalid_key` or `invalid_user_signature` and
+  # traces to nothing they configured.
   #
   # Reachable despite being contradictory — Amap's own documentation lists `key`
   # in every example parameter table, so copying one is plausible.
-  defp reject_reserved!(params) do
-    case Enum.find(@reserved_params, &List.keymember?(params, &1, 0)) do
+  defp reject_reserved!(params, %Host{} = host) do
+    case Enum.find(reserved(host), &List.keymember?(params, &1, 0)) do
       nil ->
         params
 
@@ -167,6 +168,8 @@ defmodule Amap.Request do
     end
   end
 
+  defp reserved(%Host{key_param: key_param}), do: [key_param, @reserved_sig]
+
   @doc """
   Sends a request and normalizes transport-level outcomes.
 
@@ -174,21 +177,21 @@ defmodule Amap.Request do
   signals its own failures in the body with a 200 status, so anything else came
   from a proxy or gateway rather than the API.
   """
-  @spec send(Client.t(), Client.family(), :get | :post, String.t(), params()) ::
+  @spec send(Client.t(), Host.name(), :get | :post, String.t(), params()) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
   @spec send(
           Client.t(),
-          Client.family(),
+          Host.name(),
           :get | :post,
           String.t(),
           params(),
           keyword()
         ) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
-  def send(%Client{} = client, family, method, path, params, opts \\ []) do
+  def send(%Client{} = client, host, method, path, params, opts \\ []) do
     result =
       client
-      |> build(family, method, path, params, opts)
+      |> build(host, method, path, params, opts)
       |> Finch.request(client.pool, receive_timeout: client.timeout)
 
     outcome =
@@ -212,11 +215,11 @@ defmodule Amap.Request do
 
   defp with_request_context(result, _method, _path, _params), do: result
 
-  # The same rule as `reject_reserved!/1`, for a JSON body: there the parameters
+  # The same rule as `reject_reserved!/2`, for a JSON body: there the parameters
   # are a map rather than a list of string pairs, so the lookup differs but the
   # reason does not.
-  defp reject_reserved_map!(params) do
-    case Enum.find(@reserved_params, &Map.has_key?(params, &1)) do
+  defp reject_reserved_map!(params, %Host{} = host) do
+    case Enum.find(reserved(host), &Map.has_key?(params, &1)) do
       nil ->
         params
 
@@ -228,11 +231,24 @@ defmodule Amap.Request do
     end
   end
 
-  defp maybe_sign(params, %Client{private_key: nil}, _family, _path), do: params
+  # `List.keystore/4` rather than `Keyword.put/3` because the key parameter's name
+  # is a string here, as `Param.encode/1`'s keys are — and the caller's copy was
+  # just rejected, so this always appends.
+  defp put_key(params, %Client{key: key}, %Host{key_param: key_param}) do
+    List.keystore(params, key_param, 0, {key_param, key})
+  end
 
-  defp maybe_sign(params, %Client{private_key: private_key}, :restapi, _path) do
+  # A client carries a copy of the base URLs so a test server or a proxy can
+  # replace them; the descriptor supplies the default for a host the map omits.
+  defp base_url(%Client{base_urls: base_urls}, %Host{name: name, base_url: default}) do
+    Map.get(base_urls || %{}, name, default)
+  end
+
+  defp maybe_sign(params, %Client{private_key: nil}, _host), do: params
+
+  defp maybe_sign(params, %Client{private_key: private_key}, %Host{auth: :signature}) do
     Keyword.put(params, :sig, Signature.sign(params, private_key))
   end
 
-  defp maybe_sign(params, %Client{}, :tsapi, _path), do: params
+  defp maybe_sign(params, %Client{}, %Host{}), do: params
 end

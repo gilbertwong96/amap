@@ -14,10 +14,12 @@ defmodule Amap.Response do
   an array" — and the one this SDK promises for every struct field.
   """
 
-  alias Amap.Client
   alias Amap.Error
   alias Amap.JSON
   alias Amap.Numeric
+
+  @typedoc "An envelope `normalize/3` parses."
+  @type envelope :: :restapi | :tsapi
 
   @envelope_restapi ~w(status info infocode)
   # Falcon signals success with 10000 (`10000 OK` is the error table's first
@@ -61,7 +63,7 @@ defmodule Amap.Response do
   was accepted and some of the work succeeded, so reporting it as an error
   would discard the successful part. Use `partial?/2` to detect it.
   """
-  @spec normalize(Client.family(), Amap.JSON.value(), integer() | nil) ::
+  @spec normalize(envelope(), Amap.JSON.value(), integer() | nil) ::
           {:ok, payload()} | {:error, Error.t()}
   def normalize(:tsapi, %{"errcode" => errcode} = body, http_status)
       when is_integer(errcode) or is_binary(errcode) do
@@ -81,7 +83,7 @@ defmodule Amap.Response do
     {:error, Error.from_restapi(body, http_status)}
   end
 
-  def normalize(family, body, http_status) when family in [:restapi, :tsapi] do
+  def normalize(envelope, body, http_status) when envelope in [:restapi, :tsapi] do
     {:error, Error.unexpected_response(http_status, body)}
   end
 
@@ -114,7 +116,7 @@ defmodule Amap.Response do
   defp empty_to_nil(value), do: value
 
   @doc "Whether a Falcon response reports partial success."
-  @spec partial?(Client.family(), Amap.JSON.value()) :: boolean()
+  @spec partial?(:tsapi, Amap.JSON.value()) :: boolean()
   def partial?(:tsapi, %{"errcode" => errcode}),
     do: Numeric.to_integer(errcode) == @partial_success
 

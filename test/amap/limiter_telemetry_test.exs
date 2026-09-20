@@ -57,7 +57,7 @@ defmodule Amap.LimiterTelemetryTest do
     assert_receive {:telemetry, @event, %{wait_ms: wait_ms}, meta}
     assert is_integer(wait_ms)
     assert wait_ms >= 0
-    assert meta.family == :restapi
+    assert meta.host == :restapi
     assert meta.path == "/v3/ip"
     refute inspect(meta) =~ "secret-key-value"
   end
