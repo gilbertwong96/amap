@@ -270,10 +270,10 @@ defmodule Amap.Routing do
     }
   end
 
-  # The city mappers stay total for the same reason the v5 ones do: a shape they do not
-  # read answers `nil` rather than raising, and a list holding something that is not an
-  # object drops that element - a malformed entry loses itself, not the city or the
-  # path around it.
+  # The helpers stay total: a value that is not a list answers `[]`, and a list holding
+  # something that is not an object drops that element - a malformed entry loses itself,
+  # not the city or the path around it. That filtering is also why the mappers below carry
+  # no clause for another shape: only an object ever reaches one.
   defp v3_city(payload) when is_map(payload) do
     %Amap.Direction.City{
       name: payload["name"],
@@ -282,8 +282,6 @@ defmodule Amap.Routing do
       districts: v3_districts(payload["districts"])
     }
   end
-
-  defp v3_city(_other), do: nil
 
   defp v3_cities(list) when is_list(list),
     do: list |> Enum.filter(&is_map/1) |> Enum.map(&v3_city/1)
@@ -297,8 +295,6 @@ defmodule Amap.Routing do
 
   defp v3_district(payload) when is_map(payload),
     do: %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
-
-  defp v3_district(_other), do: nil
 
   defp v3_road(payload) do
     %Amap.Direction.Road{

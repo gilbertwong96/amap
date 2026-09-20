@@ -364,6 +364,29 @@ defmodule Amap.NewRoute.DrivingTest do
     assert absent.cities == nil
   end
 
+  test "drops a path's cities or district sent in a shape their page does not describe", %{
+    server: server,
+    client: client
+  } do
+    strings =
+      ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+        ~s("route":{"origin":"116.434307,39.90909","destination":"116.434446,39.90816",) <>
+        ~s("paths":[{"distance":"12345",) <>
+        ~s("cities":"北京市",) <>
+        ~s("district":"朝阳区"}]}})
+
+    TestServer.expect_once(server, "GET", "/v5/direction/driving", fn _req -> {200, strings} end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+
+    # The path reads both groups as the object its page prints; anything else answers nil
+    # because `to_city/1` and `to_district/1` stay total. Without their clause for another
+    # shape these two lines raise instead of passing.
+    assert path.cities == nil
+    assert path.district == nil
+  end
+
   test "drops the districts it cannot read instead of raising", %{server: server, client: client} do
     steps =
       ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>

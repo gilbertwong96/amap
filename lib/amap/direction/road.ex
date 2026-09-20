@@ -7,9 +7,10 @@ defmodule Amap.Direction.Road do
   runs, `road_name` the road it is on, `traffic_lights` how many lights it meets, and
   `steps` the legs it is made of — read the way `Amap.Direction.Step` reads a path's own
   steps, which is why they are mapped rather than carried verbatim. The two are not
-  identical, as that run showed: its aggregated steps carry no `road`, which a path's
-  own step does. The scalars keep the wire's form and arrive as strings, as v3's other
-  distances and counts do. All seven entries in that run carried the same four keys.
+  identical: the run's aggregated steps carry no `road`, while a path's own step has that
+  field because the page's step table lists it — no run has printed a plain step's keys
+  yet. The scalars keep the wire's form and arrive as strings, as v3's other distances and
+  counts do. All seven entries in that run carried the same four keys.
   """
 
   alias Amap.Direction.Step

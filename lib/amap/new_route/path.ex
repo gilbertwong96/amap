@@ -29,11 +29,13 @@ defmodule Amap.NewRoute.Path do
   **The live run settled it: they hang on the step.** A driving payload asked for them
   all carried `cost` on the path and `cost`, `tmcs`, `navi`, `cities` and `polyline` on
   every step, so each group's data is read from wherever it arrives.
-  **`tmcs` is the only group read in more than one wrapping**: an object, a one-element
-  list of `tmc` objects, or `{"tmc": …}` — the group whose own rules leave the level
-  open, read the way `Amap.Direction` reads the `results`/`result` pair on
-  `/v3/distance`. `cost`, `navi`, `cities` and `district` are read **as an object or
-  `nil`** for the path, so one of them sent wrapped raises rather than mapping. The live
+  **`tmcs` is the only group read in more than one wrapping at one level**: an object, a
+  one-element list of `tmc` objects, or `{"tmc": …}` — the group whose own rules leave the
+  level open, read the way `Amap.Direction` reads the `results`/`result` pair on
+  `/v3/distance`. `cost` and `navi` are read **as an object or `nil`** for the path, so
+  either sent as anything but an object raises rather than mapping; `cities` and `district`
+  are read there as an object too, but their mappers stay total, so one of them sent in
+  another shape answers `nil` — dropped rather than raised. The live
   run put `cities` on a step though the call asked for it, so `Amap.NewRoute.Step`
   carries that group too, as the list of city objects the third run printed; `district`
   arrived at neither level in that run, so it stays where its page puts it.

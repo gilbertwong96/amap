@@ -508,13 +508,18 @@ defmodule Amap.Direction.IntegrationTest do
 
   defp paths_shape(other), do: type_of(other)
 
+  # Which case it hit is part of the answer: the next run's line must not be readable two
+  # ways when `paths` is absent, empty, or starts with something that is not an object.
   defp first_path_step_keys(%{"paths" => [%{"steps" => [step | _]} | _]}) when is_map(step),
     do: inspect(Map.keys(step))
 
   defp first_path_step_keys(%{"paths" => [%{"steps" => steps} | _]}),
-    do: "steps: #{type_of(steps)}"
+    do: "first path has steps: #{type_of(steps)}"
 
-  defp first_path_step_keys(_route), do: "no steps key"
+  defp first_path_step_keys(%{"paths" => [first | _]}), do: "first path: #{type_of(first)}"
+  defp first_path_step_keys(%{"paths" => []}), do: "paths: empty list"
+  defp first_path_step_keys(%{"paths" => paths}), do: "paths: #{type_of(paths)}"
+  defp first_path_step_keys(_route), do: "no paths key"
 
   defp count_or_absent(map, key) do
     case map do
