@@ -94,6 +94,16 @@ defmodule Amap.Search do
   end
 
   @doc """
+  Validates an optional `langCode`, the language every endpoint on all three pages takes.
+
+  `:zh` is Amap's default and `:en` is the 高级服务 (premium) form — the pages say the
+  English POI search needs a 工单 — so `:en` is exposed and either reaches the wire;
+  whether the account may use it is Amap's answer to give.
+  """
+  @spec lang_code(Validate.input()) :: String.t() | nil
+  def lang_code(value), do: Validate.optional_enum!(value, ":lang_code", [:zh, :en])
+
+  @doc """
   Encodes the `polygon` parameter both polygon searches take.
 
   A non-empty list of `{lon, lat}` pairs joined with `|`, as both pages write it: a rectangle
