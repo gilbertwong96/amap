@@ -226,6 +226,36 @@ defmodule Amap.Validate do
     do: "#{field} must be one of #{inspect(allowed)}, got: #{inspect(value)}"
 
   @doc """
+  Validates an optional `show_fields` list and encodes it as the comma-separated string the
+  v5 pages take.
+
+  A group an endpoint's page does not list raises instead of reaching Amap: Amap **ignores**
+  an unknown group and answers `ok` with base fields (a live run confirmed it), so a typo
+  would come back looking like a request Amap chose to answer partly. Both v5 routing
+  (`Amap.NewRoute`) and v5 place search (`Amap.NewPlace`) take this option, which is why it
+  lives here rather than in either module.
+  """
+  @spec optional_show_fields!(input(), String.t(), [atom()]) :: String.t() | nil
+  def optional_show_fields!(nil, _field, _allowed), do: nil
+
+  def optional_show_fields!(fields, field, allowed) when is_list(fields) and fields != [] do
+    case Enum.reject(fields, &(&1 in allowed)) do
+      [] ->
+        Param.csv(fields)
+
+      unknown ->
+        raise ArgumentError,
+              "#{field} must be a subset of #{inspect(allowed)}, got unknown: " <>
+                "#{inspect(unknown)}"
+    end
+  end
+
+  def optional_show_fields!(other, field, allowed) do
+    raise ArgumentError,
+          "#{field} must be a non-empty list of #{inspect(allowed)}, got: #{inspect(other)}"
+  end
+
+  @doc """
   Validates a non-empty list of `{lon, lat}` pairs.
 
   Amap takes coordinates as pairs of numbers everywhere, so a list of lists, a

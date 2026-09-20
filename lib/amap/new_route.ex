@@ -122,7 +122,12 @@ defmodule Amap.NewRoute do
       plate: Validate.optional_present!(Keyword.get(opts, :plate), ":plate"),
       cartype: Routing.cartype(Keyword.get(opts, :cartype)),
       ferry: Routing.ferry(Keyword.get(opts, :ferry)),
-      show_fields: optional_show_fields(opts, @driving_show_fields)
+      show_fields:
+        Validate.optional_show_fields!(
+          Keyword.get(opts, :show_fields),
+          ":show_fields",
+          @driving_show_fields
+        )
     ]
 
     method = validate_method!(Keyword.get(opts, :method))
@@ -167,7 +172,12 @@ defmodule Amap.NewRoute do
           @alternative_routes
         ),
       isindoor: Validate.optional_boolean!(Keyword.get(opts, :isindoor), ":isindoor", as: :int),
-      show_fields: optional_show_fields(opts, @walking_riding_and_transit_show_fields)
+      show_fields:
+        Validate.optional_show_fields!(
+          Keyword.get(opts, :show_fields),
+          ":show_fields",
+          @walking_riding_and_transit_show_fields
+        )
     ]
 
     case Amap.request(client, :restapi, :get, @walking_path, params) do
@@ -218,38 +228,17 @@ defmodule Amap.NewRoute do
           ":alternative_route",
           @alternative_routes
         ),
-      show_fields: optional_show_fields(opts, @walking_riding_and_transit_show_fields)
+      show_fields:
+        Validate.optional_show_fields!(
+          Keyword.get(opts, :show_fields),
+          ":show_fields",
+          @walking_riding_and_transit_show_fields
+        )
     ]
 
     case Amap.request(client, :restapi, :get, path, params) do
       {:ok, payload} -> {:ok, to_route(payload["route"])}
       {:error, _} = error -> error
-    end
-  end
-
-  # An unknown group is not passed through to Amap, which ignores it and answers `ok`
-  # with base fields (the live run confirmed that), so a typo would look like a request
-  # Amap chose to answer partly. Raising here is stricter than Amap on purpose.
-  defp optional_show_fields(opts, allowed) do
-    case Keyword.get(opts, :show_fields) do
-      nil ->
-        nil
-
-      fields when is_list(fields) and fields != [] ->
-        case Enum.reject(fields, &(&1 in allowed)) do
-          [] ->
-            Param.csv(fields)
-
-          unknown ->
-            raise ArgumentError,
-                  ":show_fields must be a subset of #{inspect(allowed)}, got unknown: " <>
-                    "#{inspect(unknown)}"
-        end
-
-      other ->
-        raise ArgumentError,
-              ":show_fields must be a non-empty list of #{inspect(allowed)}, " <>
-                "got: #{inspect(other)}"
     end
   end
 
@@ -449,7 +438,12 @@ defmodule Amap.NewRoute do
         Validate.optional_boolean!(Keyword.get(opts, :nightflag), ":nightflag", as: :int),
       date: Validate.optional_date!(Keyword.get(opts, :date), ":date"),
       time: Validate.optional_time!(Keyword.get(opts, :time), ":time"),
-      show_fields: optional_show_fields(opts, @walking_riding_and_transit_show_fields)
+      show_fields:
+        Validate.optional_show_fields!(
+          Keyword.get(opts, :show_fields),
+          ":show_fields",
+          @walking_riding_and_transit_show_fields
+        )
     ]
 
     case Amap.request(client, :restapi, :get, @transit_path, params) do

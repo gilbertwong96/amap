@@ -197,4 +197,33 @@ defmodule Amap.ValidateTest do
       end
     end
   end
+
+  describe "optional_show_fields!/3" do
+    @groups [:cost, :navi, :walk_type]
+
+    test "comma-joins the groups and treats nil as absent" do
+      assert Validate.optional_show_fields!(nil, ":show_fields", @groups) == nil
+
+      assert Validate.optional_show_fields!([:cost, :navi], ":show_fields", @groups) ==
+               "cost,navi"
+    end
+
+    test "raises, naming the unknown groups, for a group this endpoint lacks" do
+      assert_raise ArgumentError,
+                   ~r/:show_fields must be a subset of \[:cost, :navi, :walk_type\], got unknown: \[:typo\]/,
+                   fn ->
+                     Validate.optional_show_fields!([:cost, :typo], ":show_fields", @groups)
+                   end
+    end
+
+    test "raises for an empty list and for a value that is not a list" do
+      assert_raise ArgumentError, ~r/:show_fields must be a non-empty list of/, fn ->
+        Validate.optional_show_fields!([], ":show_fields", @groups)
+      end
+
+      assert_raise ArgumentError, ~r/:show_fields must be a non-empty list of/, fn ->
+        Validate.optional_show_fields!(:cost, ":show_fields", @groups)
+      end
+    end
+  end
 end
