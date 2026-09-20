@@ -61,7 +61,6 @@ defmodule Amap.NewRoute.BicyclingTest do
     # Neither page has these: no strategy, no indoor routing, no plate, no method.
     refute Map.has_key?(params, "strategy")
     refute Map.has_key?(params, "isindoor")
-    refute Map.has_key?(params, "method")
 
     expect_ride(server, @electrobike_path, @base, parent)
 

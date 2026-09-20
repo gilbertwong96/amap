@@ -85,20 +85,19 @@ defmodule Amap.Direction do
   `origin` is one `{lon, lat}` tuple or **up to three of them**. Amap plans from the
   last pair and takes the 抓路 angle — the direction the car was pointing — from the
   first to the last, which is how a caller says "the fix drifted, this is the line
-  I was on" rather than "I was here". Each pair must be more than 2 m from the next,
-  and Amap admits that past 4 m the angle is a guess.
+  I was on" rather than "I was here". Each pair must be more than 2 m from the next.
 
-  `:strategy` is an integer 0–20. The lower half (0–9) returns one route, the upper
-  (10–20) several, and Amap recommends the upper — `10` is its own app's default
-  behaviour and it suggests using it in place of `11`. `:waypoints` are up to 16
+  `:strategy` is an integer 0–20. The lower half (0–9) returns one result, the upper
+  (10–20) several — the digits mean different things on the two generations' pages, so
+  v3's table is the one to read for these. `:waypoints` are up to 16
   intermediate `{lon, lat}` pairs, planned in the order given, and `:avoidpolygons`
   up to 32 regions of up to 16 points each, `|` between regions and `;` inside one.
   One region may be given on its own instead of a list of them, since a ring of points
   and a list of rings cannot be confused. **A region whose area exceeds 81 km² is
   silently ignored by Amap**, which this module cannot check.
 
-  A plate is two options here — `:province` (京) and `:number` (NH1N11, upper case,
-  6 or 7 characters) — and what they buy is 限行 avoidance, reported per path in
+  A plate is two options here — `:province` (京) and `:number` (NH1N11, six or seven
+  characters) — and what they buy is 限行 avoidance, reported per path in
   `restriction`. `:cartype` is `:fuel` (the default), `:electric` or `:hybrid`.
   `:ferry` is `:use` (the default: the wire's `0` means *take* the ferry) or
   `:avoid`; the option is named after the intent so that `0` never reads as "off".

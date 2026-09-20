@@ -2,9 +2,10 @@ defmodule Amap.Direction.Transit.Plan do
   @moduledoc """
   One way to make the trip — a member of a route's `transits`.
 
-  `cost` is what it costs (yuan), `duration` how long it takes (seconds) and
-  `walking_distance` how much of that is on foot (metres) — the number a caller
-  compares plans by when the question is 走不走得动 rather than 快不快.
+  `cost` is what it costs, `duration` how long it takes and `walking_distance` how
+  much of that is on foot — the number a caller compares plans by when the question is
+  走不走得动 rather than 快不快. All three stay the wire's strings, and the page states
+  no unit for any of them.
 
   `nightflag` is Amap's answer rather than a request: `"1"` when this plan depends
   on a 夜班车 (a night bus). It stays the wire's string.

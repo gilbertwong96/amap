@@ -8,9 +8,9 @@ defmodule Amap.Direction.Transit do
   `transits` — one entry per way to make the trip, Amap's own preference first —
   and why each of those is a plan of several segments.
 
-  `distance` is how far the trip is (metres) and `taxi_cost` what a taxi would cost
-  instead (yuan); both stay strings, as Amap writes them. `origin` and `destination`
-  are the `{lon, lat}` tuples the call asked for.
+  `distance` is how far the trip is and `taxi_cost` what a taxi would cost instead;
+  both stay strings, as Amap writes them, and the page states no unit for either.
+  `origin` and `destination` are the `{lon, lat}` tuples the call asked for.
 
   An answer with no `route` in it is not an error — `transits` is simply empty, the
   same way `Amap.Direction.walking/4` answers an empty route.

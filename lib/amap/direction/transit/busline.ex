@@ -10,8 +10,8 @@ defmodule Amap.Direction.Transit.Busline do
   `polyline` is the line's shape, as a flat list of `{lon, lat}` tuples, the same
   shape a step's polyline takes.
 
-  The four times stay strings in Amap's notation, which is not ISO: `"0600"` is
-  06:00 and `"2300"` is 23:00. `start_time`/`end_time` are the line's first and last
+  The four times stay the strings Amap writes, and nothing here reinterprets them:
+  `start_time`/`end_time` are the line's first and last
   departure, `station_start_time`/`station_end_time` this stop's own. `via_num` is
   how many stops the line passes and `via_stops` which ones, as
   `Amap.Direction.Transit.Stop` structs.

@@ -9,7 +9,8 @@ defmodule Amap.NewRoute.Transit.Cost do
   carries a cost at all. One struct holds both, and each level fills only what it has, so
   a caller reading `taxi_fee` off a segment gets `nil` rather than a surprise.
 
-  `duration` is the time the trip takes (seconds).
+  `duration` is the time the trip takes. It stays the wire's string, and the page
+  states no unit for it.
 
   **The amounts keep the wire's form**: they are strings, and a value Amap did not send
   stays `nil` rather than becoming a zero.

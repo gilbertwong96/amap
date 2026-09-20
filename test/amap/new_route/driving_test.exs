@@ -10,7 +10,8 @@ defmodule Amap.NewRoute.DrivingTest do
   alias Amap.NewRoute.Tmc
   alias Amap.TestServer
 
-  # The whole answer, with every show_fields group this endpoint has.
+  # The whole answer, with every `show_fields` group **this endpoint's page lists** — v5
+  # driving excludes `walk_type`, which only walking and riding document.
   @driven ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
             ~s("route":{"origin":"116.434307,39.90909","destination":"116.434446,39.90816",) <>
             ~s("taxi_cost":"21","paths":[{"distance":"12345","restriction":"0",) <>
@@ -23,6 +24,7 @@ defmodule Amap.NewRoute.DrivingTest do
             ~s("steps":[{"instruction":"沿阜通东大街向西行驶500米","orientation":"西",) <>
             ~s("road_name":"阜通东大街","step_distance":"500",) <>
             ~s("navi":{"action":"直行","assistant_action":"","walk_type":"0"},) <>
+            ~s("cities":{"adcode":"110000","citycode":"010","city":"北京市"},) <>
             ~s("polyline":"116.481247,39.990704;116.481270,39.990726"}]}]}})
 
   # What arrives when show_fields was not asked for: base fields only.
@@ -315,6 +317,40 @@ defmodule Amap.NewRoute.DrivingTest do
     # this payload stands in for the shape the mapper reads.
     assert %Navi{action: "直行", assistant_action: "", walk_type: "0"} = step.navi
     assert step.polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]
+
+    # The key's home is wire evidence — the live run's step keys were `["cost", "tmcs",
+    # "navi", "cities", "polyline"]` while the path carried `cost` alone. The object's
+    # inner shape here is borrowed from the city object v3 established, which item 12's
+    # live helper prints for the next run to confirm.
+    assert %City{adcode: "110000", citycode: "010", city: "北京市"} = step.cities
+  end
+
+  test "reads a step's cities as an object or a list, and nil for any other shape", %{
+    server: server,
+    client: client
+  } do
+    steps =
+      ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+        ~s("route":{"origin":"116.434307,39.90909","destination":"116.434446,39.90816",) <>
+        ~s("paths":[{"distance":"12345","steps":[) <>
+        ~s({"instruction":"object","cities":{"adcode":"110000","city":"北京市"}},) <>
+        ~s({"instruction":"list",) <>
+        ~s("cities":[{"adcode":"110000","city":"北京市"},{"adcode":"110100"}]},) <>
+        ~s({"instruction":"string","cities":"北京市"},) <>
+        ~s({"instruction":"absent"}]}]}})
+
+    TestServer.expect_once(server, "GET", "/v5/direction/driving", fn _req ->
+      {200, steps}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+
+    assert [object, list, other, absent] = path.steps
+    assert %City{adcode: "110000", city: "北京市"} = object.cities
+    assert [%City{adcode: "110000"}, %City{adcode: "110100", city: nil}] = list.cities
+    assert other.cities == nil
+    assert absent.cities == nil
   end
 
   test "leaves the optional groups empty when show_fields was not asked for", %{
@@ -338,7 +374,26 @@ defmodule Amap.NewRoute.DrivingTest do
     assert [step] = path.steps
     assert step.navi == nil
     assert step.tmcs == []
+    assert step.cities == nil
     assert step.polyline == nil
+  end
+
+  test "drops a path the wire sent as a literal null", %{server: server, client: client} do
+    with_null =
+      ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+        ~s("route":{"origin":"116.434307,39.90909","destination":"116.434446,39.90816",) <>
+        ~s("paths":[null,{"distance":"12345","restriction":"0"}]}})
+
+    TestServer.expect_once(server, "GET", "/v5/direction/driving", fn _req ->
+      {200, with_null}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             NewRoute.driving(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+
+    # `Route.paths` is a list of paths: a null entry is dropped rather than built into
+    # an all-nil `%Amap.NewRoute.Path{}`, which is what the mapper would have made of it.
+    assert path.distance == "12345"
   end
 
   test "answers an empty Route when Amap sends no route at all", %{

@@ -296,7 +296,7 @@ defmodule Amap.Direction.DrivingTest do
     end
   end
 
-  test "sends ferry: :use as the wire's 0, which is what the default does", %{
+  test "sends ferry: :use as the wire's 0, and leaves the parameter off when none is named", %{
     server: server,
     client: client
   } do
@@ -310,6 +310,16 @@ defmodule Amap.Direction.DrivingTest do
 
     assert_receive {:query, query}
     assert query["ferry"] == "0"
+
+    expect_driving(server, @driven, parent)
+
+    assert {:ok, %Route{}} =
+             Direction.driving(client, {116.481028, 39.989643}, {116.465302, 40.004717})
+
+    assert_receive {:query, query}
+    # Amap's own default is 0 — *take* the ferry — so a call that names no option stays
+    # off the wire; the option exists so that `0` never has to be read as "off".
+    refute Map.has_key?(query, "ferry")
   end
 
   test "maps the route, its paths and their steps", %{server: server, client: client} do
@@ -412,6 +422,24 @@ defmodule Amap.Direction.DrivingTest do
 
     assert {:ok, %Route{origin: nil, destination: nil, paths: []}} =
              Direction.driving(client, {116.481028, 39.989643}, {116.465302, 40.004717})
+  end
+
+  test "drops a path the wire sent as a literal null", %{server: server, client: client} do
+    with_null =
+      ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
+        ~s("route":{"origin":"116.481028,39.989643",) <>
+        ~s("destination":"116.465302,40.004717",) <>
+        ~s("paths":[null,{"distance":"12345","duration":"1200"}]}})
+
+    TestServer.expect_once(server, "GET", "/v3/direction/driving", fn _req ->
+      {200, with_null}
+    end)
+
+    assert {:ok, %Route{paths: [path]}} =
+             Direction.driving(client, {116.481028, 39.989643}, {116.465302, 40.004717})
+
+    # `Route.paths` is a list of paths: a null entry is dropped rather than kept as one.
+    assert path.distance == "12345"
   end
 
   test "returns an error rather than raising for a refusal", %{server: server, client: client} do

@@ -110,7 +110,8 @@ defmodule Amap.Routing do
   The decoded scalars of a `route` object, plus the paths a generation has mapped.
 
   The paths are the caller's type, because only the generation that owns the struct
-  knows which fields one of its `paths` entries has.
+  knows which fields one of its `paths` entries has. A `null` entry the wire sends in
+  place of a path is dropped, so this list never holds a `nil`.
   """
   @type route_fields(path) :: [
           {:origin, {float(), float()} | nil}
@@ -142,7 +143,11 @@ defmodule Amap.Routing do
   it returns the values narrowly typed, and the module that owns the struct builds it —
   rather than the shared module holding one generation's field list for both.
   """
-  @spec route_fields(Amap.JSON.value(), (Amap.JSON.value() -> path)) :: route_fields(path)
+  # Amap writes a path it could not build as a literal `null` inside the list, and a
+  # mapper answers that with `nil` — so the entry is dropped here rather than landing in
+  # `Route.paths`, whose type is a list of paths and never a list with a hole in it. Both
+  # generations get this from the one line, which is why it lives in the shared mapper.
+  @spec route_fields(Amap.JSON.value(), (Amap.JSON.value() -> path | nil)) :: route_fields(path)
         when path: var
   def route_fields(payload, path_mapper) do
     values = route_values(payload)
@@ -151,7 +156,7 @@ defmodule Amap.Routing do
       origin: values.origin,
       destination: values.destination,
       taxi_cost: values.taxi_cost,
-      paths: Enum.map(values.paths, path_mapper)
+      paths: values.paths |> Enum.map(path_mapper) |> Enum.reject(&is_nil/1)
     ]
   end
 

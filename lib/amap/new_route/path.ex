@@ -11,7 +11,7 @@ defmodule Amap.NewRoute.Path do
   field says which group it came from: `cost` (what the plan takes and charges), `tmcs`
   (the traffic flow), `navi` (the driving actions), `cities` and `district` (what the
   path crosses) and `polyline`, decoded into `{lon, lat}` tuples. A group that was not
-  asked for stays `nil`, or `[]` where the field holds a collection.
+  asked for stays `nil` — `tmcs` is the exception, and the next paragraph says why.
 
   **For `tmcs` that `[]` is ambiguous, and deliberately so.** An empty list is what an
   unasked-for group gets and also what an asked-for group with nothing to report gets,
@@ -31,9 +31,10 @@ defmodule Amap.NewRoute.Path do
   list of `tmc` objects, or `{"tmc": …}` — the group whose own rules leave the level
   open, read the way `Amap.Direction` reads the `results`/`result` pair on
   `/v3/distance`. `cost`, `navi`, `cities` and `district` are read **as an object or
-  `nil`**, so one of them sent wrapped raises rather than mapping. `Amap.NewRoute.Step`
-  has no `cities`/`district` field at all, and the live run saw `cities` on a step, so
-  that group is currently dropped when it arrives there rather than mapped.
+  `nil`** for the path, so one of them sent wrapped raises rather than mapping. The live
+  run put `cities` on a step though the call asked for it, so `Amap.NewRoute.Step`
+  carries that group too, on its own terms; `district` arrived at neither level in that
+  run, so it stays where its page puts it.
   """
 
   alias Amap.NewRoute.City

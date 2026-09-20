@@ -307,10 +307,10 @@ option is named after the intent rather than the number. v5's `driving/4` takes
 `method: :post` for parameters too long to be a URL — with the documented maxima,
 16 waypoints and 32 avoid-polygons, the query measured 12,129 bytes, which GET
 answered with `:unexpected_response` while POST answered the route. And a v5
-`show_fields` group that was not asked for leaves its fields `nil` — or `[]` where
-the field holds a collection — so a `nil` there means "not requested" rather
-than "Amap sent nothing"; `tmcs` is the one list that cannot say which it is,
-because an unasked group and an asked-but-empty one both arrive `[]`. And on the
+`show_fields` group that was not asked for leaves its fields `nil` — so a `nil` there
+means "not requested" rather than "Amap sent nothing"; `tmcs` is the exception, a
+list that cannot say which it is, because an unasked group and an asked-but-empty one
+both arrive `[]`. And on the
 walking and riding endpoints `walk_type` arrives **inside each step's `navi`**
 rather than on the step where those pages list it as a `show_fields` group — the
 probe that saw it there was `/v5/direction/walking`; driving does not return it at

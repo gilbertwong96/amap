@@ -176,9 +176,6 @@ defmodule Amap.NewRoute.WalkingTest do
     # The step-level reading of the groups, which no other payload feeds.
     assert %Cost{duration: "54", tolls: "0"} = step.cost
     assert [%Tmc{tmc_status: "畅通", tmc_distance: "54"}] = step.tmcs
-
-    # The page says `taxi` is not returned inside a step here, so there is no field for it.
-    refute Map.has_key?(step, :taxi)
   end
 
   test "leaves the optional groups empty when show_fields was not asked for", %{

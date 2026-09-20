@@ -635,7 +635,14 @@ defmodule Amap.Direction.IntegrationTest do
 
         values = for group <- at_path, do: "#{group}=#{outer_shape(path[group])}"
 
-        "path: #{inspect(at_path)}; first step: #{inspect(at_step)}; #{Enum.join(values, ", ")}"
+        # The one group whose level and value the page leaves open: the step carries the
+        # key, and what it holds is what the next run narrows `Amap.NewRoute.Step.cities`
+        # to. Printed in full because a key list alone cannot say whether it is an object
+        # or a list.
+        step_cities =
+          if is_map(step), do: "; first step cities: #{inspect(step["cities"])}", else: ""
+
+        "path: #{inspect(at_path)}; first step: #{inspect(at_step)}; #{Enum.join(values, ", ")}#{step_cities}"
 
       other ->
         "no paths: #{inspect(other)}"
@@ -663,6 +670,9 @@ defmodule Amap.Direction.IntegrationTest do
     case struct do
       %Amap.NewRoute.Path{} ->
         base <> " cities=#{inspect(struct.cities)} district=#{inspect(struct.district)}"
+
+      %Amap.NewRoute.Step{} ->
+        base <> " cities=#{inspect(struct.cities)}"
 
       _step ->
         base

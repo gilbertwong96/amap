@@ -10,8 +10,8 @@ defmodule Amap.NewRoute do
   Two things belong to v5 alone. **`:show_fields`** names the optional groups a caller
   wants and Amap returns base fields only when it is unset; each endpoint refuses a group
   its own page does not list — six on driving (`cost`, `tmcs`, `navi`, `cities`,
-  `district`, `polyline`) and four on walking, bicycling and electrobike (`cost`, `navi`,
-  `walk_type`, `polyline`) —
+  `district`, `polyline`) and four on walking, bicycling, electrobike and transit
+  (`cost`, `navi`, `walk_type`, `polyline`) —
   because Amap would answer a request it silently ignored and the typo would look like an
   answer. Amap itself **ignores** an unknown group and answers `ok` with base fields (the
   live run confirmed it), so raising here is a deliberate, stricter choice.
@@ -70,7 +70,7 @@ defmodule Amap.NewRoute do
   # Driving's page alone returns `tmcs`, `cities` and `district`; walking, bicycling,
   # electrobike and transit document the same four, so they share one list.
   @driving_show_fields ~w(cost tmcs navi cities district polyline)a
-  @walking_and_riding_show_fields ~w(cost navi walk_type polyline)a
+  @walking_riding_and_transit_show_fields ~w(cost navi walk_type polyline)a
 
   @doc """
   Plans a driving route.
@@ -93,7 +93,10 @@ defmodule Amap.NewRoute do
   reads as "off".
 
   `:show_fields` names the optional groups to return, and a group that was not asked
-  for leaves its fields `nil`, or `[]` where the field holds a collection. `:method` is
+  for leaves its fields `nil` — `tmcs` is the exception, a list that comes back `[]`
+  either way, so an empty one cannot say whether it was asked for. The wire returns
+  `cities` on each step rather than on the path, which is where `Amap.NewRoute.Step`
+  reads it; `district` and `polyline` stay on the path. `:method` is
   `:get`, the verb the page documents, or `:post`, which the page asks for when the
   parameters grow too long for a URL: the same parameters then travel as a form body,
   and the request is signed either way, because signing follows the family rather than
@@ -164,7 +167,7 @@ defmodule Amap.NewRoute do
           @alternative_routes
         ),
       isindoor: Validate.optional_boolean!(Keyword.get(opts, :isindoor), ":isindoor", as: :int),
-      show_fields: optional_show_fields(opts, @walking_and_riding_show_fields)
+      show_fields: optional_show_fields(opts, @walking_riding_and_transit_show_fields)
     ]
 
     case Amap.request(client, :restapi, :get, @walking_path, params) do
@@ -215,7 +218,7 @@ defmodule Amap.NewRoute do
           ":alternative_route",
           @alternative_routes
         ),
-      show_fields: optional_show_fields(opts, @walking_and_riding_show_fields)
+      show_fields: optional_show_fields(opts, @walking_riding_and_transit_show_fields)
     ]
 
     case Amap.request(client, :restapi, :get, path, params) do
@@ -266,6 +269,10 @@ defmodule Amap.NewRoute do
   # return type, and a key it does not know about is dropped without complaint.
   defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &to_path/1))
 
+  # A path the wire sent as `null` — `Amap.Routing.route_fields/2` drops it rather than
+  # letting an all-nil struct reach `Route.paths`.
+  defp to_path(nil), do: nil
+
   defp to_path(payload) do
     %Path{
       distance: payload["distance"],
@@ -289,9 +296,24 @@ defmodule Amap.NewRoute do
       cost: to_cost(payload["cost"]),
       tmcs: to_tmcs(payload["tmcs"]),
       navi: to_navi(payload["navi"]),
+      cities: to_step_cities(payload["cities"]),
       polyline: Coord.parse_locations(payload["polyline"])
     }
   end
+
+  # The wire puts a step's `cities` on the step (the live run's step keys named it while
+  # the path carried `cost` alone), but its value has never been printed. So this reads
+  # the object the group is documented as, or a list of them the way v3 wraps the same
+  # group, and answers `nil` for anything else rather than raising on a shape nobody has
+  # seen — item 12's live helper prints the raw value, and the next run settles it.
+  defp to_step_cities(nil), do: nil
+  defp to_step_cities(payload) when is_map(payload), do: to_city(payload)
+
+  defp to_step_cities(payload) when is_list(payload) do
+    if Enum.all?(payload, &is_map/1), do: Enum.map(payload, &to_city/1), else: nil
+  end
+
+  defp to_step_cities(_other), do: nil
 
   defp to_cost(nil), do: nil
 
@@ -413,7 +435,7 @@ defmodule Amap.NewRoute do
         Validate.optional_boolean!(Keyword.get(opts, :nightflag), ":nightflag", as: :int),
       date: Validate.optional_date!(Keyword.get(opts, :date), ":date"),
       time: Validate.optional_time!(Keyword.get(opts, :time), ":time"),
-      show_fields: optional_show_fields(opts, @walking_and_riding_show_fields)
+      show_fields: optional_show_fields(opts, @walking_riding_and_transit_show_fields)
     ]
 
     case Amap.request(client, :restapi, :get, @transit_path, params) do

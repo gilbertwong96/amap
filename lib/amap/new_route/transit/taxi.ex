@@ -5,8 +5,9 @@ defmodule Amap.NewRoute.Transit.Taxi do
   This is v5's own field: the v3 transit page has no equivalent, and the two pages' plans
   differ for the same reason.
 
-  `price` is the estimated fare (yuan), `drivetime` how long the ride would take and
-  `distance` how far it goes; all three stay the wire's strings. `polyline` is the ride's
+  `price` is the estimated fare, `drivetime` how long the ride would take and
+  `distance` how far it goes; all three stay the wire's strings, and the page states no
+  unit for any of them. `polyline` is the ride's
   coordinates, decoded into `{lon, lat}` tuples.
 
   `startpoint`/`startname` and `endpoint`/`endname` are where the car collects and drops

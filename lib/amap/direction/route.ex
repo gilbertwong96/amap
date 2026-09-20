@@ -5,8 +5,8 @@ defmodule Amap.Direction.Route do
   `paths` is ranked, Amap's own preference first. `origin` and `destination` are
   `{lon, lat}` tuples, the same shape the request took.
 
-  `taxi_cost` is driving's — the cost of taking a taxi instead, in yuan — and stays
-  `nil` on every other answer in this module.
+  `taxi_cost` is driving's — the cost of taking a taxi instead, in the wire's own
+  string — and stays `nil` on every other answer in this module.
   """
 
   alias Amap.Direction.Path

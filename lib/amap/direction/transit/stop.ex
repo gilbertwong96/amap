@@ -10,9 +10,9 @@ defmodule Amap.Direction.Transit.Stop do
   kind it holds.
 
   The rest belong to trains and stay `nil` on a bus stop: `adcode`, the station's
-  district code; `time`, the departure time at it in Amap's notation (`"0800"` for
-  08:00); `start` and `end`, its 是否始发站/是否终点站 answers (`"1"` or `"0"`); and
-  `wait`, the minutes a train waits there. One struct carries all of them because the
+  district code; `time`, the time at it, which stays the string Amap writes and nothing
+  here reinterprets; `start` and `end`, its 是否始发站/是否终点站 answers (`"1"` or `"0"`);
+  and `wait`, how long a train waits there. One struct carries all of them because the
   three shared fields are the common case and the union is what Amap sends.
   """
 
