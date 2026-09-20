@@ -268,6 +268,10 @@ defmodule Amap.Direction do
   `destination` — no POI ids, no strategy, nothing optional — so the keyword list
   exists for the shape the other four share and carries nothing.
 
+  `Amap.NewRoute.bicycling/4` asks the same question of the newer `/v5/` page — the
+  same two points, with `alternative_route` and `show_fields`, and in the flat
+  envelope the rest of this module uses.
+
   Returns the route Amap planned, or `%Amap.Direction.Route{paths: []}` when it found
   none, as `walking/4` does.
   """

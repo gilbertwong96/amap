@@ -262,6 +262,54 @@ only way to see what Amap thought you meant when a keyword matches nothing.
 `Amap.Weather`'s two modes answer different fields — current conditions or three
 days of forecast — which is why they are two functions rather than one.
 
+## Route planning
+
+Two generations of the same idea, on the same host. `Amap.Direction` is the v3
+page — `driving/4`, `walking/4`, `transit/5` and the measuring `distance/4` — plus
+the v4 `bicycling/4`; `Amap.NewRoute` is v5's, where optional groups arrive only
+when `show_fields` asks for them. Both take and return `{lon, lat}` tuples:
+
+```elixir
+{:ok, route} =
+  Amap.Direction.driving(client, {116.397428, 39.90923}, {116.461, 39.9087},
+    extensions: :all
+  )
+
+[path | _] = route.paths
+path.distance     # "8348" — Amap sends distances as strings
+hd(path.steps).polyline
+# the wire's one `;`-joined string, decoded into `{lon, lat}` tuples
+```
+
+`:extensions` is the v3 endpoint's own grouping: only `:all` fills `tmcs`,
+`cities` and `districts`, while the page's parameter table marks it required and
+its sample says otherwise.
+
+```elixir
+{:ok, route} =
+  Amap.NewRoute.driving(client, {116.397428, 39.90923}, {116.461, 39.9087},
+    show_fields: [:cost, :navi, :polyline]
+  )
+
+[path | _] = route.paths
+path.cost.duration         # "1317" — a group that was asked for
+hd(path.steps).navi.action # "右转" — `walk_type` arrives in here too, not on the step
+```
+
+Four things this pair of pages will not tell you. `Amap.Direction.bicycling/4`
+lives on the Web service host and answers the **track family's** envelope, which
+is why `family` and `host` are two axes and why `Amap.request/6` takes `host:`;
+`Amap.NewRoute.bicycling/4` is its v5 sibling, and `/v4/grasproad/driving` is the
+other endpoint of that kind. `ferry: :use` is the **default** on both
+generations' driving endpoints: the wire's `0` means *take* the ferry, so the
+option is named after the intent rather than the number. v5's `driving/4` takes
+`method: :post` for parameters too long to be a URL — with the documented maxima,
+16 waypoints and 32 avoid-polygons, the query measured 12,129 bytes, which GET
+answered with `:unexpected_response` while POST answered the route. And a v5
+`show_fields` group that was not asked for leaves its fields `nil` — or `[]` where
+the field holds a collection — so a `nil` there means "not requested" rather
+than "Amap sent nothing".
+
 ## Swapping the JSON library
 
 ```elixir

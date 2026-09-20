@@ -11,7 +11,8 @@ defmodule Amap.NewRoute.BicyclingTest do
   @electrobike_path "/v5/direction/electrobike"
 
   # The v5 cycling answer: walking's skeleton, no `taxi_cost` and no `restriction`, and
-  # `walk_type` on the step, which is the level the page prints it at.
+  # `walk_type` inside each step's `navi` — the page prints it as a `show_fields` group
+  # of its own, but the wire puts it there.
   @ridden ~s({"status":"1","info":"OK","infocode":"10000","count":"1",) <>
             ~s("route":{"origin":"116.466485,39.995197","destination":"116.46424,40.020642",) <>
             ~s("paths":[{"distance":"4300",) <>

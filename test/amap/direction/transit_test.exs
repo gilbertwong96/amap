@@ -60,8 +60,8 @@ defmodule Amap.Direction.TransitTest do
   """
 
   # A leg that starts on the bus: Amap leaves `walking` out entirely, and the segment's
-  # field type is `Path.t() | nil`. An all-nil `%Path{}` here would answer the wrong
-  # branch of a caller's truthiness check with no error.
+  # field type is `Walking.t() | nil`. An all-nil `%Walking{}` here would answer the
+  # wrong branch of a caller's truthiness check with no error.
   @bus_only """
   {"status":"1","info":"OK","infocode":"10000","count":"1",
    "route":{"transits":[{"distance":"3000",
@@ -386,7 +386,7 @@ defmodule Amap.Direction.TransitTest do
 
     assert {:ok, %Transit{transits: [%Plan{segments: [segment]}]}} = call_transit(client)
 
-    # The other half of the pair above: the field's type is `Path.t() | nil`, so a leg
+    # The other half of the pair above: the field's type is `Walking.t() | nil`, so a leg
     # Amap did not send a walk for must not arrive as an all-nil struct.
     assert segment.walking == nil
     assert [%Busline{name: "445路"}] = segment.bus

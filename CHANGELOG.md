@@ -37,6 +37,24 @@ Notable changes to this project, newest first. The format follows
   as `{lon, lat}` tuples.
 - `Amap.Validate.point!/2`, `points!/2` and `optional_enum!/3`, for the coordinate
   pairs and the `base`/`all` and coordinate-system parameters three endpoints share.
+- Route planning on both generations: `Amap.Direction` covers v3's `driving/4`,
+  `walking/4`, `transit/5` and the measuring `distance/4` plus the v4 `bicycling/4`,
+  and `Amap.NewRoute` covers v5's `driving/4`, `walking/4`, `bicycling/4`,
+  `electrobike/4` and `transit/5`. `Amap.Direction.bicycling/4` answers the track
+  family's envelope from the Web service host, which is what turned `family` and
+  `host` into two axes: `Amap.request/6` takes `host:`, while the family keeps
+  deciding the parser and the signature.
+- `Amap.NewRoute`'s optional groups arrive only when `show_fields` names them, and
+  the wire puts the riding pages' `walk_type` inside each step's `navi` rather than
+  on the step, where those pages print it.
+- v5's `driving/4` takes `method: :post` for parameters a URL cannot carry: with the
+  documented maxima, 16 waypoints and 32 avoid-polygons, the query measured 12,129
+  bytes, which GET answered with `:unexpected_response` and POST answered with the
+  route.
+- `Amap.Direction.driving/4` gains `roadaggregation: true`, which replaces a path's
+  `steps` with `roads` — the page words it as adding a grouping above them, and the
+  live run saw the replacement — each entry an `Amap.Direction.Road` whose fields
+  are the four keys the wire printed.
 
 ### Changed
 
