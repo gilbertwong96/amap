@@ -6,8 +6,8 @@ defmodule Amap.NewRoute.Transit.Taxi do
   differ for the same reason.
 
   `price` is the estimated fare, `drivetime` how long the ride would take and
-  `distance` how far it goes; all three stay the wire's strings, and the page states no
-  unit for any of them. `polyline` is the ride's
+  `distance` how far it goes; all three stay the wire's strings, and no unit is
+  recorded for any of them. `polyline` is the ride's
   coordinates, decoded into `{lon, lat}` tuples.
 
   `startpoint`/`startname` and `endpoint`/`endname` are where the car collects and drops

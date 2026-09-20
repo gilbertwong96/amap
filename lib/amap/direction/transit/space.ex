@@ -8,7 +8,7 @@ defmodule Amap.Direction.Transit.Space do
   gaps in it, so the codes are not sequential and not every number is a class.
 
   `cost` is the fare, also a string — `"553.0"` is a price Amap wrote, not a
-  number to do arithmetic in — and the page states no unit for it.
+  number to do arithmetic in — and no unit is recorded for it.
   """
 
   defstruct [:code, :cost]

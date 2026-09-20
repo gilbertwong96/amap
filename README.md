@@ -308,7 +308,7 @@ option is named after the intent rather than the number. v5's `driving/4` takes
 16 waypoints and 32 avoid-polygons, the query measured 12,129 bytes, which GET
 answered with `:unexpected_response` while POST answered the route. And a v5
 `show_fields` group that was not asked for leaves its fields `nil` — so a `nil` there
-means "not requested" rather than "Amap sent nothing"; `tmcs` is the exception, a
+means the field was not sent at that level; `tmcs` is the exception, a
 list that cannot say which it is, because an unasked group and an asked-but-empty one
 both arrive `[]`. And on the
 walking and riding endpoints `walk_type` arrives **inside each step's `navi`**

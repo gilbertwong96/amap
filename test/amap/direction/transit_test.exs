@@ -328,7 +328,7 @@ defmodule Amap.Direction.TransitTest do
 
     assert %Stop{name: "西直门", id: "BV1002"} = busline.arrival_stop
     assert busline.via_num == "8"
-    # The line's timetables stay strings — 0600 means 06:00 in Amap's own notation.
+    # The line's timetables stay the strings Amap writes.
     assert busline.start_time == "0600"
     assert busline.station_end_time == "2200"
     assert busline.polyline == [{116.481247, 39.990704}, {116.481270, 39.990726}]

@@ -95,8 +95,8 @@ defmodule Amap.NewRoute do
   `:show_fields` names the optional groups to return, and a group that was not asked
   for leaves its fields `nil` — `tmcs` is the exception, a list that comes back `[]`
   either way, so an empty one cannot say whether it was asked for. The wire returns
-  `cities` on each step rather than on the path, which is where `Amap.NewRoute.Step`
-  reads it; `district` and `polyline` stay on the path. `:method` is
+  `cities` on a step rather than on the path, which is where `Amap.NewRoute.Step`
+  reads it; `district` stays where its page puts it. `:method` is
   `:get`, the verb the page documents, or `:post`, which the page asks for when the
   parameters grow too long for a URL: the same parameters then travel as a form body,
   and the request is signed either way, because signing follows the family rather than

@@ -58,7 +58,7 @@ defmodule Amap.NewRoute.BicyclingTest do
     assert params["destination"] == "116.46424,40.020642"
     refute Map.has_key?(params, "alternative_route")
     refute Map.has_key?(params, "show_fields")
-    # Neither page has these: no strategy, no indoor routing, no plate, no method.
+    # Neither page has strategy or indoor routing.
     refute Map.has_key?(params, "strategy")
     refute Map.has_key?(params, "isindoor")
 

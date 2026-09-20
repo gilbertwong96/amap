@@ -9,7 +9,7 @@ defmodule Amap.Direction.Transit do
   and why each of those is a plan of several segments.
 
   `distance` is how far the trip is and `taxi_cost` what a taxi would cost instead;
-  both stay strings, as Amap writes them, and the page states no unit for either.
+  both stay strings, as Amap writes them, and no unit is recorded for either.
   `origin` and `destination` are the `{lon, lat}` tuples the call asked for.
 
   An answer with no `route` in it is not an error — `transits` is simply empty, the

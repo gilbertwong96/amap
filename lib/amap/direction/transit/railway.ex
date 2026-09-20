@@ -17,8 +17,9 @@ defmodule Amap.Direction.Transit.Railway do
   | 2017 | L 字头、Y 字头的临时火车 |
   | 2018 | S 字头的郊区线火车 |
 
-  `time` is how long the ride takes and `distance` how far it goes — **the page states
-  no unit for either**, and writing "seconds" or "metres" here would be this module's
+  `time` is how long the ride takes and `distance` how far it goes — **no unit is
+  recorded for either** in the endpoint inventory taken on 2026-09-18,
+  and writing "seconds" or "metres" here would be this module's
   guess rather than Amap's word, so both stay the strings they arrive as and nothing
   more is claimed.
 

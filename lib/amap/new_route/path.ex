@@ -17,7 +17,9 @@ defmodule Amap.NewRoute.Path do
   unasked-for group gets and also what an asked-for group with nothing to report gets,
   so a caller reading `tmcs` cannot tell the two apart — a list has nowhere to record
   which it is. The scalar groups do not have this problem: an unasked-for `cost`, `navi`,
-  `cities`, `district` or `polyline` is `nil`, which no answer produces.
+  `cities`, `district` or `polyline` is `nil`, and that means the group was not sent at
+  this level rather than that Amap had nothing to send — the item-12 run asked for all
+  six and the path still read `navi=nil` and `polyline=nil`.
 
   **`Amap.Direction.Path` is not this.** The v5 page renames a step's `road` and
   `distance`, and its traffic objects carry `tmc_`-prefixed names, so the two versions

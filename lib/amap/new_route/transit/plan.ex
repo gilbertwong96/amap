@@ -3,7 +3,7 @@ defmodule Amap.NewRoute.Transit.Plan do
   One way to make the trip — a member of a route's `transits`.
 
   `distance` is how far this plan goes and `nightflag` whether it depends on a 夜班车
-  (`"1"` when it does); both stay the wire's strings, and the page states no unit for
+  (`"1"` when it does); both stay the wire's strings, and no unit is recorded for
   either.
 
   `segments` are the legs in travel order; see `Amap.NewRoute.Transit.Segment`.
