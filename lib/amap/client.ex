@@ -6,11 +6,6 @@ defmodule Amap.Client do
   free, and constructing one in a test is cheap.
   """
 
-  @base_urls %{
-    restapi: "https://restapi.amap.com",
-    tsapi: "https://tsapi.amap.com"
-  }
-
   @enforce_keys [:key]
   defstruct key: nil,
             private_key: nil,
@@ -18,9 +13,7 @@ defmodule Amap.Client do
             limiter: nil,
             timeout: 5_000,
             retry: [],
-            base_urls: @base_urls
-
-  @type family :: :restapi | :tsapi
+            base_urls: Amap.Host.default_base_urls()
 
   @type t :: %__MODULE__{
           key: String.t(),
@@ -29,15 +22,16 @@ defmodule Amap.Client do
           limiter: pid() | nil,
           timeout: pos_integer(),
           retry: keyword(),
-          base_urls: %{family() => String.t()}
+          base_urls: %{Amap.Host.name() => String.t()}
         }
 
   @doc """
-  The origin each API family is served from.
+  The origin each host is served from.
 
-  Callers that need the default host — a test pointing at a local server, for
-  instance — read it here rather than restating the URLs.
+  A client carries a copy so callers can point one at a proxy or a local test
+  server; this is where the defaults come from, and `Amap.Host` remains the one
+  place the wire facts are stated.
   """
-  @spec default_base_urls() :: %{family() => String.t()}
-  def default_base_urls, do: @base_urls
+  @spec default_base_urls() :: %{Amap.Host.name() => String.t()}
+  def default_base_urls, do: Amap.Host.default_base_urls()
 end
