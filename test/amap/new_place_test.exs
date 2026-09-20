@@ -397,10 +397,12 @@ defmodule Amap.NewPlaceTest do
     assert %Photo{title: "图", url: "u"} = poi.photos
   end
 
-  test "maps the detail-only atag and its page's missing count", %{
+  test "maps the detail-only atag, and leaves count nil when the fixture omits it", %{
     server: server,
     client: client
   } do
+    # The fixture is written from the page, which lists no `count`; the service sends one anyway
+    # (a two-id call answered `count "2"`), which the integration file checks instead.
     TestServer.expect_once(server, "GET", "/v5/place/detail", fn _req -> {200, @detail} end)
 
     assert {:ok, %Result{count: nil, pois: [%Poi{atag: "985大学/粤菜"}]}} =

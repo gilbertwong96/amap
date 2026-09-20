@@ -158,8 +158,9 @@ defmodule Amap.NewPlace do
   page's own sample does. v3's `Amap.Place.detail/3` takes one.
 
   Only `:show_fields` and `:lang_code` are documented beside the ids. The 2.0 detail table
-  lists no `count`, so `Result.count` is `nil` on this endpoint's answers, and `atag` — a
-  field the other three endpoints do not return — is read here.
+  lists no `count`, but the service sends one anyway — a two-id call answered `count "2"` —
+  so `Result.count` carries the string as sent. `atag` — a field the other three endpoints
+  do not return — is read here.
   """
   @spec detail(Amap.Client.t(), String.t() | [String.t()], keyword()) ::
           {:ok, Result.t()} | {:error, Amap.Error.t()}
@@ -244,7 +245,8 @@ defmodule Amap.NewPlace do
 
   # The page prints every group as an `object` whose fields follow, which cannot say
   # whether one child or several arrive. Both shapes are kept as sent rather than
-  # normalised, so the struct's union is honest and the owed live run narrows it.
+  # normalised: the run has only shown lists, and the object branch stays because the
+  # page draws every group as one and no run has sent one.
   defp to_list_or_object(nil, _mapper), do: nil
 
   defp to_list_or_object(list, mapper) when is_list(list),

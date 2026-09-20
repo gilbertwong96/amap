@@ -13,8 +13,8 @@ defmodule Amap.Place.IntegrationTest do
       carries a `suggestion` its tables do not list, and whether `infocode` arrives;
     * **every `show_fields` group on the v5 side**, raw: `children`, `business`,
       `indoor`, `navi` and `photos` are typed as a union (`[X.t()] | X.t() | nil`)
-      because the page prints each as an `object` whose fields follow, and this run is
-      what narrows that union;
+      because the page prints each as an `object` whose fields follow; the run has only
+      shown lists, and the file prints every group raw so the remaining branch stays honest;
     * what `extensions=all` adds on the v3 side, and the shapes of `photos`, `biz_ext`
       and `indoor_data` there;
     * pagination: what `count` means against the rows returned, and whether a

@@ -5,10 +5,11 @@ defmodule Amap.NewPlace.Poi do
   The base fields are the page's; everything after `atag` is a `show_fields` group and is
   `nil` when the call did not ask for it. A group's shape is the one thing the 2.0 page
   cannot say — it prints every group as an `object` whose fields follow, for single objects
-  and lists alike — so the two collection-shaped groups (`children`, `photos`) are typed as
-  *either* until the first live run prints what the wire really sends; the mappers keep
-  whichever shape arrived rather than guessing one. `business`, `indoor` and `navi` are
-  documented as single objects and read that way.
+  and lists alike — so the two collection-shaped groups (`children`, `photos`) keep the
+  union type: the run has only shown lists (`children` a list of 1, `photos` a list of 3),
+  and the object branch stays because the page draws every group as one and no run has sent
+  one. The mappers keep whichever shape arrived rather than guessing one. `business`,
+  `indoor` and `navi` are documented as single objects and read that way.
 
   `atag` is detail's own field (现状仅ID查询返回 on the v3 page; the 2.0 detail table lists
   it while the other three do not), so a search answer leaves it `nil`.

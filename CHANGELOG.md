@@ -77,8 +77,8 @@ Notable changes to this project, newest first. The format follows
 - The two search generations keep their pages' field depths: v3 leaves
   `parking_type`, `alias`, `rating` and `cost` flat beside `biz_ext`, v5 nests them
   under `business` and `indoor`. The v5 groups whose page cannot say whether they are
-  a list or one object (`children`, `photos`) are typed as either until a live run
-  narrows them; the search integration file prints every group raw.
+  a list or one object (`children`, `photos`) are typed as a union: the live run has only
+  shown lists, and the object branch stays because the page draws one and no run has sent it.
 
 ### Changed
 
