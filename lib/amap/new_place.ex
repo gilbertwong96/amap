@@ -192,13 +192,15 @@ defmodule Amap.NewPlace do
   defp encode_ids!(id) when is_binary(id), do: Validate.present!(id, ":id")
 
   defp encode_ids!(ids) when is_list(ids) do
+    count = length(ids)
+
     cond do
-      ids == [] ->
+      count == 0 ->
         raise ArgumentError,
               ":id must be a non-empty string or a list of 1..#{@max_detail_ids} ids, got: []"
 
-      length(ids) > @max_detail_ids ->
-        raise ArgumentError, ":id must be at most #{@max_detail_ids} ids, got: #{length(ids)}"
+      count > @max_detail_ids ->
+        raise ArgumentError, ":id must be at most #{@max_detail_ids} ids, got: #{count}"
 
       true ->
         ids |> Enum.map(&Validate.present!(&1, ":id")) |> Param.pipe()
