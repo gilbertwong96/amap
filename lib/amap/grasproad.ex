@@ -32,9 +32,23 @@ defmodule Amap.Grasproad do
   The page grants 个人认证开发者 10000 calls a day and points bulk users at the 猎鹰
   track service.
 
-  A correction Amap cannot make answers `30001` 抓路失败 — often because the points
-  were too few or too sparse — which `Amap.Error` reports as `:grasproad_failed` with
-  `retry: :no`.
+  A live run (2026-09-21) settled the shapes the page leaves open. Success is
+  `errcode: 0` with `errmsg` "OK" and no `errdetail`, and the raw envelope carries a
+  fifth `ext` key beside the four fields `Amap.Response` reads. `data` is
+  `{distance, points[]}`: `distance` arrives as a **float** (`696.0`) and each point
+  `{"x": …, "y": …}` a pair of JSON numbers — the two `/v4/`-on-`restapi` endpoints'
+  numeric shape, not the string distances the v3 and v5 routing pages send. The run also
+  shows Amap **densifying** the corrected track: the page's 8-point sample came back as
+  28 points, so a returned point is a coordinate on the road the track was snapped to,
+  not the answer to one sent point.
+
+  A correction Amap cannot make answers `30001` 抓路失败 — often because the points were
+  too few or too sparse, and the run saw it for an empty array, a single point and a
+  sparse two-point track alike. Its wire text is the generic `ENGINE_RESPONSE_DATA_ERROR`
+  with `errdetail` 引擎返回数据异常; `Amap.Error` reports it as `:grasproad_failed` with
+  `retry: :no`. The 500-object cap is Amap's too: a raw 501-object body answered `20000`
+  `INVALID_PARAMS` with a 500-specific `errdetail`, while this SDK raises `ArgumentError`
+  before sending one.
   """
 
   alias Amap.Grasproad.Point

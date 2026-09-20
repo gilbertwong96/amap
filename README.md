@@ -304,13 +304,19 @@ documents, and its `location` only has an effect when `city` is beside it.
 It takes a driven track of up to 500 points, each a `{lon, lat}` location plus the
 page's `ag` (heading from due north), `tm` (seconds: the first point's from 1970, the
 rest as differences from it) and `sp` (km/h), and answers where the track really ran.
-The body is a JSON **array**, the SDK's only other JSON body besides
-`Amap.Falcon.TrackMatch` — which is why `Amap.Request` accepts a non-empty list of
-maps as well as one object. The endpoint answers the track family's Falcon envelope
-from the Web service host, the second `/v4/` page to do so, so it is called with
-`family: :tsapi` and `host: :restapi` like `Amap.Direction.bicycling/4`; and `30001`,
-the page's 抓路失败 — usually too few or too sparse points — arrives as
-`:grasproad_failed` rather than a generic engine error.
+The live run settles the page's untyped scalars: `distance` is a **number** here
+(`696.0`) and each returned point a `{x, y}` pair of floats, unlike the string
+distances the v3 and v5 routes send — and Amap **densifies** the corrected track, so 8
+sent points came back as 28. The body is a JSON **array**, the SDK's only other JSON
+body besides `Amap.Falcon.TrackMatch` — which is why `Amap.Request` accepts a non-empty
+list of maps as well as one object. The endpoint answers the track family's Falcon
+envelope from the Web service host, the second `/v4/` page to do so, so it is called
+with `family: :tsapi` and `host: :restapi` like `Amap.Direction.bicycling/4`; and
+`30001`, the page's 抓路失败 — too few or too sparse points, and what a single point
+gets too — arrives as `:grasproad_failed` rather than a generic engine error, though
+the wire's own `errmsg` is the generic `ENGINE_RESPONSE_DATA_ERROR`. The SDK refuses a
+track outside 1..500 before sending; the service's own 500 rule shows up on a raw
+501-object body as `20000` `INVALID_PARAMS`.
 
 ## Route planning
 

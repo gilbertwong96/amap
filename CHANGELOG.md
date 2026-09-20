@@ -88,7 +88,13 @@ Notable changes to this project, newest first. The format follows
   map and a list of them are both accepted, and both go out as the array the page
   requires. The answer is the Falcon envelope from the Web service host, so the call
   keeps S4's two axes (`family: :tsapi`, `host: :restapi`), and `30001` 抓路失败 maps
-  to `:grasproad_failed` with `retry: :no`.
+  to `:grasproad_failed` with `retry: :no`. A live run (2026-09-21) confirmed the page's
+  untyped shapes: success is `errcode: 0`, `distance` and each `points[]` `x`/`y` arrive
+  as JSON numbers (floats) rather than the v3/v5 routes' strings, and Amap **densifies**
+  the corrected track — 8 sent points came back as 28. It also answered `30001` with the
+  generic `ENGINE_RESPONSE_DATA_ERROR`/引擎返回数据异常 for a raw empty array, a one-point
+  track and a sparse one, and a raw 501-object body with `20000`/`INVALID_PARAMS` and a
+  500-specific message, which is Amap's own side of the SDK's 1..500 bound.
 
 ### Changed
 
