@@ -285,6 +285,22 @@ defmodule Amap.Validate do
         "#{field} must be a {lon, lat} pair of numbers, got: #{inspect(value)}"
       )
 
+  @doc """
+  Fetches a key every point must carry, naming it when it is missing.
+
+  Both JSON-body point endpoints — Falcon's `point/upload` and 轨迹纠偏 — describe a point
+  as a map whose fields their pages all mark 必填, so the failure is the same in both: the
+  map arrived without something the page requires. `nil` counts as missing, and the
+  message names the key and repeats the point so the caller can see which one.
+  """
+  @spec required!(map(), atom()) :: input()
+  def required!(point, key) when is_map(point) do
+    case Map.get(point, key) do
+      nil -> raise ArgumentError, "each point needs #{inspect(key)}, got: #{inspect(point)}"
+      value -> value
+    end
+  end
+
   @doc "Validates an integer parameter against Amap's documented interval."
   @spec range!(input(), String.t(), integer(), integer()) :: integer()
   def range!(value, field, min, max) do

@@ -107,22 +107,18 @@ defmodule Amap.Grasproad do
   end
 
   defp encode_point(point, index) do
-    {lon, lat} = point |> required!(:location) |> Validate.point!(":location")
+    {lon, lat} =
+      point
+      |> Validate.required!(:location)
+      |> Validate.point!(":location")
 
     %{
       "x" => json_coord(lon),
       "y" => json_coord(lat),
-      "ag" => number!(required!(point, :ag), ":ag"),
-      "tm" => time!(required!(point, :tm), index),
-      "sp" => speed!(required!(point, :sp))
+      "ag" => number!(Validate.required!(point, :ag), ":ag"),
+      "tm" => time!(Validate.required!(point, :tm), index),
+      "sp" => speed!(Validate.required!(point, :sp))
     }
-  end
-
-  defp required!(point, key) do
-    case Map.get(point, key) do
-      nil -> raise ArgumentError, "each point needs #{inspect(key)}, got: #{inspect(point)}"
-      value -> value
-    end
   end
 
   # The page caps a coordinate at six decimals, which is `Param.coord/1`'s rule — the

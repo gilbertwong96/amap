@@ -80,8 +80,8 @@ defmodule Amap.Falcon.Point do
   @spec encode(point()) :: Amap.JSON.object()
   def encode(point) when is_map(point) do
     %{
-      "location" => Amap.Param.location(required!(point, :location)),
-      "locatetime" => unix_ms(required!(point, :locatetime))
+      "location" => Amap.Param.location(Validate.required!(point, :location)),
+      "locatetime" => unix_ms(Validate.required!(point, :locatetime))
     }
     |> put(point, "speed", :speed)
     |> put(point, "direction", :direction)
@@ -92,13 +92,6 @@ defmodule Amap.Falcon.Point do
 
   def encode(other),
     do: raise(ArgumentError, "each point must be a map, got: #{inspect(other)}")
-
-  defp required!(point, key) do
-    case Map.get(point, key) do
-      nil -> raise ArgumentError, "each point needs #{inspect(key)}, got: #{inspect(point)}"
-      value -> value
-    end
-  end
 
   defp unix_ms(%DateTime{} = datetime), do: DateTime.to_unix(datetime, :millisecond)
   defp unix_ms(ms) when is_integer(ms), do: ms
