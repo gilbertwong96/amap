@@ -153,6 +153,9 @@ Notable changes to this project, newest first. The format follows
   ignored, so a call site left over from the old shape fails loudly rather than going
   to the positional host. Telemetry's start metadata carries `host:` where it carried
   `family:`.
+- `%Amap.Error{}` carries the request that produced it in every case: `Amap.request/6`
+  attaches `%{method:, path:, params:}` to an envelope refusal, a body that did not parse,
+  and a limiter timeout too, not only to transport and HTTP-status failures.
 - **Not included in this release:** toll estimation (`Amap.Falcon.Etc`), which Amap
   opens only to enterprise developers. It is deferred rather than guessed at until an
   account exists for it.
