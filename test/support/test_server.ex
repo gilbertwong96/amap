@@ -29,7 +29,15 @@ defmodule Amap.TestServer do
 
   defstruct [:pid, :port, :unconsumed]
 
+  @type t :: %__MODULE__{
+          pid: pid(),
+          port: :inet.port_number(),
+          unconsumed: :counters.counters_ref()
+        }
+
   @idle_timeout 30_000
+  @doctest_port 21_617
+  @prime_attempts 3
   @reason_phrases %{
     200 => "OK",
     201 => "Created",
@@ -52,11 +60,42 @@ defmodule Amap.TestServer do
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
   @doc """
+  The fixed port every doctest file's stand-in binds.
+
+  It is below the ephemeral range, so an outbound connection cannot take it, and
+  it is stated here once — a published example names it in `base_urls` because a
+  doctest body has no test context to read it from, and cannot call this function,
+  since this module does not ship. A mismatch between the two fails the doctest as
+  a transport error rather than passing quietly.
+  """
+  @spec doctest_port() :: 21_617
+  def doctest_port, do: @doctest_port
+
+  @doc """
+  Starts the stand-in on `doctest_port/0`, with the default pool pointed at it.
+
+  A doctest file's server replaces the previous file's on the same port, but the
+  default pool still holds the previous file's keep-alive connection, and the
+  first request of the next file would be sent on that closed socket. One request
+  through the pool replaces it before the examples run.
+
+  A port already in use fails this bind with `:eaddrinuse` — it is never answered
+  by silently choosing another port, because the examples name this one.
+  """
+  @spec start_doctest!() :: t()
+  def start_doctest! do
+    server = start!(port: @doctest_port)
+    prime_pool(server.port, @prime_attempts)
+    server
+  end
+
+  @doc """
   Starts a server, cleaned up when the test ends.
 
   An ephemeral port by default. `port:` binds an exact one, which a doctest
   needs: a doctest body has no test context to read an ephemeral port from.
   """
+  @spec start!(keyword()) :: t()
   def start!(opts \\ []) do
     child_spec = %{
       id: __MODULE__,
@@ -100,14 +139,19 @@ defmodule Amap.TestServer do
 
   @impl true
   def init(opts) do
-    {:ok, listen} =
-      :gen_tcp.listen(Keyword.get(opts, :port, 0), [
-        :binary,
-        packet: :raw,
-        active: false,
-        reuseaddr: true,
-        ip: {127, 0, 0, 1}
-      ])
+    requested = Keyword.get(opts, :port, 0)
+
+    listen =
+      case :gen_tcp.listen(requested, [
+             :binary,
+             packet: :raw,
+             active: false,
+             reuseaddr: true,
+             ip: {127, 0, 0, 1}
+           ]) do
+        {:ok, listen} -> listen
+        {:error, reason} -> raise "cannot bind port #{requested}: #{inspect(reason)}"
+      end
 
     {:ok, port} = :inet.port(listen)
     owner = self()
@@ -176,6 +220,21 @@ defmodule Amap.TestServer do
   def terminate(_reason, state) do
     Enum.each(state.connections, fn {pid, _ref} -> Process.exit(pid, :kill) end)
     :ok
+  end
+
+  defp prime_pool(port, attempts) do
+    request = Finch.build(:get, "http://localhost:#{port}/doctest-prime")
+
+    case Finch.request(request, Amap.Finch) do
+      {:ok, %Finch.Response{}} ->
+        :ok
+
+      {:error, %Finch.TransportError{reason: :closed}} when attempts > 1 ->
+        prime_pool(port, attempts - 1)
+
+      {:error, reason} ->
+        raise "could not reach the doctest stand-in on port #{port}: #{inspect(reason)}"
+    end
   end
 
   defp accept(listen, owner) do
