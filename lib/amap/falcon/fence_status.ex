@@ -9,6 +9,38 @@ defmodule Amap.Falcon.FenceStatus do
   `in` is `false` when the monitored terminal has no position at all, and Amap then
   omits `location` and `time` entirely rather than sending them empty, which is why
   they are optional here.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, page} = Amap.Falcon.FenceStatus.terminal(client, 1000, 456)
+      iex> Enum.map(page.items, &{&1.gfname, &1.in})
+      [{"仓库一", true}, {"仓库二", false}]
+      iex> hd(page.items).location
+      {114.158, 22.279}
+      iex> missing = List.last(page.items)
+      iex> {missing.location, missing.time}
+      {nil, nil}
+
+  `in` is a decoded boolean rather than the `1`/`0` Amap writes, `location` arrives
+  as a `{lon, lat}` tuple, and a terminal with no position is `false` for every
+  fence with `location` and `time` left out — so they read as `nil` rather than as
+  `""` or `0`.
+
+  Asking about a coordinate answers the same rows, and `gfids` narrows them:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, page} =
+      ...>   Amap.Falcon.FenceStatus.location(client, 1000, {114.158, 22.279}, gfids: [77])
+      iex> Enum.map(page.items, & &1.gfid)
+      [77]
   """
 
   use Amap.Falcon.Paging, page: Amap.Falcon.FenceStatus.Page, mapper: :to_status

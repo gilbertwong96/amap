@@ -49,6 +49,56 @@ defmodule Amap.Grasproad do
   `retry: :no`. The 500-object cap is Amap's too: a raw 501-object body answered `20000`
   `INVALID_PARAMS` with a 500-specific `errdetail`, while this SDK raises `ArgumentError`
   before sending one.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> track = [
+      ...>   %{location: {116.478928, 39.997761}, ag: 0, tm: 1_478_031_031, sp: 19},
+      ...>   %{location: {116.478907, 39.998422}, ag: 0, tm: 2, sp: 10},
+      ...>   %{location: {116.479384, 39.998546}, ag: 110, tm: 3, sp: 10},
+      ...>   %{location: {116.481053, 39.998204}, ag: 120, tm: 4, sp: 10},
+      ...>   %{location: {116.481793, 39.997868}, ag: 120, tm: 5, sp: 10},
+      ...>   %{location: {116.482898, 39.998217}, ag: 30, tm: 6, sp: 10},
+      ...>   %{location: {116.483789, 39.999063}, ag: 30, tm: 7, sp: 10},
+      ...>   %{location: {116.484674, 39.999844}, ag: 30, tm: 8, sp: 10}
+      ...> ]
+      iex> {:ok, corrected} = Amap.Grasproad.driving(client, track)
+      iex> {corrected.distance, Enum.map(corrected.points, &{&1.x, &1.y})}
+      {696.0, [{116.478928, 39.997761}, {116.47893, 39.9978}, {116.479384, 39.998546}]}
+      iex> Amap.Grasproad.driving(client, List.duplicate(%{location: {116.4, 39.9}, ag: 0, tm: 1, sp: 10}, 501))
+      ** (ArgumentError) :points must be between 1 and 500, got: 501
+
+  The corrected track is what the call decodes to: `data.distance` as a float and
+  each `data.points` entry as an `Amap.Grasproad.Point`. A track over the page's
+  500-point cap is refused before a request is built.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:error, failed} =
+      ...>   Amap.Grasproad.driving(client, %{
+      ...>     location: {116.478928, 39.997761},
+      ...>     ag: 0,
+      ...>     tm: 1_478_031_031,
+      ...>     sp: 19
+      ...>   })
+      iex> {failed.reason, failed.retry}
+      {:grasproad_failed, :no}
+
+  A correction Amap cannot make is a failure rather than an empty result: 30001
+  arrives as `:grasproad_failed` with `retry: :no`.
   """
 
   alias Amap.Grasproad.Point

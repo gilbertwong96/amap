@@ -11,6 +11,33 @@ defmodule Amap.Convert do
   conversion nobody asked for.
 
   Amap converts up to 40 points per call.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, unconverted} = Amap.Convert.convert(client, [{116.481499, 39.990475}])
+      iex> unconverted.locations
+      [{116.481499, 39.990475}]
+      iex> {:ok, converted} =
+      ...>   Amap.Convert.convert(client, [{116.481499, 39.990475}], coordsys: :gps)
+      iex> converted.locations
+      [{116.487001, 39.992123}]
+      iex> Amap.Convert.convert(client, Enum.map(1..41, &{&1 / 10, 39.99}))
+      ** (ArgumentError) :locations count must be between 1 and 40, got: 41
+
+  Leaving `:coordsys` out is a call, not a mistake: Amap's own default is
+  `autonavi` — "do not convert" — so the first call is answered with its own input,
+  and the stand-in reads the point back as sent. The last call is the page's
+  40-point ceiling, refused here rather than by Amap.
   """
 
   alias Amap.Coord

@@ -23,6 +23,46 @@ defmodule Amap.NewRoute do
   (经度在前，纬度在后): `Amap.Param.polygon_lon_first/1` is the encoder, and
   `Amap.Param.polygon/1` — latitude-first, written for the Falcon search endpoints —
   would transpose every vertex without the request failing.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, route} =
+      ...>   Amap.NewRoute.walking(
+      ...>     client,
+      ...>     {116.466485, 39.995197},
+      ...>     {116.46424, 40.020642},
+      ...>     alternative_route: 2
+      ...>   )
+      iex> Enum.map(route.paths, & &1.distance)
+      ["3200"]
+      iex> Amap.NewRoute.driving(client, {116.466485, 39.995197}, {116.46424, 40.020642}, strategy: 10)
+      ** (ArgumentError) :strategy must be one of [0, 1, 2, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45], got: 10
+
+  The strategies are v5's own enum, not v3's: `10` — "give me several routes"
+  there — is refused here rather than passed through, because the same digits mean
+  other things on this page.
+
+  Each endpoint also refuses a `:show_fields` group its own page does not list,
+  because Amap would ignore the unknown group and answer base fields as if it had
+  understood:
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> Amap.NewRoute.walking(client, {116.466485, 39.995197}, {116.46424, 40.020642}, show_fields: [:tmcs])
+      ** (ArgumentError) :show_fields must be a subset of [:cost, :navi, :walk_type, :polyline], got unknown: [:tmcs]
   """
 
   alias Amap.Coord

@@ -18,6 +18,58 @@ defmodule Amap.Direction do
   Both ends go in as `{lon, lat}` tuples and come back the same way — including
   every step's `polyline`, which Amap writes as one `;`-separated string and this
   module decodes into tuples, so no caller has to split it.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, measured} =
+      ...>   Amap.Direction.distance(
+      ...>     client,
+      ...>     [{116.481028, 39.989643}, {114.481028, 39.989643}],
+      ...>     {114.465302, 40.004717}
+      ...>   )
+      iex> Enum.map(measured, &{&1.origin_id, &1.code})
+      [{"1", nil}, {"2", "2"}]
+
+  `distance/4` is the endpoint whose failures are data: each result carries its own
+  `info` and `code`, and a call only some of whose origins Amap could measure is
+  still `{:ok, [...]}`. The results keep the origins' order in their 1-based
+  `origin_id`.
+
+  A route Amap cannot plan is an answer too — the envelope carries no `route`, which
+  reads as an empty `paths` list rather than a `nil` to branch on:
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, route} =
+      ...>   Amap.Direction.walking(client, {116.434307, 39.90909}, {116.434446, 39.90816})
+      iex> route.paths
+      []
+
+  `bicycling/4` answers the **Falcon** envelope on the Web service host; it still
+  decodes to the same `Amap.Direction.Route` the flat v3 endpoints answer with:
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, cycled} =
+      ...>   Amap.Direction.bicycling(client, {116.466485, 39.995197}, {116.46424, 40.020642})
+      iex> Enum.map(cycled.paths, & &1.distance)
+      ["5432"]
   """
 
   alias Amap.Coord

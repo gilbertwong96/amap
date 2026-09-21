@@ -6,6 +6,50 @@ defmodule Amap.Error do
   the only reliable signal. Branch on `reason`, never on `code`: codes are
   family-scoped and the same number can mean different things in the Web
   service API and the Falcon track service.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{restapi: "http://localhost:21617"})
+      iex> {:error, %Amap.Error{} = refusal} =
+      ...>   Amap.request(client, :restapi, :get, "/v3/ip", ip: "203.0.113.1")
+      iex> {refusal.reason, refusal.code, refusal.message, refusal.detail, refusal.retry}
+      {:invalid_key, 10001, "INVALID_USER_KEY", nil, :no}
+
+  `reason` is the stable field to branch on; `code` and `message` are what Amap
+  wrote in this family's envelope, `detail` is `nil` because the flat envelope has
+  no `errdetail`, and `retry: :no` says a bad key is not worth repeating.
+
+  The Falcon family answers a different envelope, and its failures carry the fields
+  that differ — `errdetail`, and the wait `Amap.request/6` honours once retries are
+  enabled:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:error, %Amap.Error{} = suspended} =
+      ...>   Amap.request(client, :tsapi, :get, "/v1/track/service/list", [])
+      iex> {suspended.family, suspended.reason, suspended.retry, suspended.retry_after}
+      {:tsapi, :access_too_frequent, :backoff, 60_000}
+      iex> {suspended.message, suspended.detail}
+      {"ACCESS_TOO_FREQUENT", "the key is suspended for one minute"}
+
+  Not every failure comes from Amap's body: it answers HTTP 200 even when it
+  refuses, so another status means a proxy or a gateway, and the status is kept on
+  the error rather than decoded as if it were Amap's:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{restapi: "http://localhost:21617"})
+      iex> {:error, %Amap.Error{} = gateway} =
+      ...>   Amap.request(client, :restapi, :get, "/v3/geocode/geo", address: "北京市")
+      iex> {gateway.reason, gateway.http_status, gateway.retry}
+      {:unexpected_response, 502, :no}
+      iex> {gateway.request.method, gateway.request.path, gateway.request.params["address"]}
+      {:get, "/v3/geocode/geo", "北京市"}
   """
 
   alias Amap.Error.Code

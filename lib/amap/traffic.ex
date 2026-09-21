@@ -14,6 +14,33 @@ defmodule Amap.Traffic do
   road), 4 主要道路 (major road), 5 一般道路 (ordinary road) and 6 无名道路 (unnamed
   road). **The values nest** — asking for 5 brings back 1 to 4 as well — so a level
   says how far down the hierarchy to look, not which single class to read.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, base} = Amap.Traffic.circle(client, 5, {116.31, 39.99})
+      iex> {base.roads, base.evaluation.expedite}
+      {[], "90.18"}
+      iex> {:ok, detailed} =
+      ...>   Amap.Traffic.circle(client, 5, {116.31, 39.99}, extensions: :all)
+      iex> Enum.map(detailed.roads, & &1.polyline)
+      [[{116.31, 39.99}, {116.32, 39.995}], [{116.35, 39.98}]]
+      iex> Amap.Traffic.road(client, 5, "中关村大街")
+      ** (ArgumentError) :city or :adcode is required: Amap takes one of the two
+
+  A base answer still carries the congestion summary; the roads are what
+  `extensions: :all` adds, and each road's `polyline` arrives as decoded tuples.
+  `road/4` needs a city or an adcode, and the module refuses the call before asking
+  Amap to search a road it cannot place.
   """
 
   alias Amap.Param

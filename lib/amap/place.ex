@@ -36,6 +36,39 @@ defmodule Amap.Place do
   All four answers share one response tree and therefore one struct pair: `Amap.Place.Result`
   and, per row, `Amap.Place.Poi`. Every coordinate — `location`, `entr_location`,
   `exit_location` — comes back a `{lon, lat}` tuple.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, vague} = Amap.Place.text(client, keywords: "美食")
+      iex> {vague.pois, Enum.map(vague.suggestion.cities, & &1.name)}
+      {[], ["北京市", "上海市"]}
+      iex> {:ok, scoped} = Amap.Place.text(client, keywords: "美食", city: "北京")
+      iex> Enum.map(scoped.pois, & &1.name)
+      ["烤鸭店"]
+
+  `:city` biases rather than filters, and without it a generic keyword is answered
+  with the cities that keyword could mean instead of POIs — that list is the
+  `suggestion`, so an empty `pois` is an answer rather than a failure.
+
+  `text/2` needs one of `:keywords` or `:types`, and says so locally:
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> Amap.Place.text(client, city: "北京")
+      ** (ArgumentError) one of :keywords or :types is required
   """
 
   alias Amap.Coord

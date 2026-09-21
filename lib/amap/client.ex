@@ -4,6 +4,26 @@ defmodule Amap.Client do
 
   A client is a plain struct with no associated process. Passing one around is
   free, and constructing one in a test is cheap.
+
+  ## Examples
+
+  The example is a doctest: it runs against a local stand-in, so it needs no key
+  and never calls Amap.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{restapi: "http://localhost:21617"})
+      iex> client.base_urls
+      %{restapi: "http://localhost:21617"}
+      iex> {:ok, payload} = Amap.request(client, :restapi, :get, "/v3/ip", [])
+      iex> payload["province"]
+      "北京市"
+
+  `base_urls` is the copy of each host's origin that a call resolves against, and
+  overriding one host is how it is pointed at a proxy or a local server; a host the
+  map omits keeps the value `default_base_urls/0` gives it. A real call site omits
+  `base_urls` entirely — `Amap.new(key: …)` — and the override is also the seam the
+  doctests in this SDK's documentation run on: the local stand-in answers on that
+  port, so the examples never need a key or reach Amap.
   """
 
   @enforce_keys [:key]

@@ -29,6 +29,34 @@ defmodule Amap.NewPlace do
   The answer is `Amap.NewPlace.Result` and, per row, `Amap.NewPlace.Poi` — a shallower
   struct than v3's, because this page nests `parking_type`, `alias`, `rating`, `cost` and
   the indoor block under `business`/`indoor` where v3 keeps them flat.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, base} = Amap.NewPlace.text(client, keywords: "北京大学")
+      iex> [poi] = base.pois
+      iex> {poi.business, poi.indoor}
+      {nil, nil}
+      iex> {:ok, asked} =
+      ...>   Amap.NewPlace.text(client, keywords: "北京大学", show_fields: [:business])
+      iex> Enum.map(asked.pois, & &1.business.rating)
+      ["4.7"]
+      iex> Amap.NewPlace.text(client, keywords: "北京大学", show_fields: [:business, :typo])
+      ** (ArgumentError) :show_fields must be a subset of [:children, :business, :indoor, :navi, :photos], got unknown: [:typo]
+
+  A group `:show_fields` did not ask for leaves its fields `nil`, and Amap
+  **ignores** a group its page does not know while answering `ok` with base fields,
+  so a typo would look like a request Amap chose to answer partly. This module
+  refuses it instead.
   """
 
   alias Amap.Coord

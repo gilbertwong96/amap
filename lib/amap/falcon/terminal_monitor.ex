@@ -5,6 +5,35 @@ defmodule Amap.Falcon.TerminalMonitor do
   This is the one endpoint that answers with the position as a bare `"lon,lat"`
   string rather than an object — the search endpoints return the object form —
   so `location` here is a `{lon, lat}` tuple, parsed for you.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, empty} = Amap.Falcon.TerminalMonitor.lastpoint(client, 1000, 456)
+      iex> empty.location
+      nil
+      iex> {:ok, uploaded} =
+      ...>   Amap.Falcon.TerminalMonitor.lastpoint(client, 1000, 456, correction: :n)
+      iex> uploaded.location
+      {114.158, 22.279}
+
+  Under the default `correction: :driving` a short track can come back with no
+  position at all — the call succeeds and `location` is `nil`, not a point — while
+  `correction: :n` answers the point as it was uploaded. Either way `location` is a
+  `{lon, lat}` tuple, parsed from the bare `"lon,lat"` string Amap sends here.
+
+  A correction mode Amap does not document is refused rather than sent:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TerminalMonitor.lastpoint(client, 1000, 456, correction: :maybe)
+      ** (ArgumentError) :correction must be :driving or :n, got: :maybe
   """
 
   alias Amap.Falcon.Position

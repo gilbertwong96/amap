@@ -5,6 +5,42 @@ defmodule Amap.Falcon.FenceTerminal do
   Binding a terminal is what makes a fence answer for it: `Amap.Falcon.FenceStatus`
   reports only on terminals bound to the fence. **One fence holds at most 10,000
   bound terminals**, and one call changes at most 100 of them.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, bound} = Amap.Falcon.FenceTerminal.bind(client, 1000, 77, [456, 457])
+      iex> bound
+      [456, 457]
+      iex> {:ok, page} = Amap.Falcon.FenceStatus.terminal(client, 1000, 456)
+      iex> Enum.map(page.items, & &1.gfid)
+      [77]
+
+  Amap echoes the ids it actually bound — one of them arrives as a string and still
+  decodes to an integer — and a bound terminal is what the fence then answers for.
+
+  A longer list is truncated by Amap with a success answer, so this raises instead
+  of letting a caller believe all of them were bound:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.FenceTerminal.bind(client, 1000, 77, Enum.to_list(1..101))
+      ** (ArgumentError) :tids must be between 1 and 100, got: 101
+
+  `unbind/4` answers the ids it detached, and `:all` answers nothing to enumerate:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.FenceTerminal.unbind(client, 1000, 77, [456])
+      {:ok, [456]}
+      iex> Amap.Falcon.FenceTerminal.unbind(client, 1000, 77, :all)
+      {:ok, nil}
   """
 
   use Amap.Falcon.Paging, page: Amap.Falcon.FenceTerminal.Page, mapper: :to_terminal

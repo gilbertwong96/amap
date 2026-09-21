@@ -29,6 +29,25 @@ defmodule Amap.InputTips do
   decides what `id` is — a POI id, a bus id or a busline id — and a busline tip carries no
   `location` at all, which is the one shape a caller has to expect (`district` stays 省+市+区,
   or 市+区 for a 直辖市).
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, result} = Amap.InputTips.inputtips(client, "招商银行")
+      iex> {result.count, Enum.map(result.tips, &{&1.id, &1.location})}
+      {"2", [{"B000A83M61", {116.45, 39.93}}, {"BV10002739", nil}]}
+
+  One answer mixes kinds: the first tip is a POI with a location, the second a
+  busline whose `location` is absent — the one shape a caller has to expect.
   """
 
   alias Amap.Coord

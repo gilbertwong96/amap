@@ -21,6 +21,43 @@ defmodule Amap.District do
   The answer carries Amap's `suggestion` list too, which is the only way to see
   what it thought was meant when a keyword matches nothing: `districts` is empty
   and `suggestion` is not.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, found} =
+      ...>   Amap.District.district(client, keywords: "朝阳区", extensions: :all)
+      iex> Enum.map(found.items, & &1.adcode)
+      ["110105", "220104"]
+      iex> [first | _] = found.items
+      iex> {first.name, first.polyline}
+      {"朝阳区", [[{116.4, 39.9}, {116.5, 39.95}], [{116.6, 40.0}]]}
+
+  A keyword is not an identifier: 朝阳区 exists in more than one city, so one call
+  can answer a list, and a repeated name is what two entries have in common. The
+  same answer shows `extensions: :all` at work — `polyline` arrives only then, and
+  a division made of separated pieces keeps them apart.
+
+  When nothing matches, `items` is empty and Amap's `suggestion` says what it
+  thought was meant — an empty answer is not a failure:
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, missed} = Amap.District.district(client, keywords: "北金")
+      iex> {missed.items, missed.suggestion.keywords}
+      {[], ["北京"]}
   """
 
   alias Amap.Coord

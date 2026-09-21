@@ -27,6 +27,31 @@ defmodule Amap.Bus do
   The keyword searches can carry Amap's `suggestion` list, which has been empty in
   every probe so far. It is carried as `Amap.Bus.Suggestion`; the search batch may
   own a richer version of that type later.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, nationwide} = Amap.Bus.linename(client, "地铁1号线")
+      iex> {nationwide.count, Enum.map(nationwide.buslines, & &1.citycode)}
+      {"2", ["010", "029"]}
+      iex> {:ok, narrowed} = Amap.Bus.linename(client, "地铁1号线", city: "010")
+      iex> Enum.map(narrowed.buslines, & &1.citycode)
+      ["010"]
+
+  `linename/3` is the endpoint whose page row marks `city` required while its own
+  rule text — and the wire — answer the whole country, so leaving it out is a call,
+  not an error: the same keyword then matches lines in more than one city. `count`
+  arrives as the string Amap sends on this family, which is why it is written as
+  one in the answer above.
   """
 
   alias Amap.Bus.Line

@@ -439,7 +439,6 @@ refused call instead of quoting it as a finding.
 
 Some documented answers must not come from the wire at all: a `@moduledoc` example that teaches a
 call shape or a decode path is a doctest, run offline against the local test server. How those
-work, and which public modules still need them, is in
 work, and which modules carry one, is the naming convention the changelog records.
 
 ## License

@@ -13,6 +13,50 @@ defmodule Amap.Falcon.Geofence do
   Each shape's own parameters go in the options list rather than as positional
   arguments, because the four shapes need different ones; a missing one raises
   rather than sending a fence Amap will reject.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, fence} =
+      ...>   Amap.Falcon.Geofence.add_circle(client, 1000, "仓库一",
+      ...>     center: {114.158, 22.279}, radius: 500)
+      iex> {fence.gfid, fence.name}
+      {77, "仓库一"}
+
+  A shape's own parameters are options, and one that is missing raises here rather
+  than sending a fence Amap will reject:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.Geofence.add_circle(client, 1000, "仓库一", radius: 500)
+      ** (ArgumentError) :center is required for this fence shape
+
+  `delete/3` answers the ids it removed, while `:all` answers nothing, because Amap
+  has nothing to enumerate:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.Geofence.delete(client, 1000, [77])
+      {:ok, [77]}
+      iex> Amap.Falcon.Geofence.delete(client, 1000, :all)
+      {:ok, nil}
+
+  `outputshape: true` is what brings each fence's `shape` back, and it stays in
+  Amap's wire form — longitude first, as a string — rather than becoming a
+  `{lon, lat}` tuple:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, page} = Amap.Falcon.Geofence.list(client, 1000, outputshape: true)
+      iex> [fence] = page.items
+      iex> {page.count, fence.shape["center"]}
+      {1, "114.158,22.279"}
   """
 
   use Amap.Falcon.Paging, page: Amap.Falcon.Geofence.Page, mapper: :to_geofence_struct

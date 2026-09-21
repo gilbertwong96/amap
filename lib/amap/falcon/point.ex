@@ -21,6 +21,54 @@ defmodule Amap.Falcon.Point do
   Amap stores the valid points even when some fail: the call answers `20100` and
   names the offending indices in `data.errorpoints`, which `upload/5` maps into
   `%Amap.Falcon.Point.Upload{}`.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, upload} =
+      ...>   Amap.Falcon.Point.upload(client, 1000, 456, 20, [
+      ...>     %{location: {114.158, 22.279}, locatetime: 1_789_703_117_430},
+      ...>     %{location: {114.159, 22.28}, locatetime: 1_789_703_117_430, direction: 999}
+      ...>   ])
+      iex> [refused] = upload.errorpoints
+      iex> {refused.index, refused.message, refused.raw}
+      {"2", "invalid direction", %{"direction" => "999"}}
+
+  A batch Amap only partly accepts is still `{:ok, _}`: the call answers `20100`,
+  the usable points were stored, and `errorpoints` names the offending index — the
+  string Amap sent, not a number — with the rest of the entry kept in `raw`.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, upload} =
+      ...>   Amap.Falcon.Point.upload(client, 1000, 456, 20, [
+      ...>     %{
+      ...>       location: {114.158, 22.279},
+      ...>       locatetime: ~U[2026-09-17 12:00:00Z],
+      ...>       props: %{"driver" => "abc"}
+      ...>     }
+      ...>   ])
+      iex> upload.errorpoints
+      []
+
+  `upload/5` encodes the point map: `location` as `lon,lat`, a `DateTime` as unix
+  milliseconds and `props` as a JSON object string, and it leaves out every
+  measurement that was not given rather than sending it empty. The stand-in refuses
+  any other encoding.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.Point.upload(client, 1000, 456, 20, List.duplicate(%{}, 101))
+      ** (ArgumentError) :points must be between 1 and 100, got: 101
+
+  Amap stores at most 100 points per call, and a batch outside that is refused here
+  rather than truncated into a success.
   """
 
   alias Amap.Falcon.Point.Upload

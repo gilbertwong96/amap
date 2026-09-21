@@ -14,6 +14,32 @@ defmodule Amap.Weather do
   Conditions update several times an hour and forecasts three times a day (around
   08:00, 11:00 and 18:00), so `reporttime` is the field to read rather than
   assuming how fresh the answer is.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, [live]} = Amap.Weather.live(client, "110000")
+      iex> {live.weather, live.reporttime}
+      {"晴", "2026-09-17 14:00:00"}
+      iex> {:ok, [forecast]} = Amap.Weather.forecast(client, "110000")
+      iex> Enum.map(forecast.casts, & &1.date)
+      ["2026-09-17", "2026-09-18"]
+      iex> Amap.Weather.live(client, "北京")
+      ** (ArgumentError) :city must be an adcode such as "110000", got: "北京"
+
+  The two modes answer different fields rather than the same fields in more detail:
+  `live/2` carries one set of conditions, `forecast/2` carries days under `casts`.
+  And a city name is refused before any request is built — Amap's own `city`
+  parameter takes the code.
   """
 
   alias Amap.Weather.Cast

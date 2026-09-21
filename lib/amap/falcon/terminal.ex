@@ -8,6 +8,47 @@ defmodule Amap.Falcon.Terminal do
   `props` carries your own fields, but only ones you have already declared
   through the custom-field endpoints (batch S2b); sending an undeclared field is
   rejected by Amap, not here.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, terminal} =
+      ...>   Amap.Falcon.Terminal.add(client, 1000, "货车01", props: %{"plate" => "粤B12345"})
+      iex> {terminal.tid, terminal.name, terminal.props}
+      {456, "货车01", %{"plate" => "粤B12345"}}
+      iex> Amap.Falcon.Terminal.add(client, 1000, "货车01", props: "plate=粤B12345")
+      ** (ArgumentError) :props must be a map, got: "plate=粤B12345"
+
+  `props` reaches Amap as a JSON object, and anything else is refused here rather
+  than sent as a string.
+
+  `count` is Amap's count for the whole result set, not for the page, and a
+  terminal that has never reported has no `locatetime`, which reads as `nil`:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, page} = Amap.Falcon.Terminal.list(client, 1000)
+      iex> {page.count, length(page.items)}
+      {3, 2}
+      iex> Enum.map(page.items, & &1.locatetime)
+      [nil, 1_469_817_532]
+
+  `update/4` answers `{:ok, nil}` because Amap sends no data back, and an empty
+  string is how a field is cleared — an update with none of `:name`, `:desc` or
+  `:props` is refused before any request is built:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.Terminal.update(client, 1000, 456, desc: "")
+      {:ok, nil}
+      iex> Amap.Falcon.Terminal.update(client, 1000, 456, [])
+      ** (ArgumentError) update requires at least one of :name, :desc or :props; pass a value to change, or an empty string to clear one
   """
 
   use Amap.Falcon.Paging, page: Amap.Falcon.Terminal.Page, mapper: :to_terminal_struct

@@ -10,6 +10,63 @@ defmodule Amap.Falcon.Grasproad do
   `roaddata/2` answers which roads the points ran on. **It is an advanced service
   that Amap enables by ticket**, so a caller without it gets an error from the
   service rather than from this SDK.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, found} =
+      ...>   Amap.Falcon.Grasproad.trsearch(client, 1000, 456,
+      ...>     trid: 20,
+      ...>     correction: [mapmatch: true]
+      ...>   )
+      iex> {found.counts, found.degraded_params.threshold}
+      {1, false}
+      iex> [track] = found.tracks
+      iex> [point] = track.points
+      iex> {point.location, point.speed, point.locatetime}
+      {{114.1589, 22.2799}, nil, nil}
+
+  `trsearch/4` answers by `trid` here, and the correction is encoded into Amap's own
+  mini-format — `mapmatch: true` becomes `mapmatch=1` among the documented defaults
+  in their documented order, which the stand-in refuses to answer otherwise. A
+  corrected point may carry nothing but its location: a field Amap could not derive
+  from the snapped track is `nil`, not zero. `degradedParams.threshold` is the
+  inverted wire flag — `0` from Amap means the accuracy filter was **not** dropped,
+  which this struct reads as `false`.
+
+  A window has to be Amap's: no more than 24 hours, and not ending in the future.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.Grasproad.trsearch(client, 1000, 456,
+      ...>   starttime: 1_789_703_117_430,
+      ...>   endtime: 1_789_703_117_430 + 25 * 60 * 60 * 1000
+      ...> )
+      ** (ArgumentError) the window may not exceed 24 hours, got 25.0 hours
+
+  `roaddata/2` is enabled by ticket, so an account without it gets a service refusal
+  back as `{:error, %Amap.Error{}}` rather than a result — and a call that says what
+  to read twice over is refused here rather than sent:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:error, error} =
+      ...>   Amap.Falcon.Grasproad.roaddata(client, sid: 1000, tid: 456, trid: 20)
+      iex> {error.reason, error.retry}
+      {:service_not_found, :no}
+      iex> Amap.Falcon.Grasproad.roaddata(client,
+      ...>   sid: 1000,
+      ...>   tid: 456,
+      ...>   trid: 20,
+      ...>   points: List.duplicate(%{location: {1, 2}, locatetime: 1}, 5)
+      ...> )
+      ** (ArgumentError) pass either :points or :sid/:tid/:trid, not both
   """
 
   alias Amap.Falcon.Correction

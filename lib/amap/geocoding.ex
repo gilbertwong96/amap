@@ -11,6 +11,34 @@ defmodule Amap.Geocoding do
   city, district, town, village, street, house number: the country may be left out for
   the mainland, Hong Kong and Macao, but the province, city and district levels may not.
   Taiwan's detailed addresses are not served.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, base} = Amap.Geocoding.regeo(client, {116.31, 39.99})
+      iex> {base.pois, base.roads}
+      {[], []}
+      iex> {:ok, detailed} =
+      ...>   Amap.Geocoding.regeo(client, {116.31, 39.99}, extensions: :all)
+      iex> Enum.map(detailed.pois, & &1.location)
+      [{116.31, 39.991}]
+      iex> Amap.Geocoding.regeo(client, {116.31, 39.99}, radius: 100)
+      ** (ArgumentError) [:radius] only take effect with extensions: :all, which Amap otherwise ignores without saying so
+
+  `extensions: :all` is what Amap asks for to send the detail rows; without it
+  they arrive as `[]` rather than as `nil`, so a caller can enumerate them either
+  way. The four options that only work with `:all` — `:radius`, `:poitype`,
+  `:roadlevel`, `:homeorcorp` — are refused here, because Amap would silently
+  ignore them and answer as if they had been applied.
   """
 
   alias Amap.Coord

@@ -17,6 +17,59 @@ defmodule Amap.Falcon.TerminalSearch do
   strings for custom fields. `sort` accepts only `:lastloctime` and `:name`, in
   `:asc` or `:desc`. The names in the example are 王师傅 and 张师傅 — "Master Wang" and
   "Master Zhang", the ordinary way a driver is addressed.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, page} =
+      ...>   Amap.Falcon.TerminalSearch.search(client, 1000, "王师傅",
+      ...>     filter: [name: ["王师傅", "张师傅"], lastloctime: {:>=, 1_469_817_532}],
+      ...>     sort: {:lastloctime, :desc}
+      ...>   )
+      iex> [driver] = page.items
+      iex> {driver.tid, driver.location.longitude, driver.custom}
+      {456, 114.158, %{"myfield" => "custom"}}
+
+  The filter and sort are given as Elixir terms and encoded here: that call puts
+  `name=王师傅|张师傅&&lastloctime>=1469817532` and `lastloctime:desc` on the wire.
+  `location` is an object, as the search endpoints report it — the bare string is
+  `Amap.Falcon.TerminalMonitor`'s form — and a field Amap returns that this SDK does
+  not know is kept in `custom` rather than dropped.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, page} =
+      ...>   Amap.Falcon.TerminalSearch.aroundsearch(client, 1000, {114.158, 22.279},
+      ...>     radius: 1000
+      ...>   )
+      iex> [near] = page.items
+      iex> {near.distance, near.name}
+      {1200, "货车01"}
+
+  `aroundsearch` takes the centre as a `{lon, lat}` tuple like everywhere else and
+  puts it on the wire latitude-first, which is this endpoint's own order; `distance`
+  is what only the around searches add.
+
+  A `lastloctime` without an operator would silently select the wrong terminals, so
+  it is refused by name rather than encoded:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TerminalSearch.search(client, 1000, "王师傅", filter: [lastloctime: "yesterday"])
+      ** (ArgumentError) unsupported filter value for lastloctime: "yesterday"; expected {:>=, unix_seconds} for terminals that reported since, or {:<, unix_seconds} for those that have not
+
+  A radius outside the endpoint's own 1–5000 metres is refused the same way:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TerminalSearch.aroundsearch(client, 1000, {114.158, 22.279}, radius: 0)
+      ** (ArgumentError) :radius must be between 1 and 5000, got: 0
   """
 
   use Amap.Falcon.Paging, page: Amap.Falcon.TerminalSearch.Page, mapper: :to_result

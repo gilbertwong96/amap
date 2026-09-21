@@ -9,6 +9,63 @@ defmodule Amap.Falcon.TrackAnalysis do
 
   Neither endpoint is limited to a 24-hour window the way `Grasproad.trsearch/4`
   is: Amap reads the whole trace unless a window narrows it.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, policy} = Amap.Falcon.TrackAnalysis.driving_behavior(client, 1000, 456, 20)
+      iex> policy.speed_limit.points
+      []
+      iex> {:ok, strict} =
+      ...>   Amap.Falcon.TrackAnalysis.driving_behavior(client, 1000, 456, 20,
+      ...>     speed_limit_thres: 80
+      ...>   )
+      iex> {strict.ave_speed, strict.harsh_acceleration_count}
+      {48, 1}
+      iex> [event] = strict.harsh_acceleration.points
+      iex> {event.location, event.acceleration}
+      {{114.1589, 22.2799}, 3.2}
+
+  The options are snake_case while the parameters are camelCase: `speed_limit_thres: 80`
+  reaches the wire as `speedLimitThres`, and the stand-in answers that call with a
+  speeding section the default call does not get — leaving the thresholds out asks
+  Amap for its own policy. A non-empty event list arrives one level deeper than an
+  empty one, a live-observed shape this SDK flattens: `harsh_acceleration` holds its
+  event while `harsh_deceleration` is an empty `%Section{}`.
+
+  A payload that is not the endpoint's object is named rather than crashing inside
+  the mapper, and the payload travels with the error so a caller can see what
+  arrived:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:error, error} = Amap.Falcon.TrackAnalysis.driving_behavior(client, 1000, 456, 21)
+      iex> {error.reason, error.response.body}
+      {:unexpected_response, [%{"distance" => 1}, %{"distance" => 2}]}
+
+  `stay_points/5` takes its own camelCase options, and a stay shorter than Amap's
+  documented 60 seconds is refused before any request:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, stays} =
+      ...>   Amap.Falcon.TrackAnalysis.stay_points(client, 1000, 456, 20,
+      ...>     start_time: 1_789_703_117_430,
+      ...>     stay_radius: 100,
+      ...>     stay_time: 120,
+      ...>     mode: :driving
+      ...>   )
+      iex> [stay] = stays.points
+      iex> {stays.count, stay.location, stay.address}
+      {1, {114.1589, 22.2799}, "香港中環"}
+      iex> Amap.Falcon.TrackAnalysis.stay_points(client, 1000, 456, 20, stay_time: 59)
+      ** (ArgumentError) :stay_time must be at least 60 seconds, got: 59
   """
 
   alias Amap.Error

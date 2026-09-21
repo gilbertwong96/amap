@@ -8,6 +8,40 @@ defmodule Amap.Falcon.TerminalColumn do
 
   The field's `type`, and whether it is searchable (`list: :y`), **cannot be
   changed after creation**.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TerminalColumn.add(client, 1000, "plate", :string, list: :y)
+      {:ok, nil}
+      iex> {:ok, [field]} = Amap.Falcon.TerminalColumn.list(client, 1000)
+      iex> {field.column, field.type, field.list}
+      {"plate", "string", nil}
+
+  Declaring answers `{:ok, nil}` — the endpoint sends no data — and the list
+  endpoint reports only the name and the type, so the searchable flag reads as
+  `nil` even for the field just declared `list: :y`: it was not reported, and that
+  is not the same as `:n`.
+
+  A type or a flag Amap does not document is refused here rather than sent:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TerminalColumn.add(client, 1000, "plate", :boolean)
+      ** (ArgumentError) :type must be one of [:string, :double, :int], got: :boolean
+
+  The searchable flag takes `:y` or `:n`, and nothing else:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TerminalColumn.add(client, 1000, "plate", :string, list: "yes")
+      ** (ArgumentError) :list must be :y or :n, got: "yes"
   """
 
   use Amap.Falcon.Columns, base: "/v1/track/terminal/column"

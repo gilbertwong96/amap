@@ -11,6 +11,26 @@ defmodule Amap.Falcon.TraceColumn do
   This page of the documentation is 轨迹自定义字段 (custom trace fields), and the module
   is named after the domain rather than the path. Unlike terminal fields there is no
   "searchable" flag here.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.TraceColumn.add(client, 1000, "driver", :string)
+      {:ok, nil}
+      iex> Amap.Falcon.TraceColumn.add(client, 1000, "driver", :text)
+      ** (ArgumentError) :type must be one of [:string, :double, :int], got: :text
+
+  Declaring answers `{:ok, nil}` because Amap sends no data back, and the stand-in
+  accepts it on the trace fields' own path — `/v1/track/point/column/add`, where the
+  path says `point` while these are trace fields, and where the type has to arrive as
+  the wire word `string` and with no searchable flag, which terminal fields have and
+  trace fields do not. A type Amap does not document is refused here rather than sent.
   """
 
   use Amap.Falcon.Columns, base: "/v1/track/point/column"

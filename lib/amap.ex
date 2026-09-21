@@ -9,6 +9,38 @@ defmodule Amap do
   a request can reach present the same account key, and every host answers HTTP
   200 even when the body reports an error, so status codes are never used to
   detect failures.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{restapi: "http://localhost:21617"})
+      iex> {:ok, payload} = Amap.request(client, :restapi, :get, "/v3/ip", ip: "203.0.113.1")
+      iex> Enum.sort(Map.keys(payload))
+      ["city", "province"]
+
+  That is the call every business module makes: `request/6` names the host and the
+  method, and answers with the bare payload — the `status`/`info`/`infocode` (or
+  `errcode`/`errmsg`/`data`) envelope is taken off before the caller sees it. A
+  Falcon call with no `data` body answers `{:ok, nil}` rather than `{:ok, %{}}`:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.request(client, :tsapi, :post, "/v1/track/service/delete", sid: 1000)
+      {:ok, nil}
+
+  The client owns the account key, so a call that tries to supply its own raises
+  before a request is built — the wire would carry two values, and which one Amap
+  reads is not something the caller controls:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{restapi: "http://localhost:21617"})
+      iex> Amap.request(client, :restapi, :get, "/v3/ip", key: "another-key")
+      ** (ArgumentError) invalid request parameter "key": the client supplies it, so passing it would put two key values on the wire; remove it from the parameters
   """
 
   alias Amap.Client

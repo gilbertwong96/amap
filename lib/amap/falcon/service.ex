@@ -7,6 +7,38 @@ defmodule Amap.Falcon.Service do
 
   All functions take the client first and return
   `{:ok, struct | [struct] | nil} | {:error, %Amap.Error{}}`.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, service} = Amap.Falcon.Service.add(client, "车队A", desc: "夜间配送")
+      iex> {service.sid, service.name, service.desc}
+      {1000, "车队A", "夜间配送"}
+
+  `name` and `desc` obey Amap's naming rules, and one that breaks them is refused
+  here rather than by a round trip that answers `Invalid value of field: …`:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> Amap.Falcon.Service.add(client, "车队 B")
+      ** (ArgumentError) :name may only contain Chinese, letters, digits, _ and -
+
+  What `update/3` reports is the name **as it was before the call**, not the one just
+  sent; and an update with nothing to change is refused before any request is built:
+
+      iex> client =
+      ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
+      iex> {:ok, before} = Amap.Falcon.Service.update(client, 1000, name: "车队B")
+      iex> {before.sid, before.name}
+      {1000, "车队A"}
+      iex> Amap.Falcon.Service.update(client, 1000, [])
+      ** (ArgumentError) update requires at least one of :name or :desc; pass a value to change, or an empty string to clear one
   """
 
   alias Amap.Numeric
