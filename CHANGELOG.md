@@ -103,6 +103,9 @@ Notable changes to this project, newest first. The format follows
   around `result`, with **no `infocode` row** and symbolic `info` values). A request
   that would need the unobtainable digest raises rather than sending; the
   `apilocate` envelope is parsed, though no endpoint module exists for it.
+- `mix integration`, which runs the `:integration`-tagged live checks (`--only
+  integration`) and refuses to start when `AMAP_KEY` is unset, so a skipped run
+  cannot read as a pass.
 
 ### Changed
 

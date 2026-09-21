@@ -29,11 +29,11 @@ defmodule Amap.MixProject do
     ]
   end
 
-  # Both CI aliases run in the test environment: `mix test` refuses to run from
-  # inside another Mix command while the environment is not `:test`, and the
-  # compile/format/credo steps behave identically either way.
+  # The CI aliases and `mix integration` run in the test environment: `mix test`
+  # refuses to run from inside another Mix command while the environment is not
+  # `:test`, and the compile/format/credo steps behave identically either way.
   def cli do
-    [preferred_envs: [ci: :test, "ci.fast": :test]]
+    [preferred_envs: [ci: :test, "ci.fast": :test, integration: :test]]
   end
 
   # `mix ci.fast` is the inner loop: fast enough to run on every save. `mix ci`
@@ -57,8 +57,28 @@ defmodule Amap.MixProject do
         "ex_dna",
         "reach.check --dead-code --smells",
         "test --warnings-as-errors"
-      ]
+      ],
+      integration: &integration/1
     ]
+  end
+
+  # A plain alias would run `test --only integration` with every check skipped
+  # when AMAP_KEY is unset and exit 0 — a green run that proves nothing. The
+  # function makes that a loud failure before the tests start.
+  defp integration(args) do
+    if System.get_env("AMAP_KEY") in [nil, ""] do
+      Mix.raise("""
+      AMAP_KEY is not set, so the integration tests have no key to call Amap with.
+
+      They hit the live service and spend real quota. Set the variable and rerun:
+
+          AMAP_KEY=… mix integration
+
+      Without a key every check would skip, and the run would exit green.
+      """)
+    end
+
+    Mix.Task.run("test", ["--only", "integration" | args])
   end
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]

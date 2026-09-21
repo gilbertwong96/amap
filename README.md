@@ -413,6 +413,30 @@ test
 All of the tooling is `dev`/`test` scoped, so none of it reaches consumers of the
 package.
 
+### Integration tests
+
+The live checks are tagged `:integration` and excluded from `mix test`; the
+`mix integration` alias runs them:
+
+```sh
+AMAP_KEY=… mix integration
+```
+
+Extra arguments pass through to `mix test`, so
+`mix integration test/amap/bus/integration_test.exs` runs one file. Without
+`AMAP_KEY` the alias stops with a Mix error rather than running every check
+skipped — a green exit that would prove nothing. The tests call Amap for real and
+spend real quota, so run them when a page needs the wire, not on every change.
+
+**A refusal is not an answer.** Amap rate-limits per key, and a refused call comes
+back as a tiny envelope — 71 bytes in the 2026-09-20 search run — with `status:"0"`
+and `infocode:"10022"`. A check that prints `count: nil` or `suggestion: nil` from
+such a body has proved nothing: the field is missing because the call was refused,
+not because the endpoint does not send it. In that run 输入提示 answered the 71-byte
+refusal on pass 1 and a 2,404-byte body on pass 2, and only pass 2's answers were
+recorded. Only a full envelope whose `infocode` is `"10000"` is an answer; rerun a
+refused call instead of quoting it as a finding.
+
 ## License
 
 MIT
