@@ -108,13 +108,15 @@ Notable changes to this project, newest first. The format follows
   cannot read as a pass.
 - `Amap.IpLocation`'s moduledoc examples, executed as doctests against the local test
   server, and the convention the rest of the sweep follows.
+- `mix docs` includes `README.md` and `CHANGELOG.md` as ExDoc extras, so the generated
+  doc set carries both alongside the module pages.
 
 ### Changed
 
 - `Amap.Response` applies Amap's empty-array convention to the flat envelope too, so
   a field Amap has no value for reaches a caller as `nil` rather than as `[]`.
 - `Amap.Falcon.Validate` became `Amap.Validate`, with only the track service's name
-  rules left family-specific, and `Amap.Falcon.Point.parse_location/1` moved to
+  rules left family-specific, and `Amap.Falcon.Point`'s `parse_location/1` moved to
   `Amap.Coord.parse_location/1`.
 - `Amap.Falcon.TerminalMonitor.Position` and `Amap.Falcon.Grasproad.Point` described
   one wire object twice, so both are now `Amap.Falcon.Position`.
