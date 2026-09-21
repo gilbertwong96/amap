@@ -108,8 +108,9 @@ Notable changes to this project, newest first. The format follows
   cannot read as a pass.
 - `Amap.IpLocation`'s moduledoc examples, executed as doctests against the local test
   server, and the convention the rest of the sweep follows.
-- `mix docs` includes `README.md` and `CHANGELOG.md` as ExDoc extras, so the generated
-  doc set carries both alongside the module pages.
+- `mix docs` includes `README.md` and `CHANGELOG.md` as ExDoc extras, with the README
+  as the entry page and titled `README` in the sidebar so it does not duplicate the
+  `Amap` module page's label.
 
 ### Changed
 

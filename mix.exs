@@ -112,10 +112,10 @@ defmodule Amap.MixProject do
 
   defp docs do
     [
-      main: "Amap",
+      main: "readme",
       source_ref: "v#{@version}",
       source_url: @source_url,
-      extras: ["README.md", "CHANGELOG.md"]
+      extras: [{"README.md", title: "README"}, "CHANGELOG.md"]
     ]
   end
 
