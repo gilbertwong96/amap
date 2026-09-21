@@ -437,6 +437,11 @@ refusal on pass 1 and a 2,404-byte body on pass 2, and only pass 2's answers wer
 recorded. Only a full envelope whose `infocode` is `"10000"` is an answer; rerun a
 refused call instead of quoting it as a finding.
 
+Some documented answers must not come from the wire at all: a `@moduledoc` example that teaches a
+call shape or a decode path is a doctest, run offline against the local test server. How those
+work, and which public modules still need them, is in
+work, and which modules carry one, is the naming convention the changelog records.
+
 ## License
 
 MIT

@@ -2,7 +2,7 @@ defmodule Amap.TestServer do
   @moduledoc false
 
   # A minimal HTTP/1.1 server for tests, serving canned responses from an
-  # ephemeral port.
+  # ephemeral port, or from a fixed one when a doctest needs to name it.
   #
   # This exists to keep `plug_cowboy`, `cowboy` and `cowlib` out of the
   # dependency tree. Bypass does the same job but arrives with all three, plus
@@ -49,13 +49,18 @@ defmodule Amap.TestServer do
     defstruct [:method, :path, :query, :headers, :body]
   end
 
-  def start_link(_opts), do: GenServer.start_link(__MODULE__, [])
+  def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
 
-  @doc "Starts a server on an ephemeral port, cleaned up when the test ends."
-  def start! do
+  @doc """
+  Starts a server, cleaned up when the test ends.
+
+  An ephemeral port by default. `port:` binds an exact one, which a doctest
+  needs: a doctest body has no test context to read an ephemeral port from.
+  """
+  def start!(opts \\ []) do
     child_spec = %{
       id: __MODULE__,
-      start: {__MODULE__, :start_link, [[]]},
+      start: {__MODULE__, :start_link, [opts]},
       restart: :temporary
     }
 
@@ -94,9 +99,9 @@ defmodule Amap.TestServer do
   end
 
   @impl true
-  def init(_opts) do
+  def init(opts) do
     {:ok, listen} =
-      :gen_tcp.listen(0, [
+      :gen_tcp.listen(Keyword.get(opts, :port, 0), [
         :binary,
         packet: :raw,
         active: false,

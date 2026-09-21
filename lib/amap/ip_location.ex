@@ -11,6 +11,40 @@ defmodule Amap.IpLocation do
 
   Amap resolves **IPv4 in China only**. An IPv6 literal is a call-site error
   rather than a round trip, so it raises here.
+
+  ## Examples
+
+  The examples are doctests: they run against a local stand-in, so they need no key
+  and never call Amap. `base_urls` is the override the client documents for exactly
+  that — a proxy or a local server — and a real call site omits it:
+  `Amap.new(key: …)`. The stand-in's payloads are illustrative, not live readings.
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> {:ok, located} = Amap.IpLocation.ip(client, ip: "203.0.113.1")
+      iex> Enum.map(located.rectangle, fn {lon, lat} -> is_float(lon) and is_float(lat) end)
+      [true, true]
+      iex> {:ok, unplaceable} = Amap.IpLocation.ip(client, ip: "198.51.100.7")
+      iex> {unplaceable.province, unplaceable.city, unplaceable.adcode, unplaceable.rectangle}
+      {nil, nil, nil, nil}
+      iex> {:error, %Amap.Error{reason: :invalid_key}} = Amap.IpLocation.ip(client)
+
+  The last two are the distinction this endpoint makes: an address Amap cannot
+  place is an **answer** — `{:ok, _}` with every field `nil` — while a refusal is
+  an `{:error, %Amap.Error{}}`.
+
+  An IPv6 literal raises before any request is built:
+
+      iex> client =
+      ...>   Amap.new(
+      ...>     key: "test-key",
+      ...>     base_urls: %{restapi: "http://localhost:21617"}
+      ...>   )
+      iex> Amap.IpLocation.ip(client, ip: "2001:db8::1")
+      ** (ArgumentError) :ip must be an IPv4 address, got: "2001:db8::1"
   """
 
   alias Amap.Coord

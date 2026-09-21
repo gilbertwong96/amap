@@ -106,6 +106,8 @@ Notable changes to this project, newest first. The format follows
 - `mix integration`, which runs the `:integration`-tagged live checks (`--only
   integration`) and refuses to start when `AMAP_KEY` is unset, so a skipped run
   cannot read as a pass.
+- `Amap.IpLocation`'s moduledoc examples, executed as doctests against the local test
+  server, and the convention the rest of the sweep follows.
 
 ### Changed
 
