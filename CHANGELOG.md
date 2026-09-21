@@ -19,7 +19,7 @@ Notable changes to this project, newest first. The format follows
 - Opt-in token-bucket rate limiting via `limiter: :personal | :enterprise | [rate: …]`.
 - Telemetry spans for requests and for time spent waiting on the limiter.
 - Retry driven by the failure's own classification, off by default.
-- Falcon track service as module functions: `Amap.Falcon.Service` and
+- Falcon track service (猎鹰轨迹服务) as module functions: `Amap.Falcon.Service` and
   `Amap.Falcon.Terminal` for the resources themselves, `Amap.Falcon.TerminalSearch`
   for the four search shapes, and `Amap.Falcon.TerminalMonitor` for a terminal's
   last known position. Coordinates are `{longitude, latitude}` everywhere; the
@@ -27,7 +27,7 @@ Notable changes to this project, newest first. The format follows
 - `Amap.Param.lat_lng/1` and `Amap.Param.polygon/1` for the wire formats those
   endpoints take, and `Amap.Validate` for the rules Amap documents about names and
   ranges, enforced before a request is built rather than by a round trip.
-- The Web service queries: `Amap.IpLocation.ip/2`, `Amap.Geocoding.geo/3` and
+- The Web service (Web 服务) queries: `Amap.IpLocation.ip/2`, `Amap.Geocoding.geo/3` and
   `regeo/3`, `Amap.Convert.convert/3`, `Amap.District.district/2`,
   `Amap.Weather.live/2` and `Amap.Weather.forecast/2`, and `Amap.Traffic.road/4`,
   `circle/4` and `rectangle/4`. `Amap.Traffic` is a 高级服务 interface, opened by
@@ -111,6 +111,13 @@ Notable changes to this project, newest first. The format follows
 - `mix docs` includes `README.md` and `CHANGELOG.md` as ExDoc extras, with the README
   as the entry page and titled `README` in the sidebar so it does not duplicate the
   `Amap` module page's label.
+- Bilingual service naming: at a module's first mention, each service the docs name
+  now pairs its English and Chinese forms — the Web service API (Web 服务 API), the
+  Falcon track service (猎鹰轨迹服务), the traffic incident service (交通事件) and the
+  smart hardware location service v1 (智能硬件定位 v1) — and the sweep reaches the
+  README, the CHANGELOG and the package description on hex.pm. Amap publishes these
+  services in Chinese only, so the English forms are this SDK's translations rather
+  than names Amap gives.
 
 ### Changed
 

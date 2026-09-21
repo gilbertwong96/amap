@@ -172,7 +172,7 @@ defmodule Amap.Place do
   `polygon` is a non-empty list of `{lon, lat}` pairs joined with `|`, **longitude
   first**: a rectangle is its two corners, anything else repeats the first pair at the
   end, as the page's own sample does. This is the one encoder in the SDK that writes that
-  separator — `Amap.Param.polygon/1` is Falcon's latitude-first form and
+  separator — `Amap.Param.polygon/1` is the Falcon (猎鹰) latitude-first form and
   `Amap.Param.polygon_lon_first/1` is the routing `|`-between-groups form — so
   `Amap.Search.polygon/1` owns it.
 

@@ -19,10 +19,10 @@ defmodule Amap.NewRoute do
   where `32` is Amap's own default and the rest are its app's combinations — v3's `10`,
   which means "give me several routes", is not one of them.
 
-  `:avoidpolygons` is longitude-first here as everywhere on the Web service side
-  (经度在前，纬度在后): `Amap.Param.polygon_lon_first/1` is the encoder, and
-  `Amap.Param.polygon/1` — latitude-first, written for the Falcon search endpoints —
-  would transpose every vertex without the request failing.
+  `:avoidpolygons` is longitude-first here as everywhere on the Web service
+  (Web 服务) side (经度在前，纬度在后): `Amap.Param.polygon_lon_first/1` is the encoder, and
+  `Amap.Param.polygon/1` — latitude-first, written for the Falcon (猎鹰) search
+  endpoints — would transpose every vertex without the request failing.
 
   ## Examples
 

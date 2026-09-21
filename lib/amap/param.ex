@@ -37,16 +37,17 @@ defmodule Amap.Param do
   def lat_lng({lon, lat}), do: coord(lat) <> "," <> coord(lon)
 
   @doc """
-  Formats one polygon ring, or several, in lat,lon order — Falcon's.
+  Formats one polygon ring, or several, in lat,lon order — the order the Falcon (猎鹰)
+  search endpoints take.
 
   A ring is a list of `{lon, lat}` points; several rings are a list of rings.
   Rings are joined with `;` and groups with `|`, which is the form Amap's
   `polygon` parameter takes. Amap also caps the total bounding area at 3000 km²,
   which this cannot check.
 
-  **Latitude-first is Falcon's rule, not Amap's.** Every Web-service polygon — the
-  routing `avoidpolygons`, the search endpoints' `polygon`, GeoHUB's — is
-  longitude-first and wants `polygon_lon_first/1`; reaching for this function there
+  **Latitude-first is the Falcon (猎鹰) rule, not Amap's.** Every Web service
+  (Web 服务) polygon — the routing `avoidpolygons`, the search endpoints' `polygon`,
+  GeoHUB's — is longitude-first and wants `polygon_lon_first/1`; reaching for this function there
   transposes every vertex silently, because the request still succeeds.
   """
   @spec polygon([{number(), number()}] | [[{number(), number()}]]) :: String.t()

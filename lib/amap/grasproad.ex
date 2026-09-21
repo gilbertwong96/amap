@@ -5,7 +5,7 @@ defmodule Amap.Grasproad do
   The page is one endpoint, `POST /v4/grasproad/driving`, and it breaks two of this
   SDK's usual assumptions at once:
 
-    * its URL is on `restapi.amap.com`, but its answer is the Falcon envelope —
+    * its URL is on `restapi.amap.com`, but its answer is the Falcon (猎鹰) envelope —
       `errcode`/`errmsg`/`errdetail` around a `data` object. It is the second of the
       three known `/v4/`-on-`restapi` endpoints that do this (the first is
       `Amap.Direction.bicycling/4`; `/v4/etd/driving` is the third), which is why the
@@ -29,8 +29,8 @@ defmodule Amap.Grasproad do
   from due north in degrees; the page warns that an `ag` of 0, or an unreasonable `sp`,
   makes a failed correction likely — and its own sample starts with `ag: 0`.
 
-  The page grants 个人认证开发者 10000 calls a day and points bulk users at the 猎鹰
-  track service.
+  The page grants 个人认证开发者 10000 calls a day and points bulk users at the
+  Falcon track service (猎鹰轨迹服务).
 
   A live run (2026-09-21) settled the shapes the page leaves open. Success is
   `errcode: 0` with `errmsg` "OK" and no `errdetail`, and the raw envelope carries a

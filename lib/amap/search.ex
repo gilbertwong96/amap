@@ -14,8 +14,8 @@ defmodule Amap.Search do
       80-character keyword limit when it is asked for;
     * the `polygon` parameter both polygon searches take: one ring of `{lon, lat}` pairs
       joined with `|`, **longitude first** — 经度在前，纬度在后. `Amap.Param.polygon/1` is
-      latitude-first (Falcon's rule for its own search endpoints) and reusing it here
-      would transpose every vertex without the request failing;
+      latitude-first — the Falcon (猎鹰) rule for its own search endpoints — and
+      reusing it here would transpose every vertex without the request failing;
     * the `pois.poi[]` wrapper both generations answer with;
     * the GET-and-map step every endpoint in the family takes.
 

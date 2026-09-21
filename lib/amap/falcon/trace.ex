@@ -1,6 +1,6 @@
 defmodule Amap.Falcon.Trace do
   @moduledoc """
-  Falcon traces — one journey a terminal took.
+  Falcon (猎鹰) traces — one journey a terminal took.
 
   A trace belongs to a terminal, and points are uploaded against it. A terminal
   holds at most 500,000 of them.

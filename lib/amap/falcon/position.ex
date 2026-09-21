@@ -1,6 +1,6 @@
 defmodule Amap.Falcon.Position do
   @moduledoc """
-  A position, as the track service reports one.
+  A position, as the Falcon track service (猎鹰轨迹服务) reports one.
 
   `/v1/track/terminal/lastpoint` answers with this object and so does every point
   inside a corrected track, so both describe it with this struct rather than one

@@ -8,9 +8,9 @@ defmodule Amap.Validate do
   built.
 
   `name!` and `text!` are the narrower pair: the 128-character rule over Chinese,
-  letters, digits, `_` and `-` is what Amap's **track** (Falcon) pages require of
-  a name or a description. It does not apply to a Web-service address, a district
-  keyword or a road name, so the Web-service modules do not call them.
+  letters, digits, `_` and `-` is what Amap's Falcon (猎鹰) **track** pages require
+  of a name or a description. It does not apply to a Web service (Web 服务) address,
+  a district keyword or a road name, so the Web-service modules do not call them.
   """
 
   alias Amap.Param

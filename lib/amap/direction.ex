@@ -12,8 +12,9 @@ defmodule Amap.Direction do
   why every result carries a per-item `code` and why it lives on its own path
   (`/v3/distance`, not `/v3/direction/…`). `bicycling/4` is the second odd one out:
   the page documents it, it is the only endpoint here that is not `/v3/`, and it is
-  the only one that answers the **Falcon** envelope while living on the Web
-  service host — the reason `host` and `envelope` are two axes and not one.
+  the only one that answers the **Falcon (猎鹰)** envelope while living on the Web
+  service (Web 服务) host — the reason `host` and `envelope` are two axes and not
+  one.
 
   Both ends go in as `{lon, lat}` tuples and come back the same way — including
   every step's `polyline`, which Amap writes as one `;`-separated string and this

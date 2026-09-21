@@ -5,8 +5,9 @@ defmodule Amap.Host do
   A host used to be described by a base URL plus one of two families, and the
   family decided both the response envelope and whether the request was signed.
   The evidence says the axes move independently: the `/v4/` generation on
-  `restapi.amap.com` answers the Falcon envelope (`errcode`/`errmsg`/`errdetail`
-  around `data`) and documents no signature, and two further hosts answer
+  `restapi.amap.com` answers the Falcon track service's envelope (猎鹰轨迹服务) —
+  `errcode`/`errmsg`/`errdetail` around `data` — and documents no signature, and
+  two further hosts answer
   envelopes and auth the SDK never had a name for. So each host states its four
   axes here — its base URL, the envelope it answers, how it authenticates, and
   what it calls the account key — and the request path reads them rather than
@@ -20,13 +21,15 @@ defmodule Amap.Host do
 
   The two further described hosts differ in what is missing:
 
-    * `:et_api` (交通事件) cannot be called: it authenticates with `clientKey` +
-      `timestamp` + `digest`, whose algorithm no public page gives — the 交通事件 page
-      only refers to the commercial grant's 授权文档 — so `Amap.Request` describes the
-      shape but refuses to build it;
-    * `:apilocate` (智能硬件定位 v1) can be called through `Amap.request/6` —
-      plain `key=`, no `sig` — and its envelope (no `infocode` row, symbolic
-      `info` values) parses, but no endpoint module uses it.
+    * `:et_api` — the traffic incident service (交通事件, `et-api.amap.com`) —
+      cannot be called: it authenticates with `clientKey` + `timestamp` + `digest`,
+      whose algorithm no public page gives — the 交通事件 page only refers to the
+      commercial grant's 授权文档 — so `Amap.Request` describes the shape but refuses
+      to build it;
+    * `:apilocate` — the smart hardware location service v1 (智能硬件定位 v1,
+      `apilocate.amap.com`) — can be called through `Amap.request/6`, plain `key=`,
+      no `sig`; its envelope (no `infocode` row, symbolic `info` values) parses, but
+      no endpoint module uses it.
   """
 
   @enforce_keys [:name, :base_url, :envelope, :auth, :key_param]

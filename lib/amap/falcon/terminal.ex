@@ -1,6 +1,6 @@
 defmodule Amap.Falcon.Terminal do
   @moduledoc """
-  Falcon terminals — vehicles, devices, people: anything that reports a position.
+  Falcon (猎鹰) terminals — vehicles, devices, people: anything that reports a position.
 
   Terminals live under a service. A service holds up to 100,000 of them, and
   `list/2` pages through them 50 at a time.

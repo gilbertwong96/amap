@@ -36,7 +36,7 @@ defmodule Amap.Request do
 
   `host` names the destination — one of `Amap.Host.names()`. `envelope:` names
   the response envelope when the endpoint is not the host's default: the `/v4/`
-  generation on `restapi.amap.com` answers the Falcon envelope, so
+  generation on `restapi.amap.com` answers the Falcon (猎鹰) envelope, so
   `/v4/direction/bicycling` is built as host `:restapi` with `envelope: :tsapi`.
   A host that does not answer the named envelope raises `ArgumentError` rather
   than falling back.
@@ -46,8 +46,8 @@ defmodule Amap.Request do
   parameter and `sig` are reserved: a caller-supplied copy raises, because the
   SDK cannot tell which one the caller meant. `sig` is added only where the
   host's envelope is signed: the Falcon documentation never mentions digital
-  signatures, and neither do the `/v4/` pages on the Web service host, so
-  signing those would be guessing.
+  signatures, and neither do the `/v4/` pages on the Web service (Web 服务) host,
+  so signing those would be guessing.
 
   `body: :json` sends the parameters as a JSON document instead of a form: an
   object for `/v1/track/match`, and a non-empty list of objects for

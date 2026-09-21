@@ -4,11 +4,12 @@ defmodule Amap do
 
   One core serves every host this SDK describes. `Amap.Host` states each once —
   its base URL, the envelopes it answers and how each authenticates — for the Web
-  service API (`restapi.amap.com`), the Falcon track service (`tsapi.amap.com`),
-  交通事件 (`et-api.amap.com`) and 智能硬件定位 v1 (`apilocate.amap.com`). The hosts
-  a request can reach present the same account key, and every host answers HTTP
-  200 even when the body reports an error, so status codes are never used to
-  detect failures.
+  service API (Web 服务 API, `restapi.amap.com`), the Falcon track service
+  (猎鹰轨迹服务, `tsapi.amap.com`), the traffic incident service (交通事件,
+  `et-api.amap.com`) and the smart hardware location service v1 (智能硬件定位 v1,
+  `apilocate.amap.com`). The hosts a request can reach present the same account
+  key, and every host answers HTTP 200 even when the body reports an error, so
+  status codes are never used to detect failures.
 
   ## Examples
 

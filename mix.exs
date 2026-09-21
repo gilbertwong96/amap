@@ -15,7 +15,7 @@ defmodule Amap.MixProject do
       aliases: aliases(),
       dialyzer: dialyzer(),
       name: "Amap",
-      description: "Amap (高德地图) Web API client, including Falcon track service",
+      description: "Amap (高德地图) Web API client, including Falcon track service (猎鹰轨迹服务)",
       source_url: @source_url,
       docs: docs(),
       package: package()

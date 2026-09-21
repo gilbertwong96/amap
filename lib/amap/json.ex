@@ -2,8 +2,8 @@ defmodule Amap.JSON do
   @moduledoc """
   The one place the SDK reaches for a JSON implementation.
 
-  `encode!/1` is required in addition to `decode/1` because Falcon's `props`
-  parameter carries a JSON object as a form value.
+  `encode!/1` is required in addition to `decode/1` because the Falcon (猎鹰)
+  `props` parameter carries a JSON object as a form value.
 
   The configured module is read at call time, not at compile time, so
   `config/runtime.exs` works and swapping libraries does not force a

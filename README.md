@@ -1,8 +1,8 @@
 # Amap
 
 Elixir client for the [Amap](https://lbs.amap.com) (高德地图) Web APIs: the Web
-service API (`restapi.amap.com`) and the Falcon track service
-(`tsapi.amap.com`).
+service API (Web 服务 API, `restapi.amap.com`) and the Falcon track service
+(猎鹰轨迹服务, `tsapi.amap.com`).
 
 ## Requirements
 

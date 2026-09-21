@@ -5,7 +5,7 @@ defmodule Amap.Error do
   Amap reports failures in the body with an HTTP 200 status, so this struct is
   the only reliable signal. Branch on `reason`, never on `code`: codes are
   family-scoped and the same number can mean different things in the Web
-  service API and the Falcon track service.
+  service API (Web 服务 API) and the Falcon track service (猎鹰轨迹服务).
 
   ## Examples
 
@@ -165,7 +165,8 @@ defmodule Amap.Error do
   end
 
   @doc """
-  Builds an error from the 智能硬件定位 v1 envelope.
+  Builds an error from the smart hardware location service v1 (智能硬件定位 v1)
+  envelope.
 
   That host has no `infocode` row — its `info` carries symbolic names such as
   `INVALID_USER_KEY` — so there is no numeric code to classify and `reason` is

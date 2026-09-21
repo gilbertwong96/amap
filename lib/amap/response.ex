@@ -2,13 +2,14 @@ defmodule Amap.Response do
   @moduledoc """
   Collapses Amap's two response envelopes into one payload shape.
 
-  The Web service family answers with `{"status", "info", "infocode", …}` and
-  flattens its results at the top level. The Falcon family answers with
+  The Web service (Web 服务) family answers with `{"status", "info", "infocode", …}`
+  and flattens its results at the top level. The Falcon (猎鹰) family answers with
   `{"errcode", "errmsg", "errdetail", "data"}`. After `normalize/3` callers see
   a bare payload map either way, so `Amap.Falcon.*` and `Amap.*` business
   modules never have to care which family they are talking to.
 
-  智能硬件定位 v1 (`apilocate.amap.com`) answers a third shape: `status`/`info`
+  The smart hardware location service v1 (智能硬件定位 v1, `apilocate.amap.com`)
+  answers a third shape: `status`/`info`
   around a `result`, with **no `infocode` row at all** and symbolic `info`
   values, so its failures carry the text and no code.
 

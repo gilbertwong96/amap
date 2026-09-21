@@ -1,6 +1,6 @@
 defmodule Amap.Falcon.Geofence do
   @moduledoc """
-  Falcon geofences — the virtual areas that answer whether something is inside.
+  Falcon (猎鹰) geofences — the virtual areas that answer whether something is inside.
 
   Four shapes exist, each with its own create and update endpoint: `circle`,
   `polygon`, `polyline` and `district`. A service holds **1000** of them; more

@@ -41,8 +41,8 @@ defmodule Amap.Routing do
 
   Both pages document the same limits — at most 32 regions of at most 16 points each —
   and both need 经度在前，纬度在后. `Amap.Param.polygon_lon_first/1` is the encoder;
-  `Amap.Param.polygon/1` is latitude-first and belongs to Falcon's search endpoints,
-  where the same code would transpose every vertex without the request failing.
+  `Amap.Param.polygon/1` is latitude-first and belongs to the Falcon (猎鹰) search
+  endpoints, where the same code would transpose every vertex without the request failing.
   """
   @spec avoidpolygons(Validate.input()) :: String.t() | nil
   def avoidpolygons(nil), do: nil
