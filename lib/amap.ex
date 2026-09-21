@@ -128,8 +128,23 @@ defmodule Amap do
           {:ok, Response.payload()} | {:error, Error.t()}
   def request(%Amap.Client{} = client, host, method, path, params, opts \\ []) do
     descriptor = Host.describe(host, Keyword.get(opts, :envelope))
-    attempt(client, descriptor, method, path, params, opts, 0)
+    result = attempt(client, descriptor, method, path, params, opts, 0)
+
+    attach_request(result, method, path, params)
   end
+
+  # `Amap.Request.send/6` attaches the request to the failures it builds, but an
+  # envelope refusal, a body that did not parse, and a limiter timeout are built
+  # elsewhere. Attaching at the boundary where `request/6` hands the result back
+  # to its caller gives every failure the same `%{method:, path:, params:}`. The
+  # guard skips an error that already carries one, so the transport path is not
+  # masked twice.
+  defp attach_request({:error, %Error{request: request} = error}, method, path, params)
+       when map_size(request) == 0 do
+    {:error, Error.attach_request(error, method, path, params)}
+  end
+
+  defp attach_request(result, _method, _path, _params), do: result
 
   # One attempt, plus at most `max_attempts/1` more. Each attempt gets its own
   # telemetry span, so a retried call shows up as several spans rather than one

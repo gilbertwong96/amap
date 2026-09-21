@@ -142,6 +142,33 @@ defmodule Amap.PipelineTest do
     assert error.reason == :invalid_json
   end
 
+  test "attaches the failed request to a refusal and a gateway failure alike", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v3/ip", fn _req ->
+      {200, ~s({"status":"0","info":"INVALID_USER_KEY","infocode":"10001"})}
+    end)
+
+    TestServer.expect_once(server, "GET", "/v3/geocode/geo", fn _req ->
+      {502, "<html>bad gateway</html>"}
+    end)
+
+    assert {:error, refusal} =
+             Amap.request(client, :restapi, :get, "/v3/ip", ip: "203.0.113.1")
+
+    assert {:error, gateway} =
+             Amap.request(client, :restapi, :get, "/v3/geocode/geo", address: "北京市")
+
+    assert refusal.request == %{method: :get, path: "/v3/ip", params: %{"ip" => "203.0.113.1"}}
+
+    assert gateway.request == %{
+             method: :get,
+             path: "/v3/geocode/geo",
+             params: %{"address" => "北京市"}
+           }
+  end
+
   test "waits for the limiter before issuing the request", %{server: server} do
     client =
       Amap.new(

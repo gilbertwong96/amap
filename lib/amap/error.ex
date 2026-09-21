@@ -20,10 +20,15 @@ defmodule Amap.Error do
       ...>   Amap.request(client, :restapi, :get, "/v3/ip", ip: "203.0.113.1")
       iex> {refusal.reason, refusal.code, refusal.message, refusal.detail, refusal.retry}
       {:invalid_key, 10001, "INVALID_USER_KEY", nil, :no}
+      iex> {refusal.request.method, refusal.request.path, refusal.request.params}
+      {:get, "/v3/ip", %{"ip" => "203.0.113.1"}}
 
   `reason` is the stable field to branch on; `code` and `message` are what Amap
   wrote in this family's envelope, `detail` is `nil` because the flat envelope has
-  no `errdetail`, and `retry: :no` says a bad key is not worth repeating.
+  no `errdetail`, and `retry: :no` says a bad key is not worth repeating. The
+  failed request is on the error too — method, path, and masked parameters — so
+  this refusal says which call Amap refused exactly as the gateway failure below
+  says which call it could not deliver.
 
   The Falcon family answers a different envelope, and its failures carry the fields
   that differ — `errdetail`, and the wait `Amap.request/6` honours once retries are
@@ -114,7 +119,8 @@ defmodule Amap.Error do
   @typedoc """
   The call that failed: its method, its path, and its parameters with credentials
   masked. A JSON array body is stored as the list it was, each element masked.
-  Empty for a failure that never reached `attach_request/4`.
+  Every failure `Amap.request/6` returns carries it; the builders here default to
+  `%{}`, since an error built directly has no call to describe.
   """
   @type request :: %{
           optional(:method) => :get | :post,
