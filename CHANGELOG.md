@@ -110,7 +110,8 @@ Notable changes to this project, newest first. The format follows
   server, and the convention the rest of the sweep follows.
 - `mix docs` includes `README.md` and `CHANGELOG.md` as ExDoc extras, with the README
   as the entry page and titled `README` in the sidebar so it does not duplicate the
-  `Amap` module page's label.
+  `Amap` module page's label. The README's `mix ci` subcommand list is fenced as
+  `text`, so ExDoc shows it plainly instead of highlighting it as Elixir.
 - Bilingual service naming: at a module's first mention, each service the docs name
   now pairs its English and Chinese forms — the Web service API (Web 服务 API), the
   Falcon track service (猎鹰轨迹服务), the traffic incident service (交通事件) and the

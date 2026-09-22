@@ -396,7 +396,7 @@ responses.
 
 `mix ci` runs everything CI runs:
 
-```
+```text
 compile --all-warnings --warnings-as-errors
 format --check-formatted
 credo --strict          # includes the ExSlop AI-slop checks
