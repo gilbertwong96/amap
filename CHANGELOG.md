@@ -112,13 +112,21 @@ Notable changes to this project, newest first. The format follows
   as the entry page and titled `README` in the sidebar so it does not duplicate the
   `Amap` module page's label. The README's `mix ci` subcommand list is fenced as
   `text`, so ExDoc shows it plainly instead of highlighting it as Elixir.
-- Bilingual service naming: at a module's first mention, each service the docs name
-  now pairs its English and Chinese forms — the Web service API (Web 服务 API), the
-  Falcon track service (猎鹰轨迹服务), the traffic incident service (交通事件) and the
-  smart hardware location service v1 (智能硬件定位 v1) — and the sweep reaches the
-  README, the CHANGELOG and the package description on hex.pm. Amap publishes these
-  services in Chinese only, so the English forms are this SDK's translations rather
-  than names Amap gives.
+- Bilingual service naming: at a module's first rendered mention, each service the
+  docs name pairs its English and Chinese forms once — the Web service API (Web 服务
+  API), the Falcon track service (猎鹰轨迹服务), the traffic incident service (交通事件)
+  and the smart hardware location service v1 (智能硬件定位 v1) — and the sweep reaches
+  the README, the CHANGELOG and the package description on hex.pm. Amap publishes
+  these services in Chinese only, so the English forms are this SDK's translations
+  rather than names Amap gives.
+- Documentation accuracy: the README's `mix ci` list now ends with
+  `test --warnings-as-errors`, matching the alias's last step rather than the bare
+  `test` it listed, its opening no longer claims `mix ci` runs everything CI runs,
+  since the test job runs compile, format and test on three Elixir/OTP combinations
+  the alias does not cover, its `mix ci.fast` sentence now names the six steps it drops
+  rather than presenting them all as slow static analysis, and `Amap.Grasproad` says
+  the page caps 个人认证开发者 at 10000 calls a day — 每天仅能访问该接口 10000 次 —
+  rather than granting them.
 
 ### Changed
 

@@ -29,8 +29,8 @@ defmodule Amap.Grasproad do
   from due north in degrees; the page warns that an `ag` of 0, or an unreasonable `sp`,
   makes a failed correction likely — and its own sample starts with `ag: 0`.
 
-  The page grants 个人认证开发者 10000 calls a day and points bulk users at the
-  Falcon track service (猎鹰轨迹服务).
+  The page caps access for 个人认证开发者 at 10000 calls a day (每天仅能访问该接口
+  10000 次), and points bulk users at the Falcon track service (猎鹰轨迹服务).
 
   A live run (2026-09-21) settled the shapes the page leaves open. Success is
   `errcode: 0` with `errmsg` "OK" and no `errdetail`, and the raw envelope carries a

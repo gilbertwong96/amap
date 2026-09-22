@@ -45,7 +45,7 @@ defmodule Amap.Param do
   `polygon` parameter takes. Amap also caps the total bounding area at 3000 km²,
   which this cannot check.
 
-  **Latitude-first is the Falcon (猎鹰) rule, not Amap's.** Every Web service
+  **Latitude-first is the Falcon rule, not Amap's.** Every Web service
   (Web 服务) polygon — the routing `avoidpolygons`, the search endpoints' `polygon`,
   GeoHUB's — is longitude-first and wants `polygon_lon_first/1`; reaching for this function there
   transposes every vertex silently, because the request still succeeds.

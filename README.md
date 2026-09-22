@@ -394,7 +394,7 @@ responses.
 
 ## Development
 
-`mix ci` runs everything CI runs:
+`mix ci` matches CI's checks, not its matrix:
 
 ```text
 compile --all-warnings --warnings-as-errors
@@ -406,10 +406,16 @@ xref graph --label compile-connected --fail-above 5
 dialyzer
 ex_dna                  # duplicate code
 reach.check --dead-code --smells
-test
+test --warnings-as-errors
 ```
 
-`mix ci.fast` runs the same without the slow static analysis, for the inner loop.
+CI's test job runs `mix compile`, `mix format` and `mix test` on Elixir
+1.18/OTP 27, 1.19/OTP 27 and 1.19/OTP 28.
+
+`mix ci.fast` is the inner loop: the list above without
+`deps.unlock --check-unused`, `hex.audit`,
+`xref graph --label compile-connected --fail-above 5`, `dialyzer`, `ex_dna` and
+`reach.check --dead-code --smells`.
 All of the tooling is `dev`/`test` scoped, so none of it reaches consumers of the
 package.
 
