@@ -32,4 +32,5 @@ defmodule Amap.DirectionDoctestTest do
   end
 
   doctest Amap.Direction
+  doctest Amap.Direction.Route
 end

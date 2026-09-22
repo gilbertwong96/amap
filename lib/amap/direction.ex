@@ -369,7 +369,7 @@ defmodule Amap.Direction do
   # Amap leaves `route` out entirely when it found nothing, which is an answer
   # rather than a failure: `Amap.Routing` reads that as empty endpoints and no paths,
   # so callers get an empty Route instead of a nil to branch on.
-  defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &Routing.v3_path/1))
+  defp to_route(payload), do: Route.from_map(Routing.route_fields(payload, &Routing.v3_path/1))
 
   # The page prints both `results` and `result` for this list, the way driving's page
   # prints both `paths` and `path`; read whichever arrived.

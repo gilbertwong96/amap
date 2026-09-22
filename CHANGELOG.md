@@ -119,6 +119,10 @@ Notable changes to this project, newest first. The format follows
   the README, the CHANGELOG and the package description on hex.pm. Amap publishes
   these services in Chinese only, so the English forms are this SDK's translations
   rather than names Amap gives.
+- `Amap.Direction.Route.from_map/1` and `Amap.NewRoute.Route.from_map/1` — the explicit
+  boundary from `Amap.Routing.route_fields/2`'s shared, generation-neutral values into
+  each generation's struct, which is what `reach.check` reads as a conversion rather
+  than a duplicate map.
 - Documentation accuracy: the README's `mix ci` list now ends with
   `test --warnings-as-errors`, matching the alias's last step rather than the bare
   `test` it listed, its opening no longer claims `mix ci` runs everything CI runs,

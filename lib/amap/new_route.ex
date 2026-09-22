@@ -293,10 +293,10 @@ defmodule Amap.NewRoute do
   # than a failure: `Amap.Routing` reads that as empty endpoints and no paths, so
   # callers get an empty Route instead of a nil to branch on.
   #
-  # `struct/2` rather than a literal because ExDNA counts the two generations' route
-  # construction as one clone. The field names live in `Amap.Routing.route_fields/2`'s
-  # return type, and a key it does not know about is dropped without complaint.
-  defp to_route(payload), do: struct(Route, Routing.route_fields(payload, &to_path/1))
+  # `Route.from_map/1` keeps each generation's construction in one place. The field
+  # names live in `Amap.Routing.route_fields/2`'s return type, and a key it does not
+  # know about is dropped without complaint.
+  defp to_route(payload), do: Route.from_map(Routing.route_fields(payload, &to_path/1))
 
   # A path the wire sent as `null` — `Amap.Routing.route_fields/2` drops it rather than
   # letting an all-nil struct reach `Route.paths`.

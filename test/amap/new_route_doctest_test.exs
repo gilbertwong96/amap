@@ -20,4 +20,5 @@ defmodule Amap.NewRouteDoctestTest do
   end
 
   doctest Amap.NewRoute
+  doctest Amap.NewRoute.Route
 end

@@ -24,4 +24,15 @@ defmodule Amap.NewRoute.Route do
           taxi_cost: String.t() | nil,
           paths: [Path.t()]
         }
+
+  @doc """
+  Builds this generation's route from `Amap.Routing.route_fields/2`'s values — the
+  explicit boundary between those shared, generation-neutral fields and this version's
+  `paths`.
+
+      iex> Amap.NewRoute.Route.from_map(origin: nil, destination: nil, taxi_cost: nil, paths: [])
+      %Amap.NewRoute.Route{origin: nil, destination: nil, taxi_cost: nil, paths: []}
+  """
+  @spec from_map(Amap.Routing.route_fields(Path.t())) :: t()
+  def from_map(fields), do: struct(__MODULE__, fields)
 end
