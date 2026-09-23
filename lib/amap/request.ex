@@ -31,6 +31,15 @@ defmodule Amap.Request do
   """
   @type params :: Amap.JSON.props() | [Amap.JSON.props()] | keyword()
 
+  @typedoc "The verb a call uses; Amap documents no other."
+  @type method :: :get | :post
+
+  @typedoc """
+  The options a call takes: the envelope when the endpoint's is not the host's
+  default, and the body shape the JSON endpoints ask for.
+  """
+  @type options :: [{:envelope, Host.envelope()} | {:body, :form | :json}]
+
   @doc """
   Builds a Finch request for the given call.
 
@@ -65,10 +74,10 @@ defmodule Amap.Request do
   @spec build(
           Client.t(),
           Host.name(),
-          :get | :post,
+          method(),
           String.t(),
           params(),
-          [{:envelope, Host.envelope()} | {:body, :form | :json}]
+          options()
         ) ::
           Finch.Request.t()
   def build(%Client{} = client, host, method, path, params, opts \\ []) do
@@ -213,10 +222,10 @@ defmodule Amap.Request do
   @spec send(
           Client.t(),
           Host.name(),
-          :get | :post,
+          method(),
           String.t(),
           params(),
-          [{:envelope, Host.envelope()} | {:body, :form | :json}]
+          options()
         ) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
   def send(%Client{} = client, host, method, path, params, opts \\ []) do

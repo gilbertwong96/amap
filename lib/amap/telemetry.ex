@@ -15,7 +15,7 @@ defmodule Amap.Telemetry do
   @typedoc "The metadata emitted with `[:amap, :request, :start]`."
   @type start_metadata :: %{
           host: Host.name(),
-          method: :get | :post,
+          method: Amap.Request.method(),
           path: String.t(),
           timeout: pos_integer()
         }
@@ -39,7 +39,7 @@ defmodule Amap.Telemetry do
   `fun` must return either `{:ok, payload}` or `{:error, %Amap.Error{}}`;
   the failure shape is what makes the stop metadata useful.
   """
-  @spec span(Client.t(), Host.name(), :get | :post, String.t(), (-> result)) :: result
+  @spec span(Client.t(), Host.name(), Amap.Request.method(), String.t(), (-> result)) :: result
         when result: {:ok, Amap.JSON.value()} | {:error, Error.t()}
   def span(client, host, method, path, fun) do
     :telemetry.span(@prefix, start_meta(client, host, method, path), fn ->
@@ -49,7 +49,7 @@ defmodule Amap.Telemetry do
   end
 
   @doc "Metadata for the start event."
-  @spec start_meta(Client.t(), Host.name(), :get | :post, String.t()) :: start_metadata()
+  @spec start_meta(Client.t(), Host.name(), Amap.Request.method(), String.t()) :: start_metadata()
   def start_meta(%Client{} = client, host, method, path) do
     %{host: host, method: method, path: path, timeout: client.timeout}
   end

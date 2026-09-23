@@ -123,7 +123,7 @@ defmodule Amap.Error do
   `%{}`, since an error built directly has no call to describe.
   """
   @type request :: %{
-          optional(:method) => :get | :post,
+          optional(:method) => Amap.Request.method(),
           optional(:path) => String.t(),
           optional(:params) => Amap.JSON.object() | [Amap.JSON.object()]
         }
@@ -258,7 +258,7 @@ defmodule Amap.Error do
   """
   @spec attach_request(
           t(),
-          :get | :post,
+          Amap.Request.method(),
           String.t(),
           keyword() | Amap.JSON.props() | [Amap.JSON.props()]
         ) :: t()

@@ -121,10 +121,10 @@ defmodule Amap do
   @spec request(
           Client.t(),
           Host.name(),
-          :get | :post,
+          Request.method(),
           String.t(),
           Request.params(),
-          [{:envelope, Host.envelope()} | {:body, :form | :json}]
+          Request.options()
         ) ::
           {:ok, Response.payload()} | {:error, Error.t()}
   def request(%Amap.Client{} = client, host, method, path, params, opts \\ []) do
