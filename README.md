@@ -237,6 +237,9 @@ match.match_ratio   # "84.7" — Amap sends a string, and it is kept as one
 only to enterprise developers, so it could not be exercised against the live
 service and was deferred rather than guessed at until an account exists for it.
 
+[`guides/falcon.md`](guides/falcon.md) is the map of the whole service: every module
+with its path, the quotas, and the rules that are easy to miss.
+
 ## Web service API
 
 The Web service host — `restapi.amap.com` — answers with a flat `{status, info,
