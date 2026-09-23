@@ -37,6 +37,16 @@ defmodule Amap.TestServer do
 
   @idle_timeout 30_000
   @doctest_port 21_617
+  # The doctest files run one at a time — all thirty are `async: false` — but the
+  # previous file's stand-in releases its socket asynchronously, so the next file's
+  # bind can meet `:eaddrinuse` through no fault of its own. The wait is bounded and
+  # ends in the same loud failure: a port something else genuinely holds still raises,
+  # because the doctest examples name this port and a silent fallback would leave them
+  # testing a server nobody asked for.
+  @bind_attempts 20
+  @bind_retry_ms 100
+  @listen_options [:binary, packet: :raw, active: false, reuseaddr: true, ip: {127, 0, 0, 1}]
+
   @prime_attempts 3
   @reason_phrases %{
     200 => "OK",
@@ -79,8 +89,9 @@ defmodule Amap.TestServer do
   first request of the next file would be sent on that closed socket. One request
   through the pool replaces it before the examples run.
 
-  A port already in use fails this bind with `:eaddrinuse` — it is never answered
-  by silently choosing another port, because the examples name this one.
+  A port already in use is waited out for at most two seconds, then fails this bind
+  with `:eaddrinuse` — it is never answered by silently choosing another port,
+  because the examples name this one.
   """
   @spec start_doctest!() :: t()
   def start_doctest! do
@@ -137,18 +148,27 @@ defmodule Amap.TestServer do
     end
   end
 
+  defp listen(requested), do: listen(requested, @bind_attempts)
+
+  defp listen(requested, 0), do: :gen_tcp.listen(requested, @listen_options)
+
+  defp listen(requested, attempts) do
+    case :gen_tcp.listen(requested, @listen_options) do
+      {:error, :eaddrinuse} ->
+        Process.sleep(@bind_retry_ms)
+        listen(requested, attempts - 1)
+
+      other ->
+        other
+    end
+  end
+
   @impl true
   def init(opts) do
     requested = Keyword.get(opts, :port, 0)
 
     listen =
-      case :gen_tcp.listen(requested, [
-             :binary,
-             packet: :raw,
-             active: false,
-             reuseaddr: true,
-             ip: {127, 0, 0, 1}
-           ]) do
+      case listen(requested) do
         {:ok, listen} -> listen
         {:error, reason} -> raise "cannot bind port #{requested}: #{inspect(reason)}"
       end
