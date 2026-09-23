@@ -156,7 +156,8 @@ defmodule Amap.MixProject do
       extras: [
         {"README.md", title: "README"},
         "CHANGELOG.md",
-        {"guides/falcon.md", title: "Falcon track service"}
+        {"guides/falcon.md", title: "Falcon track service"},
+        {"LICENSE", title: "License"}
       ],
       groups_for_modules: ["Falcon track service": [~r/^Amap\.Falcon\./]]
     ]
