@@ -62,7 +62,14 @@ defmodule Amap.Request do
   with the removed `:host:` named. The old shape pointed a call at a host the
   positional argument now names, so ignoring it would misroute the call silently.
   """
-  @spec build(Client.t(), Host.name(), :get | :post, String.t(), params(), keyword()) ::
+  @spec build(
+          Client.t(),
+          Host.name(),
+          :get | :post,
+          String.t(),
+          params(),
+          [{:envelope, Host.envelope()} | {:body, :form | :json}]
+        ) ::
           Finch.Request.t()
   def build(%Client{} = client, host, method, path, params, opts \\ []) do
     validate_opts!(opts)
@@ -203,15 +210,13 @@ defmodule Amap.Request do
   signals its own failures in the body with a 200 status, so anything else came
   from a proxy or gateway rather than the API.
   """
-  @spec send(Client.t(), Host.name(), :get | :post, String.t(), params()) ::
-          {:ok, Finch.Response.t()} | {:error, Error.t()}
   @spec send(
           Client.t(),
           Host.name(),
           :get | :post,
           String.t(),
           params(),
-          keyword()
+          [{:envelope, Host.envelope()} | {:body, :form | :json}]
         ) ::
           {:ok, Finch.Response.t()} | {:error, Error.t()}
   def send(%Client{} = client, host, method, path, params, opts \\ []) do

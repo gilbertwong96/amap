@@ -61,7 +61,15 @@ defmodule Amap do
   Options fall back to `config :amap`, so a key set once in config does not need
   to be repeated at every call site.
   """
-  @spec new(keyword()) :: Client.t()
+  @spec new([
+          {:key, String.t()}
+          | {:private_key, String.t()}
+          | {:pool, Finch.name()}
+          | {:limiter, pid() | :personal | :enterprise | Limiter.options()}
+          | {:timeout, pos_integer()}
+          | {:retry, [{:max, non_neg_integer()} | {:base_delay, pos_integer()}]}
+          | {:base_urls, %{Host.name() => String.t()}}
+        ]) :: Client.t()
   def new(opts \\ []) do
     opts =
       config()
@@ -115,16 +123,8 @@ defmodule Amap do
           Host.name(),
           :get | :post,
           String.t(),
-          Request.params()
-        ) ::
-          {:ok, Response.payload()} | {:error, Error.t()}
-  @spec request(
-          Client.t(),
-          Host.name(),
-          :get | :post,
-          String.t(),
           Request.params(),
-          keyword()
+          [{:envelope, Host.envelope()} | {:body, :form | :json}]
         ) ::
           {:ok, Response.payload()} | {:error, Error.t()}
   def request(%Amap.Client{} = client, host, method, path, params, opts \\ []) do
