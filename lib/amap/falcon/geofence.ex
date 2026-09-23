@@ -128,25 +128,25 @@ defmodule Amap.Falcon.Geofence do
 
   @doc "Updates a circular fence. `name` is required again, as Amap requires it."
   @spec update_circle(Amap.Client.t(), integer(), integer(), String.t(), keyword()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def update_circle(client, sid, gfid, name, opts \\ []),
     do: change(client, sid, gfid, name, opts, :circle)
 
   @doc "Updates a polygonal fence."
   @spec update_polygon(Amap.Client.t(), integer(), integer(), String.t(), keyword()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def update_polygon(client, sid, gfid, name, opts \\ []),
     do: change(client, sid, gfid, name, opts, :polygon)
 
   @doc "Updates a linear fence."
   @spec update_polyline(Amap.Client.t(), integer(), integer(), String.t(), keyword()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def update_polyline(client, sid, gfid, name, opts \\ []),
     do: change(client, sid, gfid, name, opts, :polyline)
 
   @doc "Updates a district fence."
   @spec update_district(Amap.Client.t(), integer(), integer(), String.t(), keyword()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def update_district(client, sid, gfid, name, opts \\ []),
     do: change(client, sid, gfid, name, opts, :district)
 

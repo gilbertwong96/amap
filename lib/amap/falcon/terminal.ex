@@ -94,7 +94,7 @@ defmodule Amap.Falcon.Terminal do
   end
 
   @doc "Deletes a terminal, then returns `{:ok, nil}`. Deleted data is unrecoverable."
-  @spec delete(Amap.Client.t(), integer(), integer()) :: {:ok, nil} | {:error, Amap.Error.t()}
+  @spec delete(Amap.Client.t(), integer(), integer()) :: Amap.Result.t()
   def delete(client, sid, tid),
     do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, tid: tid)
 
@@ -114,7 +114,7 @@ defmodule Amap.Falcon.Terminal do
   Returns `{:ok, nil}` — Amap sends no data for this endpoint.
   """
   @spec update(Amap.Client.t(), integer(), integer(), keyword()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def update(client, sid, tid, opts) do
     name = Keyword.get(opts, :name)
     desc = Keyword.get(opts, :desc)

@@ -196,6 +196,11 @@ defmodule Amap do
     retry_option(retry, :base_delay) * Integer.pow(2, attempt)
   end
 
+  # The same door is open for `:limiter`: a directly-built struct must carry a
+  # started bucket, a pid, or nil. `Amap.new/1` is what turns a preset or an
+  # option list into one, so a hand-built client that keeps `limiter: :personal`
+  # hands `acquire/4` an atom where it works on a bucket.
+  #
   # `validate!/1` guards `Amap.new/1`, but `Amap.Client` is documented as a
   # plain struct that callers build and pass around, so `struct!(Amap.Client, …)`
   # is a supported path which never sees that validation. These reads must

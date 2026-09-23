@@ -77,7 +77,7 @@ defmodule Amap.Falcon.Service do
   end
 
   @doc "Deletes a service and everything in it, then returns `{:ok, nil}`."
-  @spec delete(Amap.Client.t(), integer()) :: {:ok, nil} | {:error, Amap.Error.t()}
+  @spec delete(Amap.Client.t(), integer()) :: Amap.Result.t()
   def delete(client, sid), do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid)
 
   @doc """

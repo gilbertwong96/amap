@@ -52,7 +52,7 @@ defmodule Amap.Falcon.TraceColumn do
   field has to match it.
   """
   @spec add(Amap.Client.t(), integer(), String.t(), :string | :double | :int) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def add(client, sid, column, type) do
     params = [
       sid: sid,

@@ -17,12 +17,12 @@ defmodule Amap.Falcon.Columns do
 
       @doc "Deletes a field and every value stored in it, then returns `{:ok, nil}`."
       @spec delete(Amap.Client.t(), integer(), String.t()) ::
-              {:ok, nil} | {:error, Amap.Error.t()}
+              Amap.Result.t()
       def delete(client, sid, column), do: Column.delete(client, unquote(base), sid, column)
 
       @doc "Renames a field. Its values and its type are kept."
       @spec update(Amap.Client.t(), integer(), String.t(), String.t()) ::
-              {:ok, nil} | {:error, Amap.Error.t()}
+              Amap.Result.t()
       def update(client, sid, column, newcolumn),
         do: Column.update(client, unquote(base), sid, column, newcolumn)
 

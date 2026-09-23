@@ -65,7 +65,7 @@ defmodule Amap.Falcon.TerminalColumn do
   changed afterwards; it defaults to `:n` at Amap's end.
   """
   @spec add(Amap.Client.t(), integer(), String.t(), :string | :double | :int, keyword()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def add(client, sid, column, type, opts \\ []) do
     params = [
       sid: sid,

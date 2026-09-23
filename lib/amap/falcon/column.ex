@@ -18,7 +18,7 @@ defmodule Amap.Falcon.Column do
 
   @doc "Deletes a field and returns `{:ok, nil}`."
   @spec delete(Amap.Client.t(), String.t(), integer(), String.t()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def delete(client, base, sid, column) do
     Amap.request(client, :tsapi, :post, base <> "/delete",
       sid: sid,
@@ -28,7 +28,7 @@ defmodule Amap.Falcon.Column do
 
   @doc "Renames a field, keeping its values and type."
   @spec update(Amap.Client.t(), String.t(), integer(), String.t(), String.t()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def update(client, base, sid, column, newcolumn) do
     params = [
       sid: sid,

@@ -75,7 +75,7 @@ defmodule Amap.Falcon.Trace do
 
   @doc "Deletes a trace and everything uploaded against it, then returns `{:ok, nil}`."
   @spec delete(Amap.Client.t(), integer(), integer(), integer()) ::
-          {:ok, nil} | {:error, Amap.Error.t()}
+          Amap.Result.t()
   def delete(client, sid, tid, trid),
     do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, tid: tid, trid: trid)
 
