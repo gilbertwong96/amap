@@ -83,15 +83,18 @@ jobs:
             8[0-9]*) colour=green ;;
             *) colour=yellow ;;
           esac
-          printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$PCT" "$colour" > coverage.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Switch to the badges branch before writing anything: a coverage.json
+          # already in the working tree makes git refuse the checkout, because the
+          # branch has a tracked file of that name and it would be overwritten.
           if git fetch --depth=1 origin badges; then
             git checkout -B badges FETCH_HEAD
           else
             git checkout --orphan badges
             git rm -r --cached . >/dev/null
           fi
+          printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$PCT" "$colour" > coverage.json
           git add coverage.json
           git commit -m "coverage: ${PCT}%"
           git push origin badges
