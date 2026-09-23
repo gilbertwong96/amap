@@ -129,7 +129,7 @@ defmodule Amap.NewPlace do
   `:distance` (Amap's default) or `:weight`, and distance ordering does not take effect
   when only `:keywords` is sent. `:region` and the rest are `text/2`'s.
   """
-  @spec around(Amap.Client.t(), {number(), number()}, keyword()) ::
+  @spec around(Amap.Client.t(), Amap.Coord.point(), keyword()) ::
           {:ok, Result.t()} | {:error, Amap.Error.t()}
   def around(client, location, opts \\ []) do
     params = [
@@ -163,7 +163,7 @@ defmodule Amap.NewPlace do
   when both are left out — the same two as v3's polygon search. This endpoint has no
   `:region`, `:city_limit`, `:radius` or `:sortrule`.
   """
-  @spec polygon(Amap.Client.t(), [{number(), number()}], keyword()) ::
+  @spec polygon(Amap.Client.t(), Amap.Coord.points(), keyword()) ::
           {:ok, Result.t()} | {:error, Amap.Error.t()}
   def polygon(client, polygon, opts \\ []) do
     params = [

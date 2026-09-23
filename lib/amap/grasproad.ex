@@ -117,7 +117,7 @@ defmodule Amap.Grasproad do
   point's from 1970, later points' as differences from it), and km/h.
   """
   @type point :: %{
-          required(:location) => {number(), number()},
+          required(:location) => Amap.Coord.point(),
           required(:ag) => number(),
           required(:tm) => non_neg_integer() | DateTime.t(),
           required(:sp) => number()

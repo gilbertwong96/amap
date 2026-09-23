@@ -12,6 +12,16 @@ defmodule Amap.Coord do
   a payload nobody expected surfaces as "no value" rather than as a crash.
   """
 
+  @typedoc """
+  One coordinate pair, in the order the encoder that takes it documents. The Web
+  service takes `{lon, lat}`; Falcon's `lat_lng` and `polygon` want the other
+  order, which is why `polygon_lon_first` exists beside them.
+  """
+  @type point :: {number(), number()}
+
+  @typedoc "A list of coordinate pairs, each in its encoder's order."
+  @type points :: [point()]
+
   @doc """
   Parses one `"lon,lat"` string into a tuple.
 

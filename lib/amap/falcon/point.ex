@@ -82,7 +82,7 @@ defmodule Amap.Falcon.Point do
   measurement past the first two fields is optional.
   """
   @type point :: %{
-          required(:location) => {number(), number()},
+          required(:location) => Amap.Coord.point(),
           required(:locatetime) => DateTime.t() | integer(),
           optional(:speed) => number(),
           optional(:direction) => number(),

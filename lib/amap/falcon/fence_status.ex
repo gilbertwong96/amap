@@ -83,7 +83,7 @@ defmodule Amap.Falcon.FenceStatus do
   `location` is a `{lon, lat}` tuple. Every fence in the service is checked unless
   `gfids` narrows it.
   """
-  @spec location(Amap.Client.t(), integer(), {number(), number()}, keyword()) ::
+  @spec location(Amap.Client.t(), integer(), Amap.Coord.point(), keyword()) ::
           {:ok, Page.t()} | {:error, Amap.Error.t()}
   def location(client, sid, location, opts \\ []) do
     params = [sid: sid, location: Param.location(location)] ++ common_params(opts)

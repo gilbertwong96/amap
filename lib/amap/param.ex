@@ -19,11 +19,11 @@ defmodule Amap.Param do
   end
 
   @doc "Formats `{longitude, latitude}` as `lon,lat`."
-  @spec location({number(), number()}) :: String.t()
+  @spec location(Amap.Coord.point()) :: String.t()
   def location({lon, lat}), do: coord(lon) <> "," <> coord(lat)
 
   @doc "Formats a list of points separated by `;`."
-  @spec locations([{number(), number()}]) :: String.t()
+  @spec locations(Amap.Coord.points()) :: String.t()
   def locations(points), do: Enum.map_join(points, ";", &location/1)
 
   @doc """
@@ -33,7 +33,7 @@ defmodule Amap.Param do
   the reverse of `location/1`. Both orders occur in one family, so each
   endpoint's order is chosen here rather than by the caller.
   """
-  @spec lat_lng({number(), number()}) :: String.t()
+  @spec lat_lng(Amap.Coord.point()) :: String.t()
   def lat_lng({lon, lat}), do: coord(lat) <> "," <> coord(lon)
 
   @doc """
@@ -50,7 +50,7 @@ defmodule Amap.Param do
   GeoHUB's — is longitude-first and wants `polygon_lon_first/1`; reaching for this function there
   transposes every vertex silently, because the request still succeeds.
   """
-  @spec polygon([{number(), number()}] | [[{number(), number()}]]) :: String.t()
+  @spec polygon(Amap.Coord.points() | [Amap.Coord.points()]) :: String.t()
   def polygon(ring) when is_list(ring), do: ring |> rings() |> encode_rings(&lat_lng/1)
 
   @doc """
@@ -66,7 +66,7 @@ defmodule Amap.Param do
   endpoints that take the centre and the polygon latitude first. A transposed polygon
   is not rejected: the request answers `200` and covers the wrong area.
   """
-  @spec polygon_lon_first([{number(), number()}] | [[{number(), number()}]]) :: String.t()
+  @spec polygon_lon_first(Amap.Coord.points() | [Amap.Coord.points()]) :: String.t()
   def polygon_lon_first(ring) when is_list(ring), do: ring |> rings() |> encode_rings(&location/1)
 
   defp rings([{_lon, _lat} | _] = ring), do: [ring]

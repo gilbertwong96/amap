@@ -108,7 +108,7 @@ defmodule Amap.Falcon.TerminalSearch do
   left to the caller. `radius` is in metres, `1..5000`, and Amap applies its own
   default of 500 when it is not given.
   """
-  @spec aroundsearch(Amap.Client.t(), integer(), {number(), number()}, keyword()) ::
+  @spec aroundsearch(Amap.Client.t(), integer(), Amap.Coord.point(), keyword()) ::
           {:ok, Page.t()} | {:error, Amap.Error.t()}
   def aroundsearch(client, sid, center, opts \\ []) do
     params =
@@ -134,7 +134,7 @@ defmodule Amap.Falcon.TerminalSearch do
   @spec polygonsearch(
           Amap.Client.t(),
           integer(),
-          [{number(), number()}] | [[{number(), number()}]],
+          Amap.Coord.points() | [Amap.Coord.points()],
           keyword()
         ) :: {:ok, Page.t()} | {:error, Amap.Error.t()}
   def polygonsearch(client, sid, polygon, opts \\ []) do

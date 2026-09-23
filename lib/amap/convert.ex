@@ -62,7 +62,7 @@ defmodule Amap.Convert do
   `;`-separated — so `Amap.Param.locations/1`, which joins with `;`, describes the
   answer and **not** this request.
   """
-  @spec convert(Amap.Client.t(), [{number(), number()}], keyword()) ::
+  @spec convert(Amap.Client.t(), Amap.Coord.points(), keyword()) ::
           {:ok, t()} | {:error, Amap.Error.t()}
   def convert(client, locations, opts \\ []) do
     locations = Validate.points!(locations, ":locations")

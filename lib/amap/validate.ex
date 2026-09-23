@@ -262,7 +262,7 @@ defmodule Amap.Validate do
   Amap takes coordinates as pairs of numbers everywhere, so a list of lists, a
   pair of strings or a triple is a call-site mistake rather than a request.
   """
-  @spec points!(input(), String.t()) :: [{number(), number()}]
+  @spec points!(input(), String.t()) :: Amap.Coord.points()
   def points!(values, field) when is_list(values) and values != [] do
     Enum.each(values, &point!(&1, field))
     values
@@ -276,7 +276,7 @@ defmodule Amap.Validate do
       )
 
   @doc "Validates one `{lon, lat}` pair."
-  @spec point!(input(), String.t()) :: {number(), number()}
+  @spec point!(input(), String.t()) :: Amap.Coord.point()
   def point!({lon, lat} = point, _field) when is_number(lon) and is_number(lat), do: point
 
   def point!(value, field),
@@ -330,7 +330,7 @@ defmodule Amap.Validate do
   not checked here — Amap ignores such a region silently rather than refusing it, and
   no list of vertices can rule that out.
   """
-  @spec polygons!(input(), String.t(), pos_integer(), pos_integer()) :: [[{number(), number()}]]
+  @spec polygons!(input(), String.t(), pos_integer(), pos_integer()) :: [Amap.Coord.points()]
   def polygons!(value, field, max_regions, max_vertices) do
     rings = rings!(value, field)
 

@@ -115,7 +115,7 @@ defmodule Amap.Direction do
   not have to branch on a `nil` to enumerate paths. The number Amap also sends is
   not carried, since its length is the same thing.
   """
-  @spec walking(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+  @spec walking(Amap.Client.t(), Amap.Coord.point(), Amap.Coord.point(), keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def walking(client, origin, destination, opts \\ []) do
     params = [
@@ -175,8 +175,8 @@ defmodule Amap.Direction do
   """
   @spec driving(
           Amap.Client.t(),
-          {number(), number()} | [{number(), number()}],
-          {number(), number()},
+          Amap.Coord.point() | Amap.Coord.points(),
+          Amap.Coord.point(),
           keyword()
         ) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
@@ -234,8 +234,8 @@ defmodule Amap.Direction do
   """
   @spec transit(
           Amap.Client.t(),
-          {number(), number()},
-          {number(), number()},
+          Amap.Coord.point(),
+          Amap.Coord.point(),
           String.t(),
           keyword()
         ) ::
@@ -281,8 +281,8 @@ defmodule Amap.Direction do
   """
   @spec distance(
           Amap.Client.t(),
-          [{number(), number()}],
-          {number(), number()},
+          Amap.Coord.points(),
+          Amap.Coord.point(),
           keyword()
         ) ::
           {:ok, [Distance.t()]} | {:error, Amap.Error.t()}
@@ -327,7 +327,7 @@ defmodule Amap.Direction do
   Returns the route Amap planned, or `%Amap.Direction.Route{paths: []}` when it found
   none, as `walking/4` does.
   """
-  @spec bicycling(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+  @spec bicycling(Amap.Client.t(), Amap.Coord.point(), Amap.Coord.point(), keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def bicycling(client, origin, destination, _opts \\ []) do
     # A Falcon envelope on the Web service host: the host `:restapi` decides where

@@ -145,7 +145,7 @@ defmodule Amap.NewRoute do
   Returns the route Amap planned, or `%Amap.NewRoute.Route{paths: []}` when it found
   none, as `Amap.Direction.walking/4` does.
   """
-  @spec driving(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+  @spec driving(Amap.Client.t(), Amap.Coord.point(), Amap.Coord.point(), keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def driving(client, origin, destination, opts \\ []) do
     params = [
@@ -196,7 +196,7 @@ defmodule Amap.NewRoute do
 
   Returns the route Amap planned, or `%Amap.NewRoute.Route{paths: []}` when it found none.
   """
-  @spec walking(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+  @spec walking(Amap.Client.t(), Amap.Coord.point(), Amap.Coord.point(), keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def walking(client, origin, destination, opts \\ []) do
     params = [
@@ -237,7 +237,7 @@ defmodule Amap.NewRoute do
   `Amap.Direction.bicycling/4` asks the same question of the older `/v4/` page, which
   documents nothing but the two points and answers in the Falcon envelope.
   """
-  @spec bicycling(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+  @spec bicycling(Amap.Client.t(), Amap.Coord.point(), Amap.Coord.point(), keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def bicycling(client, origin, destination, opts \\ []) do
     plan_ride(client, @bicycling_path, origin, destination, opts)
@@ -250,7 +250,7 @@ defmodule Amap.NewRoute do
   answer is the same skeleton — what differs is Amap's planning, which 会考虑限行等条件,
   it weighs no-travel restrictions, where cycling does not.
   """
-  @spec electrobike(Amap.Client.t(), {number(), number()}, {number(), number()}, keyword()) ::
+  @spec electrobike(Amap.Client.t(), Amap.Coord.point(), Amap.Coord.point(), keyword()) ::
           {:ok, Route.t()} | {:error, Amap.Error.t()}
   def electrobike(client, origin, destination, opts \\ []) do
     plan_ride(client, @electrobike_path, origin, destination, opts)
@@ -440,8 +440,8 @@ defmodule Amap.NewRoute do
   """
   @spec transit(
           Amap.Client.t(),
-          {number(), number()},
-          {number(), number()},
+          Amap.Coord.point(),
+          Amap.Coord.point(),
           String.t(),
           String.t(),
           keyword()

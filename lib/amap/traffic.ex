@@ -89,7 +89,7 @@ defmodule Amap.Traffic do
   `location` is a `{lon, lat}` tuple. `:radius` is in metres, at most 4999 and with
   no decimals; Amap's own default is 1000.
   """
-  @spec circle(Amap.Client.t(), integer(), {number(), number()}, keyword()) ::
+  @spec circle(Amap.Client.t(), integer(), Amap.Coord.point(), keyword()) ::
           {:ok, t()} | {:error, Amap.Error.t()}
   def circle(client, level, location, opts \\ []) do
     params = [
@@ -110,7 +110,7 @@ defmodule Amap.Traffic do
   @spec rectangle(
           Amap.Client.t(),
           integer(),
-          {{number(), number()}, {number(), number()}},
+          {Amap.Coord.point(), Amap.Coord.point()},
           keyword()
         ) :: {:ok, t()} | {:error, Amap.Error.t()}
   def rectangle(client, level, rectangle, opts \\ []) do

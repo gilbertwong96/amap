@@ -144,7 +144,7 @@ defmodule Amap.Place do
   the page notes that distance ordering does not take effect when only `:keywords` is
   sent. `:city` and the rest are `text/2`'s.
   """
-  @spec around(Amap.Client.t(), {number(), number()}, keyword()) ::
+  @spec around(Amap.Client.t(), Amap.Coord.point(), keyword()) ::
           {:ok, Result.t()} | {:error, Amap.Error.t()}
   def around(client, location, opts \\ []) do
     params = [
@@ -181,7 +181,7 @@ defmodule Amap.Place do
   Paging and the rest are `text/2`'s; there is no `:city`, `:city_limit` or `:children`
   on this endpoint.
   """
-  @spec polygon(Amap.Client.t(), [{number(), number()}], keyword()) ::
+  @spec polygon(Amap.Client.t(), Amap.Coord.points(), keyword()) ::
           {:ok, Result.t()} | {:error, Amap.Error.t()}
   def polygon(client, polygon, opts \\ []) do
     params = [

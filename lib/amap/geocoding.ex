@@ -103,7 +103,7 @@ defmodule Amap.Geocoding do
   Tianjin, Chongqing) and for province-administered counties, so it is not a field to
   branch on. `sea_area` is the sea the point belongs to, if any.
   """
-  @spec regeo(Amap.Client.t(), {number(), number()}, keyword()) ::
+  @spec regeo(Amap.Client.t(), Amap.Coord.point(), keyword()) ::
           {:ok, Regeo.t()} | {:error, Amap.Error.t()}
   def regeo(client, location, opts \\ []) do
     params =
