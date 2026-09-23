@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    # Only master: the coverage badge is committed to the `badges` branch, and a
-    # run triggered by that push has no source to build or test.
-    branches: [master]
+    # Pushes to the default branch only: pull requests already run this, and the
+    # coverage badge no longer needs a branch of its own to write to.
+    branches: [main]
   pull_request:
 
 jobs:
@@ -22,7 +22,7 @@ jobs:
           - elixir: "1.19"
             otp: "28"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: ${{matrix.elixir}}
@@ -35,12 +35,8 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     name: Quality
-    # The badge step commits coverage.json to the `badges` branch, so this job
-    # needs write access to the repository contents.
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.19"
@@ -49,7 +45,7 @@ jobs:
       # Dialyzer's PLT takes minutes to build from scratch, so it is cached
       # against the toolchain and the lockfile. Casing on mix.lock means a
       # dependency change rebuilds it rather than checking against a stale one.
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: _build/test/dialyxir_*.plt*
           key: plt-${{runner.os}}-otp28-elixir1.19-${{hashFiles('mix.lock')}}
@@ -57,44 +53,37 @@ jobs:
       - run: mix deps.get
       - run: mix ci
 
-      # The cover summary is a gate, not a report: mix.exs sets a threshold, so a
-      # drop below it fails this step. `pipefail` keeps tee from hiding that.
-      - name: Coverage
-        id: cover
+      # The gate is the check at the end of this step, not a key in mix.exs:
+      # measured, `mix coveralls.json` does not enforce `minimum_coverage`.
+      # Codecov ingests the cover/excoveralls.json this writes, and `mix test
+      # --cover` alone writes no such file.
+      - name: Run tests with coverage
         run: |
           set -euo pipefail
-          mix test --cover | tee cover.txt
-          pct=$(sed -n 's/^| *\([0-9.]*\)% *| *Total.*/\1/p' cover.txt | tail -1)
-          test -n "$pct"
-          echo "pct=$pct" >> "$GITHUB_OUTPUT"
+          mix coveralls.json | tee coveralls.txt
+          total=$(sed -n 's/^\[TOTAL\] *\([0-9.]*\)%.*/\1/p' coveralls.txt | tail -1)
+          test -n "$total"
+          echo "total coverage: ${total}%"
+          awk -v t="$total" 'BEGIN { exit (t + 0 < 93) }'
 
-      # A shields.io endpoint badge, so no coverage service and no account: the
-      # number this run measured is committed to the `badges` branch and the
-      # README points shields.io at that file. Only on master, where the token can
-      # write; a fork's pull request cannot and does not need to.
-      - name: Publish the coverage badge
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        env:
-          PCT: ${{steps.cover.outputs.pct}}
-        run: |
-          set -euo pipefail
-          case "$PCT" in
-            9[0-9]*|100*) colour=brightgreen ;;
-            8[0-9]*) colour=green ;;
-            *) colour=yellow ;;
-          esac
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Switch to the badges branch before writing anything: a coverage.json
-          # already in the working tree makes git refuse the checkout, because the
-          # branch has a tracked file of that name and it would be overwritten.
-          if git fetch --depth=1 origin badges; then
-            git checkout -B badges FETCH_HEAD
-          else
-            git checkout --orphan badges
-            git rm -r --cached . >/dev/null
-          fi
-          printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$PCT" "$colour" > coverage.json
-          git add coverage.json
-          git commit -m "coverage: ${PCT}%"
-          git push origin badges
+      # Codecov's own action rather than the curl uploader: the bash uploader the
+      # reference repo still uses is deprecated upstream. `files:` is this major's
+      # input name — read from the action's own action.yml rather than assumed. An
+      # upload that fails only warns (fail_ci_if_error defaults to false) and
+      # continue-on-error is kept as a second belt, because a fork's pull request
+      # gets no secret at all; the JSON is kept as an artifact either way.
+      - name: Post coverage to Codecov
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          token: ${{secrets.CODECOV_TOKEN}}
+          files: ./cover/excoveralls.json
+          verbose: true
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-linux
+          path: cover/excoveralls.json
+          retention-days: 30

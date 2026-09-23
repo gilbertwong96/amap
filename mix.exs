@@ -12,7 +12,33 @@ defmodule Amap.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
-      test_coverage: [summary: [threshold: 93]],
+      test_coverage: [
+        # ExCoveralls as the backend, the way ado_cli does it: its JSON is what
+        # Codecov ingests, and `mix coveralls.json` only works when its tool is
+        # selected. Measured: under this tool the built-in `threshold` check does
+        # not fire, so the gate that actually bites is `coveralls:
+        # minimum_coverage` below — this key is kept for the built-in reporter.
+        tool: ExCoveralls,
+        threshold: 93,
+        ignore_modules: [
+          Amap.StubJSON,
+          Amap.TestServer,
+          Amap.TestServer.Request
+        ]
+      ],
+      coveralls: [
+        # ExCoveralls' own bar. Measured: `mix coveralls.json` does not enforce it
+        # — the total stayed at 94.0% with this key set to 99 — so what actually
+        # gates coverage is the explicit check in the CI step, and this key is
+        # what `mix coveralls` honours. Test infrastructure under test/support is
+        # not something to hold a coverage bar against.
+        minimum_coverage: 93,
+        ignore_modules: [
+          Amap.StubJSON,
+          Amap.TestServer,
+          Amap.TestServer.Request
+        ]
+      ],
       aliases: aliases(),
       dialyzer: dialyzer(),
       name: "Amap",
@@ -30,11 +56,21 @@ defmodule Amap.MixProject do
     ]
   end
 
-  # The CI aliases and `mix integration` run in the test environment: `mix test`
-  # refuses to run from inside another Mix command while the environment is not
-  # `:test`, and the compile/format/credo steps behave identically either way.
+  # The CI aliases, `mix integration` and the coverage tasks run in the test
+  # environment: `mix test` refuses to run from inside another Mix command while
+  # the environment is not `:test`, and the compile/format/credo steps behave
+  # identically either way.
   def cli do
-    [preferred_envs: [ci: :test, "ci.fast": :test, integration: :test]]
+    [
+      preferred_envs: [
+        ci: :test,
+        "ci.fast": :test,
+        integration: :test,
+        coveralls: :test,
+        "coveralls.json": :test,
+        "coveralls.html": :test
+      ]
+    ]
   end
 
   # `mix ci.fast` is the inner loop: fast enough to run on every save. `mix ci`
@@ -107,7 +143,8 @@ defmodule Amap.MixProject do
       {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:reach, "~> 2.8", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.18", only: [:dev, :test], runtime: false}
     ]
   end
 
