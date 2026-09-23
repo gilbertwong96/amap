@@ -12,6 +12,7 @@ defmodule Amap.MixProject do
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       deps: deps(),
+      test_coverage: [summary: [threshold: 93]],
       aliases: aliases(),
       dialyzer: dialyzer(),
       name: "Amap",

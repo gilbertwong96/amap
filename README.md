@@ -1,5 +1,11 @@
 # Amap
 
+[![CI](https://github.com/gilbertwong96/amap/actions/workflows/ci.yml/badge.svg)](https://github.com/gilbertwong96/amap/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fgilbertwong96%2Famap%2Fbadges%2Fcoverage.json)](https://github.com/gilbertwong96/amap/actions/workflows/ci.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/amap.svg)](https://hex.pm/packages/amap)
+[![Hexdocs](https://img.shields.io/badge/hexdocs-docs-blue.svg)](https://hexdocs.pm/amap)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Elixir client for the [Amap](https://lbs.amap.com) (高德地图) Web APIs: the Web
 service API (Web 服务 API, `restapi.amap.com`) and the Falcon track service
 (猎鹰轨迹服务, `tsapi.amap.com`).

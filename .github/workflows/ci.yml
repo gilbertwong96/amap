@@ -2,6 +2,9 @@ name: CI
 
 on:
   push:
+    # Only master: the coverage badge is committed to the `badges` branch, and a
+    # run triggered by that push has no source to build or test.
+    branches: [master]
   pull_request:
 
 jobs:
@@ -32,6 +35,10 @@ jobs:
   quality:
     runs-on: ubuntu-latest
     name: Quality
+    # The badge step commits coverage.json to the `badges` branch, so this job
+    # needs write access to the repository contents.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: erlef/setup-beam@v1
@@ -49,3 +56,42 @@ jobs:
 
       - run: mix deps.get
       - run: mix ci
+
+      # The cover summary is a gate, not a report: mix.exs sets a threshold, so a
+      # drop below it fails this step. `pipefail` keeps tee from hiding that.
+      - name: Coverage
+        id: cover
+        run: |
+          set -euo pipefail
+          mix test --cover | tee cover.txt
+          pct=$(sed -n 's/^| *\([0-9.]*\)% *| *Total.*/\1/p' cover.txt | tail -1)
+          test -n "$pct"
+          echo "pct=$pct" >> "$GITHUB_OUTPUT"
+
+      # A shields.io endpoint badge, so no coverage service and no account: the
+      # number this run measured is committed to the `badges` branch and the
+      # README points shields.io at that file. Only on master, where the token can
+      # write; a fork's pull request cannot and does not need to.
+      - name: Publish the coverage badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        env:
+          PCT: ${{steps.cover.outputs.pct}}
+        run: |
+          set -euo pipefail
+          case "$PCT" in
+            9[0-9]*|100*) colour=brightgreen ;;
+            8[0-9]*) colour=green ;;
+            *) colour=yellow ;;
+          esac
+          printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s"}\n' "$PCT" "$colour" > coverage.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch --depth=1 origin badges; then
+            git checkout -B badges FETCH_HEAD
+          else
+            git checkout --orphan badges
+            git rm -r --cached . >/dev/null
+          fi
+          git add coverage.json
+          git commit -m "coverage: ${PCT}%"
+          git push origin badges
