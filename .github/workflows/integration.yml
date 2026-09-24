@@ -1,14 +1,14 @@
 name: Integration
 
-# The live checks are not part of CI: they call Amap for real and spend real
-# quota, so they run when someone asks for them or once a week, not on every
-# change. A fork's pull request gets no secret in any case.
+# Manual only, deliberately. Amap's quota is per endpoint and per day, and some of
+# the endpoints these checks call allow ten requests a day for one account: a
+# schedule would spend that budget on a run nobody asked for. The same budget is
+# why the checks are not part of CI's push and pull-request runs — and a fork's
+# pull request gets no secret in any case.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 3 * * 1"
 
-# One live run at a time: a second would spend the same account's quota twice
+# One live run at a time: two would spend the same account's daily budget twice
 # over, and Amap rate-limits per key.
 concurrency:
   group: integration
