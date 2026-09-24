@@ -184,7 +184,7 @@ defmodule Amap.Falcon.IntegrationTest do
   test "a custom field, a trajectory and a correction", %{client: client} do
     # This is what S2a's run could not do: `props` is rejected until the field has
     # been declared, and declaring it is what this batch added.
-    assert {:ok, nil} =
+    assert :ok =
              TerminalColumn.add(client, service_sid = create_service(client), "plate", :string)
 
     sid = service_sid
@@ -296,7 +296,7 @@ defmodule Amap.Falcon.IntegrationTest do
       "in: #{inspect(unpositioned.in)}, location: #{inspect(unpositioned.location)}"
     end)
 
-    assert {:ok, nil} = Geofence.delete(client, sid, :all)
+    assert :ok = Geofence.delete(client, sid, :all)
     assert {:ok, %Geofence.Page{count: 0}} = Geofence.list(client, sid)
   end
 
@@ -337,7 +337,7 @@ defmodule Amap.Falcon.IntegrationTest do
     # track it will not analyse reports that rather than crashing. A rate-limit
     # answer is a fact about the account, so it reports too.
     case TrackAnalysis.driving_behavior(client, sid, tid, trid) do
-      {:ok, nil} ->
+      :ok ->
         report("driving_behavior", fn -> "no data: Amap answered data: []" end)
 
       {:ok, behaviour} ->
@@ -354,7 +354,7 @@ defmodule Amap.Falcon.IntegrationTest do
     end
 
     case TrackAnalysis.stay_points(client, sid, tid, trid) do
-      {:ok, nil} ->
+      :ok ->
         report("stay_points", fn -> "no data" end)
 
       {:ok, stays} ->

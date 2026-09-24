@@ -45,7 +45,7 @@ defmodule Amap.Falcon.Geofence do
       iex> Amap.Falcon.Geofence.delete(client, 1000, [77])
       {:ok, [77]}
       iex> Amap.Falcon.Geofence.delete(client, 1000, :all)
-      {:ok, nil}
+      :ok
 
   `outputshape: true` is what brings each fence's `shape` back, and it stays in
   Amap's wire form — longitude first, as a string — rather than becoming a
@@ -88,7 +88,7 @@ defmodule Amap.Falcon.Geofence do
   `center` is a `{lon, lat}` tuple and `radius` is in metres, `1` to `50000`.
   """
   @spec add_circle(Amap.Client.t(), integer(), String.t(), keyword()) ::
-          {:ok, t()} | {:error, Amap.Error.t()}
+          {:ok, t()} | Amap.Result.t()
   def add_circle(client, sid, name, opts \\ []),
     do: create(client, sid, name, opts, :circle)
 
@@ -99,7 +99,7 @@ defmodule Amap.Falcon.Geofence do
   under 100 km² unless Amap has enabled the larger tier for your key by ticket.
   """
   @spec add_polygon(Amap.Client.t(), integer(), String.t(), keyword()) ::
-          {:ok, t()} | {:error, Amap.Error.t()}
+          {:ok, t()} | Amap.Result.t()
   def add_polygon(client, sid, name, opts \\ []),
     do: create(client, sid, name, opts, :polygon)
 
@@ -111,7 +111,7 @@ defmodule Amap.Falcon.Geofence do
   metres.
   """
   @spec add_polyline(Amap.Client.t(), integer(), String.t(), keyword()) ::
-          {:ok, t()} | {:error, Amap.Error.t()}
+          {:ok, t()} | Amap.Result.t()
   def add_polyline(client, sid, name, opts \\ []),
     do: create(client, sid, name, opts, :polyline)
 
@@ -122,7 +122,7 @@ defmodule Amap.Falcon.Geofence do
   zeros some codes carry are why a string is accepted.
   """
   @spec add_district(Amap.Client.t(), integer(), String.t(), keyword()) ::
-          {:ok, t()} | {:error, Amap.Error.t()}
+          {:ok, t()} | Amap.Result.t()
   def add_district(client, sid, name, opts \\ []),
     do: create(client, sid, name, opts, :district)
 
@@ -159,13 +159,16 @@ defmodule Amap.Falcon.Geofence do
 
   Pass at most 100 ids — Amap truncates a longer list silently rather than failing,
   so this raises instead — or `:all` to remove every fence in the service. `:all`
-  answers `{:ok, nil}`, because Amap has nothing to enumerate; a list answers with
+  answers `:ok`, because Amap has nothing to enumerate; a list answers with
   the ids that were actually deleted.
   """
   @spec delete(Amap.Client.t(), integer(), [integer()] | :all) ::
-          {:ok, [integer()] | nil} | {:error, Amap.Error.t()}
-  def delete(client, sid, :all),
-    do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, gfids: "#all")
+          {:ok, [integer()]} | Amap.Result.t()
+  def delete(client, sid, :all) do
+    client
+    |> Amap.request(:tsapi, :post, @base <> "/delete", sid: sid, gfids: "#all")
+    |> Amap.Result.without_data()
+  end
 
   def delete(client, sid, gfids) when is_list(gfids) do
     params = [sid: sid, gfids: Wire.ids!(gfids, ":gfids")]
@@ -217,7 +220,9 @@ defmodule Amap.Falcon.Geofence do
       [sid: sid, gfid: gfid, name: Validate.name!(name, ":name"), desc: desc_param(opts)] ++
         shape_params(shape, opts)
 
-    Amap.request(client, :tsapi, :post, "#{@base}/update/#{shape}", params)
+    Amap.Result.without_data(
+      Amap.request(client, :tsapi, :post, "#{@base}/update/#{shape}", params)
+    )
   end
 
   # One builder per shape, used by both its create and its update, so the two
@@ -266,7 +271,7 @@ defmodule Amap.Falcon.Geofence do
   defp desc_param(opts),
     do: Validate.optional!(&Validate.text!/2, Keyword.get(opts, :desc), ":desc")
 
-  defp to_geofence({:ok, nil}), do: {:ok, nil}
+  defp to_geofence({:ok, nil}), do: :ok
   defp to_geofence({:ok, payload}), do: {:ok, to_geofence_struct(payload)}
   defp to_geofence({:error, _} = error), do: error
 

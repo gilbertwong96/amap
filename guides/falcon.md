@@ -46,8 +46,8 @@ cannot be changed afterwards.
 
 ```elixir
 # 1. Declare the custom fields first. A props key Amap does not know is rejected.
-{:ok, nil} = Amap.Falcon.TerminalColumn.add(client, sid, "plate", :string, list: :y)
-{:ok, nil} = Amap.Falcon.TraceColumn.add(client, sid, "driver", :string)
+:ok = Amap.Falcon.TerminalColumn.add(client, sid, "plate", :string, list: :y)
+:ok = Amap.Falcon.TraceColumn.add(client, sid, "driver", :string)
 
 # 2. Service, then a terminal inside it, then a trace for that terminal.
 {:ok, service} = Amap.Falcon.Service.add(client, "fleet-a", desc: "night deliveries")
@@ -113,7 +113,7 @@ both decode into).
 * **A caller mistake raises, an Amap failure is an error tuple.** A name that breaks
   Amap's character rules, a radius out of range, a filter that cannot be encoded, a
   missing fence parameter: all `ArgumentError` before any request is built. Everything
-  else is `{:ok, struct} | {:error, %Amap.Error{}}`, with `{:ok, nil}` for the endpoints
+  else is `{:ok, struct} | {:error, %Amap.Error{}}`, with `:ok` for the endpoints
   Amap answers without a `data` body.
 * **`filter` and `sort` are Elixir terms.** `filter: [name: ["a", "b"], lastloctime:
   {:>=, 1_469_817_532}]` and `sort: {:lastloctime, :desc}` — not Amap's `&&`, `|` and

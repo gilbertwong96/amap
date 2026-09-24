@@ -70,12 +70,12 @@ defmodule Amap.Falcon.TerminalTest do
     end
   end
 
-  test "delete/3 returns {:ok, nil}", %{server: server, client: client} do
+  test "delete/3 returns :ok", %{server: server, client: client} do
     TestServer.expect_once(server, "POST", "/v1/track/terminal/delete", fn _req ->
       {200, ~s({"errcode":0,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = Terminal.delete(client, 1, 456)
+    assert :ok = Terminal.delete(client, 1, 456)
   end
 
   test "update/4 sends only the fields it is given", %{server: server, client: client} do
@@ -86,7 +86,7 @@ defmodule Amap.Falcon.TerminalTest do
       {200, ~s({"errcode":0,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = Terminal.update(client, 1, 456, props: %{"age" => 31})
+    assert :ok = Terminal.update(client, 1, 456, props: %{"age" => 31})
     assert_receive {:body, body}
     assert body["props"] == ~s({"age":31})
     refute Map.has_key?(body, "desc")
@@ -103,7 +103,7 @@ defmodule Amap.Falcon.TerminalTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = Terminal.update(client, 1, 456, name: "新名字")
+    assert :ok = Terminal.update(client, 1, 456, name: "新名字")
     assert_receive {:body, body}
     assert body["name"] == "新名字"
   end
@@ -119,7 +119,7 @@ defmodule Amap.Falcon.TerminalTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = Terminal.update(client, 1, 456, desc: "")
+    assert :ok = Terminal.update(client, 1, 456, desc: "")
     assert_receive {:body, body}
     assert body["desc"] == ""
   end

@@ -15,7 +15,7 @@ defmodule Amap.Falcon.Columns do
     quote do
       alias Amap.Falcon.Column
 
-      @doc "Deletes a field and every value stored in it, then returns `{:ok, nil}`."
+      @doc "Deletes a field and every value stored in it, then returns `:ok`."
       @spec delete(Amap.Client.t(), integer(), String.t()) ::
               Amap.Result.t()
       def delete(client, sid, column), do: Column.delete(client, unquote(base), sid, column)

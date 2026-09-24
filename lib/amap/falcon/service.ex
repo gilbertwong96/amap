@@ -61,7 +61,8 @@ defmodule Amap.Falcon.Service do
   `Amap.Validate.name!/2`), which are enforced here rather than by a round
   trip.
   """
-  @spec add(Amap.Client.t(), String.t(), keyword()) :: {:ok, t()} | {:error, Amap.Error.t()}
+  @spec add(Amap.Client.t(), String.t(), keyword()) ::
+          {:ok, t()} | Amap.Result.t()
   def add(client, name, opts \\ []) do
     params = [
       name: Validate.name!(name, ":name"),
@@ -76,9 +77,13 @@ defmodule Amap.Falcon.Service do
     |> to_service()
   end
 
-  @doc "Deletes a service and everything in it, then returns `{:ok, nil}`."
+  @doc "Deletes a service and everything in it, then returns `:ok`."
   @spec delete(Amap.Client.t(), integer()) :: Amap.Result.t()
-  def delete(client, sid), do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid)
+  def delete(client, sid) do
+    client
+    |> Amap.request(:tsapi, :post, @base <> "/delete", sid: sid)
+    |> Amap.Result.without_data()
+  end
 
   @doc """
   Updates a service's name, description, or both.
@@ -87,7 +92,8 @@ defmodule Amap.Falcon.Service do
   was before this call** — that is what Amap reports, not the new one — and a
   field given as an empty string is cleared.
   """
-  @spec update(Amap.Client.t(), integer(), keyword()) :: {:ok, t()} | {:error, Amap.Error.t()}
+  @spec update(Amap.Client.t(), integer(), keyword()) ::
+          {:ok, t()} | Amap.Result.t()
   def update(client, sid, opts) do
     name = Keyword.get(opts, :name)
     desc = Keyword.get(opts, :desc)
@@ -130,7 +136,7 @@ defmodule Amap.Falcon.Service do
     }
   end
 
-  defp to_service({:ok, nil}), do: {:ok, nil}
+  defp to_service({:ok, nil}), do: :ok
   defp to_service({:ok, payload}), do: {:ok, to_service_struct(payload)}
   defp to_service({:error, _} = error), do: error
 end

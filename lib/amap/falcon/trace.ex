@@ -32,11 +32,11 @@ defmodule Amap.Falcon.Trace do
       iex> client =
       ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
       iex> Amap.Falcon.Trace.delete(client, 1000, 456, 20)
-      {:ok, nil}
+      :ok
       iex> Amap.Falcon.Trace.add(client, 1000, 456, trname: "morning trace")
       ** (ArgumentError) :trname may only contain Chinese, letters, digits, _ and -
 
-  `delete/4` answers `{:ok, nil}` — Amap sends no data back for it — while `add/4`
+  `delete/4` answers `:ok` — Amap sends no data back for it — while `add/4`
   answers the trace as Amap recorded it.
   """
 
@@ -60,7 +60,7 @@ defmodule Amap.Falcon.Trace do
   left out.
   """
   @spec add(Amap.Client.t(), integer(), integer(), keyword()) ::
-          {:ok, t()} | {:error, Amap.Error.t()}
+          {:ok, t()} | Amap.Result.t()
   def add(client, sid, tid, opts \\ []) do
     params = [
       sid: sid,
@@ -73,17 +73,20 @@ defmodule Amap.Falcon.Trace do
     |> to_trace()
   end
 
-  @doc "Deletes a trace and everything uploaded against it, then returns `{:ok, nil}`."
+  @doc "Deletes a trace and everything uploaded against it, then returns `:ok`."
   @spec delete(Amap.Client.t(), integer(), integer(), integer()) ::
           Amap.Result.t()
-  def delete(client, sid, tid, trid),
-    do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, tid: tid, trid: trid)
+  def delete(client, sid, tid, trid) do
+    client
+    |> Amap.request(:tsapi, :post, @base <> "/delete", sid: sid, tid: tid, trid: trid)
+    |> Amap.Result.without_data()
+  end
 
   defp to_trace_struct(payload) do
     %__MODULE__{trid: Numeric.to_integer(payload["trid"]), trname: payload["trname"]}
   end
 
-  defp to_trace({:ok, nil}), do: {:ok, nil}
+  defp to_trace({:ok, nil}), do: :ok
   defp to_trace({:ok, payload}), do: {:ok, to_trace_struct(payload)}
   defp to_trace({:error, _} = error), do: error
 end

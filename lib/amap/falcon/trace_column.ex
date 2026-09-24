@@ -22,11 +22,11 @@ defmodule Amap.Falcon.TraceColumn do
       iex> client =
       ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
       iex> Amap.Falcon.TraceColumn.add(client, 1000, "driver", :string)
-      {:ok, nil}
+      :ok
       iex> Amap.Falcon.TraceColumn.add(client, 1000, "driver", :text)
       ** (ArgumentError) :type must be one of [:string, :double, :int], got: :text
 
-  Declaring answers `{:ok, nil}` because Amap sends no data back, and the stand-in
+  Declaring answers `:ok` because Amap sends no data back, and the stand-in
   accepts it on the trace fields' own path — `/v1/track/point/column/add`, where the
   path says `point` while these are trace fields, and where the type has to arrive as
   the wire word `string` and with no searchable flag, which terminal fields have and
@@ -60,6 +60,8 @@ defmodule Amap.Falcon.TraceColumn do
       type: Column.encode_type(type)
     ]
 
-    Amap.request(client, :tsapi, :post, "/v1/track/point/column/add", params)
+    Amap.Result.without_data(
+      Amap.request(client, :tsapi, :post, "/v1/track/point/column/add", params)
+    )
   end
 end

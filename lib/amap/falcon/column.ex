@@ -16,13 +16,15 @@ defmodule Amap.Falcon.Column do
 
   @types [:string, :double, :int]
 
-  @doc "Deletes a field and returns `{:ok, nil}`."
+  @doc "Deletes a field and returns `:ok`."
   @spec delete(Amap.Client.t(), String.t(), integer(), String.t()) ::
           Amap.Result.t()
   def delete(client, base, sid, column) do
-    Amap.request(client, :tsapi, :post, base <> "/delete",
-      sid: sid,
-      column: Validate.name!(column, ":column")
+    Amap.Result.without_data(
+      Amap.request(client, :tsapi, :post, base <> "/delete",
+        sid: sid,
+        column: Validate.name!(column, ":column")
+      )
     )
   end
 
@@ -36,7 +38,7 @@ defmodule Amap.Falcon.Column do
       newcolumn: Validate.name!(newcolumn, ":newcolumn")
     ]
 
-    Amap.request(client, :tsapi, :post, base <> "/update", params)
+    Amap.Result.without_data(Amap.request(client, :tsapi, :post, base <> "/update", params))
   end
 
   @doc """

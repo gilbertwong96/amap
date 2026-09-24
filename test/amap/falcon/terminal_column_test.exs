@@ -27,7 +27,7 @@ defmodule Amap.Falcon.TerminalColumnTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = TerminalColumn.add(client, 1, "plate", :string)
+    assert :ok = TerminalColumn.add(client, 1, "plate", :string)
     assert_receive {:body, body}
     assert body["column"] == "plate"
     assert body["type"] == "string"
@@ -73,7 +73,7 @@ defmodule Amap.Falcon.TerminalColumnTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = TerminalColumn.delete(client, 1, "plate")
+    assert :ok = TerminalColumn.delete(client, 1, "plate")
     assert_receive {:delete, deleted}
     assert deleted["column"] == "plate"
 
@@ -82,7 +82,7 @@ defmodule Amap.Falcon.TerminalColumnTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = TerminalColumn.update(client, 1, "plate", "licence")
+    assert :ok = TerminalColumn.update(client, 1, "plate", "licence")
     assert_receive {:update, updated}
     assert updated["column"] == "plate"
     assert updated["newcolumn"] == "licence"

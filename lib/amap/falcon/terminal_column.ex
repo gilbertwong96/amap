@@ -19,12 +19,12 @@ defmodule Amap.Falcon.TerminalColumn do
       iex> client =
       ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
       iex> Amap.Falcon.TerminalColumn.add(client, 1000, "plate", :string, list: :y)
-      {:ok, nil}
+      :ok
       iex> {:ok, [field]} = Amap.Falcon.TerminalColumn.list(client, 1000)
       iex> {field.column, field.type, field.list}
       {"plate", "string", nil}
 
-  Declaring answers `{:ok, nil}` — the endpoint sends no data — and the list
+  Declaring answers `:ok` — the endpoint sends no data — and the list
   endpoint reports only the name and the type, so the searchable flag reads as
   `nil` even for the field just declared `list: :y`: it was not reported, and that
   is not the same as `:n`.
@@ -74,7 +74,9 @@ defmodule Amap.Falcon.TerminalColumn do
       list: encode_list(Keyword.get(opts, :list))
     ]
 
-    Amap.request(client, :tsapi, :post, "/v1/track/terminal/column/add", params)
+    Amap.Result.without_data(
+      Amap.request(client, :tsapi, :post, "/v1/track/terminal/column/add", params)
+    )
   end
 
   defp encode_list(nil), do: nil

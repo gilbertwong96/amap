@@ -145,8 +145,8 @@ Amap.Falcon.TerminalSearch.aroundsearch(client, sid, {114.158, 22.279},
 )
 ```
 
-Every function returns `{:ok, struct} | {:error, %Amap.Error{}}`, and `{:ok, nil}`
-for a response Amap sends without data. Caller mistakes — a name that breaks
+Every function returns `{:ok, struct}` or `{:error, %Amap.Error{}}`, and `:ok` for a
+call Amap answers without data. Caller mistakes — a name that breaks
 Amap's character rules, a radius out of range, a filter that cannot be encoded —
 raise `ArgumentError` before any request is built.
 
@@ -156,8 +156,8 @@ A `props` field, on a terminal or on a trace, is only legal once it has been
 declared — Amap rejects an undeclared one — and a service holds five of each:
 
 ```elixir
-{:ok, nil} = Amap.Falcon.TerminalColumn.add(client, sid, "plate", :string)
-{:ok, nil} = Amap.Falcon.TraceColumn.add(client, sid, "driver", :string)
+:ok = Amap.Falcon.TerminalColumn.add(client, sid, "plate", :string)
+:ok = Amap.Falcon.TraceColumn.add(client, sid, "driver", :string)
 
 {:ok, terminal} = Amap.Falcon.Terminal.add(client, sid, "truck-01", props: %{"plate" => "AB1234"})
 {:ok, trace} = Amap.Falcon.Trace.add(client, sid, terminal.tid, trname: "morning")

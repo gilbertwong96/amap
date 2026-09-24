@@ -90,7 +90,7 @@ defmodule Amap.Falcon.TrackAnalysis do
   means the electronic speed limit of the road.
   """
   @spec driving_behavior(Amap.Client.t(), integer(), integer(), integer(), keyword()) ::
-          {:ok, DrivingBehaviour.t() | nil} | {:error, Amap.Error.t()}
+          {:ok, DrivingBehaviour.t()} | Amap.Result.t()
   def driving_behavior(client, sid, tid, trid, opts \\ []) do
     params =
       [sid: sid, tid: tid, trid: trid] ++
@@ -104,7 +104,7 @@ defmodule Amap.Falcon.TrackAnalysis do
 
     case Amap.request(client, :tsapi, :get, @base <> "/drivingbehavior", params) do
       {:ok, nil} ->
-        {:ok, nil}
+        :ok
 
       {:ok, payload} when is_map(payload) ->
         {:ok, to_behaviour(payload)}
@@ -128,7 +128,7 @@ defmodule Amap.Falcon.TrackAnalysis do
   will not accept below 60.
   """
   @spec stay_points(Amap.Client.t(), integer(), integer(), integer(), keyword()) ::
-          {:ok, StayPoints.t() | nil} | {:error, Amap.Error.t()}
+          {:ok, StayPoints.t()} | Amap.Result.t()
   def stay_points(client, sid, tid, trid, opts \\ []) do
     params =
       [sid: sid, tid: tid, trid: trid] ++
@@ -142,7 +142,7 @@ defmodule Amap.Falcon.TrackAnalysis do
 
     case Amap.request(client, :tsapi, :get, @base <> "/staypoint", params) do
       {:ok, nil} ->
-        {:ok, nil}
+        :ok
 
       {:ok, payload} when is_map(payload) ->
         {:ok, to_stay_points(payload)}

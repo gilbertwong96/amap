@@ -71,7 +71,7 @@ defmodule Amap.Falcon.FenceTerminalTest do
   } do
     arm(server, "POST", "/v1/track/geofence/terminal/unbind", ~s({"errcode":10000,"errmsg":"OK"}))
 
-    assert {:ok, nil} = FenceTerminal.unbind(client, 1, 77, :all)
+    assert :ok = FenceTerminal.unbind(client, 1, 77, :all)
 
     assert_receive {:params, params}
     assert params["tids"] == "#all"

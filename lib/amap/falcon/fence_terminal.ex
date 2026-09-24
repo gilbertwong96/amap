@@ -40,7 +40,7 @@ defmodule Amap.Falcon.FenceTerminal do
       iex> Amap.Falcon.FenceTerminal.unbind(client, 1000, 77, [456])
       {:ok, [456]}
       iex> Amap.Falcon.FenceTerminal.unbind(client, 1000, 77, :all)
-      {:ok, nil}
+      :ok
   """
 
   use Amap.Falcon.Paging, page: Amap.Falcon.FenceTerminal.Page, mapper: :to_terminal
@@ -79,13 +79,15 @@ defmodule Amap.Falcon.FenceTerminal do
   @doc """
   Unbinds terminals from a fence.
 
-  Takes ids, or `:all` to detach every terminal. `:all` answers `{:ok, nil}`,
+  Takes ids, or `:all` to detach every terminal. `:all` answers `:ok`,
   because Amap has nothing to enumerate.
   """
   @spec unbind(Amap.Client.t(), integer(), integer(), [integer()] | :all) ::
-          {:ok, [integer()] | nil} | {:error, Amap.Error.t()}
+          {:ok, [integer()]} | Amap.Result.t()
   def unbind(client, sid, gfid, :all) do
-    Amap.request(client, :tsapi, :post, @base <> "/unbind", sid: sid, gfid: gfid, tids: "#all")
+    Amap.Result.without_data(
+      Amap.request(client, :tsapi, :post, @base <> "/unbind", sid: sid, gfid: gfid, tids: "#all")
+    )
   end
 
   def unbind(client, sid, gfid, tids) when is_list(tids) do

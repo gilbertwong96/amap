@@ -45,13 +45,13 @@ defmodule Amap.Falcon.TraceTest do
     assert body["tid"] == "456"
   end
 
-  test "delete/4 returns {:ok, nil}", %{server: server, client: client} do
+  test "delete/4 returns :ok", %{server: server, client: client} do
     TestServer.expect_once(server, "POST", "/v1/track/trace/delete", fn req ->
       assert URI.decode_query(req.body)["trid"] == "20"
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = Trace.delete(client, 1, 456, 20)
+    assert :ok = Trace.delete(client, 1, 456, 20)
   end
 
   test "an invalid trname raises before any request is built", %{client: client} do

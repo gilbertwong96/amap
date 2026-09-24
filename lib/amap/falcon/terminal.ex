@@ -39,14 +39,14 @@ defmodule Amap.Falcon.Terminal do
       iex> Enum.map(page.items, & &1.locatetime)
       [nil, 1_469_817_532]
 
-  `update/4` answers `{:ok, nil}` because Amap sends no data back, and an empty
+  `update/4` answers `:ok` because Amap sends no data back, and an empty
   string is how a field is cleared — an update with none of `:name`, `:desc` or
   `:props` is refused before any request is built:
 
       iex> client =
       ...>   Amap.new(key: "test-key", base_urls: %{tsapi: "http://localhost:21617"})
       iex> Amap.Falcon.Terminal.update(client, 1000, 456, desc: "")
-      {:ok, nil}
+      :ok
       iex> Amap.Falcon.Terminal.update(client, 1000, 456, [])
       ** (ArgumentError) update requires at least one of :name, :desc or :props; pass a value to change, or an empty string to clear one
   """
@@ -78,7 +78,7 @@ defmodule Amap.Falcon.Terminal do
   for renaming.
   """
   @spec add(Amap.Client.t(), integer(), String.t(), keyword()) ::
-          {:ok, t()} | {:error, Amap.Error.t()}
+          {:ok, t()} | Amap.Result.t()
   def add(client, sid, name, opts \\ []) do
     params = [
       sid: sid,
@@ -93,10 +93,13 @@ defmodule Amap.Falcon.Terminal do
     |> to_terminal()
   end
 
-  @doc "Deletes a terminal, then returns `{:ok, nil}`. Deleted data is unrecoverable."
+  @doc "Deletes a terminal, then returns `:ok`. Deleted data is unrecoverable."
   @spec delete(Amap.Client.t(), integer(), integer()) :: Amap.Result.t()
-  def delete(client, sid, tid),
-    do: Amap.request(client, :tsapi, :post, @base <> "/delete", sid: sid, tid: tid)
+  def delete(client, sid, tid) do
+    client
+    |> Amap.request(:tsapi, :post, @base <> "/delete", sid: sid, tid: tid)
+    |> Amap.Result.without_data()
+  end
 
   @doc """
   Updates a terminal's name, description or `props`.
@@ -111,7 +114,7 @@ defmodule Amap.Falcon.Terminal do
   and `desc` — an **empty string clears** the stored value, which is different
   from leaving the parameter out.
 
-  Returns `{:ok, nil}` — Amap sends no data for this endpoint.
+  Returns `:ok` — Amap sends no data for this endpoint.
   """
   @spec update(Amap.Client.t(), integer(), integer(), keyword()) ::
           Amap.Result.t()
@@ -136,7 +139,7 @@ defmodule Amap.Falcon.Terminal do
       props: props_param(props)
     ]
 
-    Amap.request(client, :tsapi, :post, @base <> "/update", params)
+    Amap.Result.without_data(Amap.request(client, :tsapi, :post, @base <> "/update", params))
   end
 
   @doc """
@@ -175,7 +178,7 @@ defmodule Amap.Falcon.Terminal do
     }
   end
 
-  defp to_terminal({:ok, nil}), do: {:ok, nil}
+  defp to_terminal({:ok, nil}), do: :ok
   defp to_terminal({:ok, payload}), do: {:ok, to_terminal_struct(payload)}
   defp to_terminal({:error, _} = error), do: error
 

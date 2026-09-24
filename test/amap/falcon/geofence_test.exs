@@ -141,7 +141,7 @@ defmodule Amap.Falcon.GeofenceTest do
     test "a circle update sends the gfid and the shape again", %{server: server, client: client} do
       arm(server, "POST", "/v1/track/geofence/update/circle", ~s({"errcode":10000,"errmsg":"OK"}))
 
-      assert {:ok, nil} =
+      assert :ok =
                Geofence.update_circle(client, 1, 77, "仓库", center: {114.158, 22.279}, radius: 600)
 
       assert_receive {:params, params}
@@ -164,7 +164,7 @@ defmodule Amap.Falcon.GeofenceTest do
           ~s({"errcode":10000,"errmsg":"OK"})
         )
 
-        assert {:ok, nil} = apply(Geofence, fun, [client, 1, 77, "名字", opts])
+        assert :ok = apply(Geofence, fun, [client, 1, 77, "名字", opts])
         assert_receive {:params, params}
         assert params["gfid"] == "77"
       end
@@ -206,7 +206,7 @@ defmodule Amap.Falcon.GeofenceTest do
       arm(server, "POST", "/v1/track/geofence/delete", ~s({"errcode":10000,"errmsg":"OK"}))
 
       # Amap sends no data for #all, because there is nothing to enumerate.
-      assert {:ok, nil} = Geofence.delete(client, 1, :all)
+      assert :ok = Geofence.delete(client, 1, :all)
       assert_receive {:params, params}
       assert params["gfids"] == "#all"
     end

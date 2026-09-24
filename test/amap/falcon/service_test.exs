@@ -63,7 +63,7 @@ defmodule Amap.Falcon.ServiceTest do
     end
   end
 
-  test "delete/2 returns {:ok, nil}, since the API sends no data", %{
+  test "delete/2 returns :ok, since the API sends no data", %{
     server: server,
     client: client
   } do
@@ -71,7 +71,7 @@ defmodule Amap.Falcon.ServiceTest do
       {200, ~s({"errcode":0,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = Service.delete(client, 123)
+    assert :ok = Service.delete(client, 123)
   end
 
   test "update/3 returns the name as it was before the change", %{server: server, client: client} do

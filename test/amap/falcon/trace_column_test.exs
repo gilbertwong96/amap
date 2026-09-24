@@ -32,7 +32,7 @@ defmodule Amap.Falcon.TraceColumnTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = TraceColumn.add(client, 1, "driver", :string)
+    assert :ok = TraceColumn.add(client, 1, "driver", :string)
     assert_receive {:body, body}
     assert body["column"] == "driver"
     assert body["type"] == "string"
@@ -54,7 +54,7 @@ defmodule Amap.Falcon.TraceColumnTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = TraceColumn.delete(client, 1, "driver")
+    assert :ok = TraceColumn.delete(client, 1, "driver")
     assert_receive {:delete, deleted}
     assert deleted["column"] == "driver"
 
@@ -63,7 +63,7 @@ defmodule Amap.Falcon.TraceColumnTest do
       {200, ~s({"errcode":10000,"errmsg":"OK"})}
     end)
 
-    assert {:ok, nil} = TraceColumn.update(client, 1, "driver", "driverName")
+    assert :ok = TraceColumn.update(client, 1, "driver", "driverName")
     assert_receive {:update, updated}
     assert updated["newcolumn"] == "driverName"
   end
