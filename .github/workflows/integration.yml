@@ -1,0 +1,57 @@
+name: Integration
+
+# The live checks are not part of CI: they call Amap for real and spend real
+# quota, so they run when someone asks for them or once a week, not on every
+# change. A fork's pull request gets no secret in any case.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+# One live run at a time: a second would spend the same account's quota twice
+# over, and Amap rate-limits per key.
+concurrency:
+  group: integration
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    name: Live Amap calls
+
+    # Live calls plus the SDK's own retry windows; the default limit is six
+    # hours, which a stuck run would hold for.
+    timeout-minutes: 25
+
+    # The key is the repository secret `AMAP_KEY`, under Settings → Secrets and
+    # variables → Actions. It is read into the job env rather than a step's so
+    # that the alias below sees it, and Actions masks it in the log. A run
+    # without it fails instead of skipping, which is the alias's own choice: a
+    # green run whose checks were all skipped proves nothing.
+    env:
+      AMAP_KEY: ${{secrets.AMAP_KEY}}
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.19"
+          otp-version: "28"
+      - run: mix deps.get
+
+      # `mix integration` is the alias the README documents — `test --only
+      # integration`, with the guard that refuses an unset key — so CI and a
+      # maintainer run the same thing. Piped through tee so a failed run keeps
+      # the responses it saw.
+      - name: Run the live checks
+        run: |
+          set -euo pipefail
+          mix integration 2>&1 | tee integration.log
+
+      - name: Upload the live log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-linux
+          path: integration.log
+          retention-days: 30

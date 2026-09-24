@@ -443,6 +443,12 @@ Extra arguments pass through to `mix test`, so
 skipped — a green exit that would prove nothing. The tests call Amap for real and
 spend real quota, so run them when a page needs the wire, not on every change.
 
+The same alias runs in CI as the `Integration` workflow, which reads the key from
+the `AMAP_KEY` repository secret rather than from a shell. It is deliberately not
+part of CI's push and pull-request runs — the quota argument applies there too —
+so it runs on demand (`gh workflow run integration.yml`) and once a week. A run
+whose secret is missing fails rather than skipping, for the reason the alias does.
+
 **A refusal is not an answer.** Amap rate-limits per key, and a refused call comes
 back as a tiny envelope — 71 bytes in the 2026-09-20 search run — with `status:"0"`
 and `infocode:"10022"`. A check that prints `count: nil` or `suggestion: nil` from
