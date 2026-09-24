@@ -247,14 +247,14 @@ infocode, …}` envelope, which the same client collapses for you. The simple qu
 
 ```elixir
 {:ok, ip} = Amap.IpLocation.ip(client)
-ip.province                          # "北京市"
+ip.province                          # "北京市" (Beijing)
 
 {:ok, [place]} = Amap.Geocoding.geo(client, "北京市朝阳区阜通东大街6号", city: "北京")
 place.location                       # {116.480881, 39.989410}
-place.level                          # "门牌号": how specific the match is
+place.level                          # "门牌号" (house number): how specific the match is
 
 {:ok, regeo} = Amap.Geocoding.regeo(client, {116.310003, 39.991957}, extensions: :all)
-regeo.address_component.city         # "北京市"
+regeo.address_component.city         # "北京市" (Beijing)
 length(regeo.pois)                   # nearby POIs, with roads and AOIs beside them
 
 {:ok, converted} = Amap.Convert.convert(client, [{116.481499, 39.990475}], coordsys: :gps)
@@ -267,7 +267,7 @@ hd(districts.items).districts        # its children; every level is the same str
 now.temperature                      # "24"
 
 {:ok, [days]} = Amap.Weather.forecast(client, "110000")
-hd(days.casts).dayweather            # "晴"
+hd(days.casts).dayweather            # "晴" (clear)
 
 {:ok, stops} = Amap.Bus.stopname(client, "来广营路口西")
 hd(stops.busstops).buslines          # the lines serving a stop
@@ -282,7 +282,7 @@ hd(found.pois).location              # {116.310791, 39.992521}
 hd(v5.pois).business.rating          # "4.7" — only because show_fields asked
 
 {:ok, tips} = Amap.InputTips.inputtips(client, "招商", city: "010")
-hd(tips.tips).name                   # "招商银行(北京分行)"
+hd(tips.tips).name                   # "招商银行(北京分行)" (China Merchants Bank)
 
 {:ok, corrected} =
   Amap.Grasproad.driving(client, [
@@ -294,9 +294,14 @@ corrected.points                     # the road coordinates Amap snapped the tra
 corrected.distance                   # the corrected track's length
 ```
 
+Every value in them is Chinese, because that is what Amap's data is in: the
+`geo` call's address is a street in Beijing, `"北京大学"` is Peking University,
+`"地铁1号线"` Metro Line 1, `"招商"` the opening of a bank's name, and `"110000"`
+Beijing's adcode and `"010"` its citycode, and `"来广营路口西"` a Beijing bus stop.
+
 `Amap.Traffic` reads the traffic along a road, inside a circle or inside a
-rectangle. It is a **高级服务** interface, which Amap opens per account, so it may
-answer with a refusal while every other call on the same key works.
+rectangle. It is a **高级服务** (premium) interface, which Amap opens per account,
+so it may answer with a refusal while every other call on the same key works.
 
 Three things worth knowing before the first surprise. `Amap.Convert` sends
 `coordsys` only when you name one, because Amap's own default converts nothing at
@@ -306,8 +311,8 @@ only way to see what Amap thought you meant when a keyword matches nothing.
 days of forecast — which is why they are two functions rather than one.
 
 `Amap.Bus`'s two keyword searches take `city` optionally, and leaving it out
-searches the whole country: `linename`'s page promises a 全国 default and a probe
-without a city really did answer lines from another city.
+searches the whole country: `linename`'s page promises a 全国 (nationwide) default
+and a probe without a city really did answer lines from another city.
 
 `Amap.Place` and `Amap.NewPlace` are the two generations of POI search — keyword,
 around and polygon search plus lookup by id. `city` biases the answer where
@@ -318,10 +323,11 @@ optional groups — `:children`, `:business`, `:indoor`, `:navi`, `:photos` — 
 when `show_fields` asks for them. `Amap.InputTips` takes the singular `type` its page
 documents, and its `location` only has an effect when `city` is beside it.
 
-`Amap.Grasproad` is 轨迹纠偏 — the one basic page that is neither a route nor a POI.
-It takes a driven track of up to 500 points, each a `{lon, lat}` location plus the
-page's `ag` (heading from due north), `tm` (seconds: the first point's from 1970, the
-rest as differences from it) and `sp` (km/h), and answers where the track really ran.
+`Amap.Grasproad` is 轨迹纠偏 (track correction) — the one basic page
+that is neither a route nor a POI. It takes a driven track of up to 500 points,
+each a `{lon, lat}` location plus the page's `ag` (heading from due north), `tm`
+(seconds: the first point's from 1970, the rest as differences from it) and `sp`
+(km/h), and answers where the track really ran.
 The live run settles the page's untyped scalars: `distance` is a **number** here
 (`696.0`) and each returned point a `{x, y}` pair of floats, unlike the string
 distances the v3 and v5 routes send — and Amap **densifies** the corrected track, so 8
@@ -330,11 +336,11 @@ body besides `Amap.Falcon.TrackMatch` — which is why `Amap.Request` accepts a 
 list of maps as well as one object. The endpoint answers the Falcon
 envelope from the Web service host, the second `/v4/` page to do so, so it is called
 with host `:restapi` and `envelope: :tsapi` like `Amap.Direction.bicycling/4`; and
-`30001`, the page's 抓路失败 — too few or too sparse points, and what a single point
-gets too — arrives as `:grasproad_failed` rather than a generic engine error, though
-the wire's own `errmsg` is the generic `ENGINE_RESPONSE_DATA_ERROR`. The SDK refuses a
-track outside 1..500 before sending; the service's own 500 rule shows up on a raw
-501-object body as `20000` `INVALID_PARAMS`.
+`30001`, the page's 抓路失败 (road matching failed) — too few or too sparse points, and
+what a single point gets too — arrives as `:grasproad_failed` rather than a generic
+engine error, though the wire's own `errmsg` is the generic `ENGINE_RESPONSE_DATA_ERROR`.
+The SDK refuses a track outside 1..500 before sending; the service's own 500 rule
+shows up on a raw 501-object body as `20000` `INVALID_PARAMS`.
 
 ## Route planning
 
@@ -367,7 +373,7 @@ its sample says otherwise.
 
 [path | _] = route.paths
 path.cost.duration         # "1317" — a group that was asked for
-hd(path.steps).navi.action # "右转" — the group arrives on the step
+hd(path.steps).navi.action # "右转" (turn right) — the group arrives on the step
 ```
 
 Five things this pair of pages will not tell you. `Amap.Direction.bicycling/4`
@@ -455,10 +461,10 @@ skipping, for the reason the alias does.
 back as a tiny envelope — 71 bytes in the 2026-09-20 search run — with `status:"0"`
 and `infocode:"10022"`. A check that prints `count: nil` or `suggestion: nil` from
 such a body has proved nothing: the field is missing because the call was refused,
-not because the endpoint does not send it. In that run 输入提示 answered the 71-byte
-refusal on pass 1 and a 2,404-byte body on pass 2, and only pass 2's answers were
-recorded. Only a full envelope whose `infocode` is `"10000"` is an answer; rerun a
-refused call instead of quoting it as a finding.
+not because the endpoint does not send it. In that run 输入提示 (Input Tips) answered
+the 71-byte refusal on pass 1 and a 2,404-byte body on pass 2, and only pass 2's
+answers were recorded. Only a full envelope whose `infocode` is `"10000"` is an
+answer; rerun a refused call instead of quoting it as a finding.
 
 Some documented answers must not come from the wire at all: a `@moduledoc` example that teaches a
 call shape or a decode path is a doctest, run offline against the local test server. How those
