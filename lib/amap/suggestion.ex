@@ -11,10 +11,25 @@ defmodule Amap.Suggestion do
 
   Both lists are `[]` when Amap sent none, so a caller never needs a nil check on
   either. A `suggestion` Amap left out altogether — which is every answer that matched
-  something — is `nil`.
+  something — is `nil`, and `from_map/1` answers that.
   """
 
   defstruct keywords: [], cities: []
 
   @type t :: %__MODULE__{keywords: [String.t()], cities: [String.t()]}
+
+  @doc """
+  Reads a `suggestion` object, or `nil` when Amap sent none.
+
+  Total on purpose: an answer that matched something omits the object, and the two
+  services should not each keep their own clause for that absence. A value that is not
+  an object is answered the same way, the way `Amap.Routing`'s mappers treat the shapes
+  Amap leaves open.
+  """
+  @spec from_map(Amap.JSON.value()) :: t() | nil
+  def from_map(payload) when is_map(payload) do
+    %__MODULE__{keywords: payload["keywords"] || [], cities: payload["cities"] || []}
+  end
+
+  def from_map(_other), do: nil
 end

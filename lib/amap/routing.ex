@@ -26,6 +26,11 @@ defmodule Amap.Routing do
   `walking`, `bus` and `railway` parts as 参考 v3 老接口, so those parts of a v5 answer
   really are v3's shapes, and one set of functions maps them for both generations rather
   than each module keeping a copy that would drift.
+
+  `district/1` is here for a third reason: a district is the same object on both pages —
+  the same two keys, the same `Amap.Direction.District` — and only how many arrive
+  differs, so the mapper is shared and each generation keeps its own cardinality: a list
+  on `Amap.Direction.Path` and `Amap.Direction.City`, one on `Amap.NewRoute.Path`.
   """
 
   alias Amap.{Coord, Param, Validate}
@@ -191,6 +196,20 @@ defmodule Amap.Routing do
   end
 
   @doc """
+  Maps a `district` object — the `name` and `adcode` a route crosses.
+
+  Both generations answer the same two keys: v3 puts a list on a path and on each city,
+  v5 puts a single one on a path. Only how many arrive differs, so one mapper fills the
+  one struct and each generation decides whether it holds one or a list. `nil` means
+  Amap sent no district, which is v5's answer unless `show_fields` asked for the group.
+  """
+  @spec district(Amap.JSON.value()) :: Amap.Direction.District.t() | nil
+  def district(payload) when is_map(payload),
+    do: %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
+
+  def district(_other), do: nil
+
+  @doc """
   Maps a v3-shaped path — v3's own `paths[]`, and the shape v5's transit page documents
   参考 v3 老接口 for a segment's `walking` leg.
 
@@ -294,12 +313,9 @@ defmodule Amap.Routing do
   defp v3_cities(_other), do: []
 
   defp v3_districts(list) when is_list(list),
-    do: list |> Enum.filter(&is_map/1) |> Enum.map(&v3_district/1)
+    do: list |> Enum.filter(&is_map/1) |> Enum.map(&district/1)
 
   defp v3_districts(_other), do: []
-
-  defp v3_district(payload) when is_map(payload),
-    do: %Amap.Direction.District{name: payload["name"], adcode: payload["adcode"]}
 
   defp v3_road(payload) do
     %Amap.Direction.Road{

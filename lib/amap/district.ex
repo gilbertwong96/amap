@@ -112,14 +112,8 @@ defmodule Amap.District do
   defp to_result(payload) do
     %Result{
       items: Enum.map(payload["districts"] || [], &to_district/1),
-      suggestion: to_suggestion(payload["suggestion"])
+      suggestion: Suggestion.from_map(payload["suggestion"])
     }
-  end
-
-  defp to_suggestion(nil), do: nil
-
-  defp to_suggestion(payload) do
-    %Suggestion{keywords: payload["keywords"] || [], cities: payload["cities"] || []}
   end
 
   defp to_district(payload) do

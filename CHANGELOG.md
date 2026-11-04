@@ -13,6 +13,12 @@ Notable changes to this project, newest first. The format follows
   `Amap.Direction.District`; `Amap.Bus.Suggestion` and `Amap.District.Suggestion` are
   `Amap.Suggestion`. The fields are unchanged, so a caller renames the module and
   nothing else. A release that ships this is `0.2.0`, not `0.1.1`.
+- `Amap.Routing.district/1` reads both generations' `district` objects. v3 carries a
+  list and v5 a single one — how many arrive, not a different shape — so the two
+  generations no longer keep a mapper each.
+- `Amap.Place.Photo.from_map/1` and `Amap.Suggestion.from_map/1` are the one reader for
+  each. `Amap.Place` and `Amap.NewPlace` previously held a byte-identical `to_photo/1`,
+  as did `Amap.Bus` and `Amap.District` for `to_suggestion/1`.
 
 ## [0.1.0] - 2026-09-24
 

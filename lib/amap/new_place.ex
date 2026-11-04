@@ -267,7 +267,7 @@ defmodule Amap.NewPlace do
       business: to_object(payload["business"], &to_business/1),
       indoor: to_object(payload["indoor"], &to_indoor/1),
       navi: to_object(payload["navi"], &to_navi/1),
-      photos: to_list_or_object(payload["photos"], &to_photo/1)
+      photos: to_list_or_object(payload["photos"], &Photo.from_map/1)
     }
   end
 
@@ -332,6 +332,4 @@ defmodule Amap.NewPlace do
       gridcode: payload["gridcode"]
     }
   end
-
-  defp to_photo(payload), do: %Photo{title: payload["title"], url: payload["url"]}
 end

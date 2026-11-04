@@ -183,15 +183,9 @@ defmodule Amap.Bus do
   defp to_stops(payload) do
     %Stops{
       count: payload["count"],
-      suggestion: to_suggestion(payload["suggestion"]),
+      suggestion: Suggestion.from_map(payload["suggestion"]),
       busstops: Enum.map(payload["busstops"] || [], &to_stop/1)
     }
-  end
-
-  defp to_suggestion(nil), do: nil
-
-  defp to_suggestion(payload) do
-    %Suggestion{keywords: payload["keywords"] || [], cities: payload["cities"] || []}
   end
 
   defp to_stop(payload) do
@@ -218,7 +212,7 @@ defmodule Amap.Bus do
   defp to_lines(payload) do
     %Lines{
       count: payload["count"],
-      suggestion: to_suggestion(payload["suggestion"]),
+      suggestion: Suggestion.from_map(payload["suggestion"]),
       buslines: Enum.map(payload["buslines"] || [], &to_line/1)
     }
   end

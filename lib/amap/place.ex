@@ -316,9 +316,7 @@ defmodule Amap.Place do
   defp to_biz_ext(_other), do: nil
 
   defp to_photos(list) when is_list(list),
-    do: list |> Enum.filter(&is_map/1) |> Enum.map(&to_photo/1)
+    do: list |> Enum.filter(&is_map/1) |> Enum.map(&Photo.from_map/1)
 
   defp to_photos(_other), do: []
-
-  defp to_photo(payload), do: %Photo{title: payload["title"], url: payload["url"]}
 end

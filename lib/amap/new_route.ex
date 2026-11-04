@@ -66,7 +66,6 @@ defmodule Amap.NewRoute do
   """
 
   alias Amap.Coord
-  alias Amap.Direction.District
   alias Amap.NewRoute.City
   alias Amap.NewRoute.Cost
   alias Amap.NewRoute.Navi
@@ -310,7 +309,7 @@ defmodule Amap.NewRoute do
       tmcs: to_tmcs(payload["tmcs"]),
       navi: to_navi(payload["navi"]),
       cities: to_city(payload["cities"]),
-      district: to_district(payload["district"]),
+      district: Routing.district(payload["district"]),
       polyline: Coord.parse_locations(payload["polyline"]),
       steps: Enum.map(payload["steps"] || [], &to_step/1)
     }
@@ -395,14 +394,9 @@ defmodule Amap.NewRoute do
   defp to_city(_other), do: nil
 
   defp to_districts(list) when is_list(list),
-    do: list |> Enum.filter(&is_map/1) |> Enum.map(&to_district/1)
+    do: list |> Enum.filter(&is_map/1) |> Enum.map(&Routing.district/1)
 
   defp to_districts(_other), do: []
-
-  defp to_district(payload) when is_map(payload),
-    do: %District{name: payload["name"], adcode: payload["adcode"]}
-
-  defp to_district(_other), do: nil
 
   @doc """
   Plans a public transport route.
