@@ -12,7 +12,7 @@ defmodule Amap.Bus.Stops do
   """
 
   alias Amap.Bus.Stop
-  alias Amap.Bus.Suggestion
+  alias Amap.Suggestion
 
   defstruct [:count, :suggestion, busstops: []]
 

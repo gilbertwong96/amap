@@ -41,9 +41,9 @@ defmodule Amap.NewRoute.Path do
   arrived at neither level in that run, so it stays where its page puts it.
   """
 
+  alias Amap.Direction.District
   alias Amap.NewRoute.City
   alias Amap.NewRoute.Cost
-  alias Amap.NewRoute.District
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Step
   alias Amap.NewRoute.Tmc

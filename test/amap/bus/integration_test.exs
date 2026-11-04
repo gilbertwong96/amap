@@ -21,10 +21,10 @@ defmodule Amap.Bus.IntegrationTest do
   alias Amap.Bus.Lines
   alias Amap.Bus.Stop
   alias Amap.Bus.Stops
-  alias Amap.Bus.Suggestion
   alias Amap.Error
   alias Amap.Param
   alias Amap.Response
+  alias Amap.Suggestion
 
   @moduletag :integration
   @moduletag timeout: 60_000

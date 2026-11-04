@@ -4,7 +4,7 @@ defmodule Amap.BusTest do
   alias Amap.Bus
   alias Amap.Bus.Stop
   alias Amap.Bus.Stops
-  alias Amap.Bus.Suggestion
+  alias Amap.Suggestion
   alias Amap.TestServer
 
   @stopid ~S"""

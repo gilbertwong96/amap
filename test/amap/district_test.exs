@@ -3,7 +3,7 @@ defmodule Amap.DistrictTest do
 
   alias Amap.District
   alias Amap.District.Result
-  alias Amap.District.Suggestion
+  alias Amap.Suggestion
   alias Amap.TestServer
 
   @beijing ~s({"status":"1","info":"OK","infocode":"10000",) <>

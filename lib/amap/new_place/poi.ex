@@ -23,7 +23,7 @@ defmodule Amap.NewPlace.Poi do
   alias Amap.NewPlace.Child
   alias Amap.NewPlace.Indoor
   alias Amap.NewPlace.Navi
-  alias Amap.NewPlace.Photo
+  alias Amap.Place.Photo
 
   defstruct [
     :name,

@@ -1,10 +1,10 @@
 defmodule Amap.NewRoute.DrivingTest do
   use ExUnit.Case, async: true
 
+  alias Amap.Direction.District
   alias Amap.NewRoute
   alias Amap.NewRoute.City
   alias Amap.NewRoute.Cost
-  alias Amap.NewRoute.District
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Route
   alias Amap.NewRoute.Tmc

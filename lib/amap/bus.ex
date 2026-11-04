@@ -24,9 +24,9 @@ defmodule Amap.Bus do
       document `base` and `all`.
     * `output` is never exposed: the SDK asks for JSON, which Amap defaults to.
 
-  The keyword searches can carry Amap's `suggestion` list, which has been empty in
-  every probe so far. It is carried as `Amap.Bus.Suggestion`; the search batch may
-  own a richer version of that type later.
+  The keyword searches can carry Amap's `suggestion` object, which has been empty in
+  every probe so far. It is `Amap.Suggestion` — the same struct `Amap.District` answers
+  with, because the two services send the same two keys.
 
   ## Examples
 
@@ -58,8 +58,8 @@ defmodule Amap.Bus do
   alias Amap.Bus.Lines
   alias Amap.Bus.Stop
   alias Amap.Bus.Stops
-  alias Amap.Bus.Suggestion
   alias Amap.Coord
+  alias Amap.Suggestion
   alias Amap.Validate
 
   @stopid_path "/v3/bus/stopid"

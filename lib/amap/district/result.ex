@@ -9,7 +9,7 @@ defmodule Amap.District.Result do
   """
 
   alias Amap.District
-  alias Amap.District.Suggestion
+  alias Amap.Suggestion
 
   defstruct items: [], suggestion: nil
 

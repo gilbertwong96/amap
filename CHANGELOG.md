@@ -6,7 +6,13 @@ Notable changes to this project, newest first. The format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- **Breaking.** Three struct pairs that gave the same wire object two names now give it
+  one. `Amap.NewPlace.Photo` is `Amap.Place.Photo`; `Amap.NewRoute.District` is
+  `Amap.Direction.District`; `Amap.Bus.Suggestion` and `Amap.District.Suggestion` are
+  `Amap.Suggestion`. The fields are unchanged, so a caller renames the module and
+  nothing else. A release that ships this is `0.2.0`, not `0.1.1`.
 
 ## [0.1.0] - 2026-09-24
 

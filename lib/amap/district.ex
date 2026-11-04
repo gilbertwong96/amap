@@ -62,7 +62,7 @@ defmodule Amap.District do
 
   alias Amap.Coord
   alias Amap.District.Result
-  alias Amap.District.Suggestion
+  alias Amap.Suggestion
   alias Amap.Validate
 
   @path "/v3/config/district"

@@ -64,10 +64,10 @@ defmodule Amap.NewPlace do
   alias Amap.NewPlace.Child
   alias Amap.NewPlace.Indoor
   alias Amap.NewPlace.Navi
-  alias Amap.NewPlace.Photo
   alias Amap.NewPlace.Poi
   alias Amap.NewPlace.Result
   alias Amap.Param
+  alias Amap.Place.Photo
   alias Amap.Search
   alias Amap.Validate
 

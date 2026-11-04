@@ -11,7 +11,7 @@ defmodule Amap.Bus.Lines do
   """
 
   alias Amap.Bus.Line
-  alias Amap.Bus.Suggestion
+  alias Amap.Suggestion
 
   defstruct [:count, :suggestion, buslines: []]
 

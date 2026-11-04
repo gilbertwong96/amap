@@ -66,9 +66,9 @@ defmodule Amap.NewRoute do
   """
 
   alias Amap.Coord
+  alias Amap.Direction.District
   alias Amap.NewRoute.City
   alias Amap.NewRoute.Cost
-  alias Amap.NewRoute.District
   alias Amap.NewRoute.Navi
   alias Amap.NewRoute.Path
   alias Amap.NewRoute.Route

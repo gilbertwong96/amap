@@ -8,7 +8,7 @@ defmodule Amap.NewRoute.City do
   route crosses, the way v3's answer carries them.
   """
 
-  alias Amap.NewRoute.District
+  alias Amap.Direction.District
 
   defstruct [:adcode, :citycode, :city, districts: []]
 
