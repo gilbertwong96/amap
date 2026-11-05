@@ -31,7 +31,7 @@ build on.
 
 ```elixir
 def deps do
-  [{:amap, "~> 0.1.0"}]
+  [{:amap, "~> 0.2.0"}]
 end
 ```
 
