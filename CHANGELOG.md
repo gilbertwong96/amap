@@ -6,6 +6,26 @@ Notable changes to this project, newest first. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-20
+
+### Changed
+
+- A list or page endpoint that receives a payload carrying no `results` key answers
+  `{:error, :unexpected_response}` with what arrived, where it used to answer an
+  empty list or an empty page. A single row wrapped in an array reaches one that
+  way — `Amap.Response` reads a one-element `data` array as a wrapper around an
+  object — so the old answer was a false empty, and `data: {}` read the same way.
+
+### Fixed
+
+- A Falcon response that carries no `data` body, or writes an absent value as `[]`,
+  no longer raises out of a mapper. `Amap.Falcon.Point.upload/5` answers
+  `%Upload{errorpoints: []}` for a clean upload, `Amap.Falcon.Grasproad.trsearch/4`
+  and `roaddata/2` answer empty results with `counts` left nil,
+  `Amap.Falcon.Service.list/1` and the two column lists answer `[]`, and an absent
+  `location`, harsh-driving section, matched track or degraded-parameters object
+  reads as `nil` rather than raising `FunctionClauseError`.
+
 ## [0.2.0] - 2026-11-05
 
 ### Breaking changes
