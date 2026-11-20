@@ -197,6 +197,10 @@ defmodule Amap.Falcon.Grasproad do
   defp encode_car_type(other),
     do: raise(ArgumentError, ":car_type must be :bus or :truck, got: #{inspect(other)}")
 
+  # An empty search answers without a `data` body at all — sometimes `"data": []`
+  # — which `Amap.Response` reports as nil; there are simply no tracks.
+  defp to_result(nil), do: %Result{tracks: []}
+
   defp to_result(payload) do
     %Result{
       counts: Numeric.to_integer(payload["counts"]),
@@ -210,6 +214,9 @@ defmodule Amap.Falcon.Grasproad do
   defp to_degraded(payload) when is_map(payload),
     do: %Degraded{threshold: Wire.decode_flag(payload["threshold"])}
 
+  # Amap writes absent degraded parameters as `[]` rather than omitting them.
+  defp to_degraded(_other), do: nil
+
   defp to_track(payload) do
     %Track{
       trid: Numeric.to_integer(payload["trid"]),
@@ -220,6 +227,8 @@ defmodule Amap.Falcon.Grasproad do
       points: Enum.map(Map.get(payload, "points", []), &Position.from_payload/1)
     }
   end
+
+  defp to_road_result(nil), do: %RoadResult{tracks: []}
 
   defp to_road_result(payload) do
     %RoadResult{

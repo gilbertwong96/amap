@@ -56,6 +56,31 @@ defmodule Amap.Falcon.PointTest do
     refute Map.has_key?(point, "props")
   end
 
+  test "answers an empty result when Amap sends no data for a clean upload", %{
+    server: server,
+    client: client
+  } do
+    arm(server, ~s({"errcode":10000,"errmsg":"OK","data":[]}))
+
+    assert {:ok, %Upload{errorpoints: []}} =
+             Point.upload(client, 1, 456, 20, [
+               %{location: {114.158, 22.279}, locatetime: 1_789_703_117_430}
+             ])
+
+    assert_receive {:body, _body}
+  end
+
+  test "drops an errorpoints entry that is not an object", %{server: server, client: client} do
+    arm(server, ~s({"errcode":20100,"errmsg":"PARTIAL_SUCCESS","data":{"errorpoints":[3]}}))
+
+    assert {:ok, %Upload{errorpoints: []}} =
+             Point.upload(client, 1, 456, 20, [
+               %{location: {114.158, 22.279}, locatetime: 1_789_703_117_430}
+             ])
+
+    assert_receive {:body, _body}
+  end
+
   test "carries the optional fields, with props JSON-encoded", %{server: server, client: client} do
     arm(server, ~s({"errcode":10000,"errmsg":"OK","data":{"errorpoints":[]}}))
 

@@ -166,16 +166,22 @@ defmodule Amap.Falcon.Point do
     end
   end
 
+  defp to_upload(nil), do: %Upload{}
+
   defp to_upload(payload) do
     errors =
       payload
       |> Map.get("errorpoints", [])
       |> List.wrap()
+      |> Enum.filter(&is_map/1)
       |> Enum.map(&to_upload_error/1)
 
     %Upload{errorpoints: errors}
   end
 
+  # The filter above is why this carries no clause for another shape: Amap writes
+  # an absent list as `[]`, and an entry that is not an object is dropped rather
+  # than handed to a mapper — the rule `Amap.Search.rows/4` states for its rows.
   defp to_upload_error(error) when is_map(error) do
     %UploadError{
       index: error["_err_point_index"],

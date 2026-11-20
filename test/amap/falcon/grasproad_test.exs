@@ -38,6 +38,8 @@ defmodule Amap.Falcon.GrasproadTest do
 
   @one_track ~s({"errcode":10000,"errmsg":"OK","data":{"counts":1,"tracks":[{"trid":20,"trname":"早晨","distance":1200,"time":60000,"counts":5,"points":[{"location":"114.1589,22.2799","locatetime":1789703117430,"speed":40,"direction":120,"accuracy":20,"height":39,"props":{"driver":"abc"}}]}],"degradedParams":{"threshold":0}}})
 
+  @no_data ~s({"errcode":10000,"errmsg":"OK","data":[]})
+
   describe "trsearch/4" do
     test "reads one trace by trid", %{server: server, client: client} do
       arm_query(server, "/v1/track/terminal/trsearch", @one_track)
@@ -56,6 +58,26 @@ defmodule Amap.Falcon.GrasproadTest do
       assert query["tid"] == "456"
       assert query["trid"] == "20"
       refute Map.has_key?(query, "starttime")
+    end
+
+    test "answers an empty result when Amap sends no data", %{server: server, client: client} do
+      arm_query(server, "/v1/track/terminal/trsearch", @no_data)
+
+      assert {:ok, %Result{counts: nil, tracks: [], degraded_params: nil}} =
+               Grasproad.trsearch(client, 1, 456, trid: 20)
+    end
+
+    test "answers nil degraded params when Amap writes the absent ones as []", %{
+      server: server,
+      client: client
+    } do
+      arm_query(
+        server,
+        "/v1/track/terminal/trsearch",
+        ~s({"errcode":10000,"errmsg":"OK","data":{"counts":0,"tracks":[],"degradedParams":[]}})
+      )
+
+      assert {:ok, %Result{degraded_params: nil}} = Grasproad.trsearch(client, 1, 456, trid: 20)
     end
 
     test "takes a window as DateTimes or milliseconds", %{server: server, client: client} do
@@ -219,6 +241,15 @@ defmodule Amap.Falcon.GrasproadTest do
       assert body["carType"] == "0"
       assert [first | _] = JSON.decode!(body["points"])
       assert first["location"] == "114.158,22.279"
+    end
+
+    test "answers an empty result when Amap sends no data", %{server: server, client: client} do
+      TestServer.expect_once(server, "POST", "/v1/track/terminal/roaddata", fn _req ->
+        {200, @no_data}
+      end)
+
+      assert {:ok, %RoadResult{counts: nil, distance: nil, tracks: []}} =
+               Grasproad.roaddata(client, sid: 1, tid: 456, trid: 20)
     end
 
     test "insists on one way of saying what to read", %{client: client} do
