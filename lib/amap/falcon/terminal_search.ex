@@ -233,4 +233,8 @@ defmodule Amap.Falcon.TerminalSearch do
       accuracy: payload["accuracy"]
     }
   end
+
+  # Amap writes an absent value as `[]`, which is neither the object this endpoint
+  # documents nor the `"lon,lat"` string `TerminalMonitor` answers with.
+  defp to_location(_other), do: nil
 end

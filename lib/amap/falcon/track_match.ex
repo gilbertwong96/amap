@@ -115,6 +115,9 @@ defmodule Amap.Falcon.TrackMatch do
     %Track{points: parse_points(payload["points"]), distance: payload["distance"]}
   end
 
+  # Amap writes an absent track as `[]` rather than omitting it.
+  defp to_track(_other), do: nil
+
   defp parse_points(nil), do: nil
 
   # Amap documents this endpoint's coordinate strings as comma-separated, unlike the

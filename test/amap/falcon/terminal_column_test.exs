@@ -103,4 +103,28 @@ defmodule Amap.Falcon.TerminalColumnTest do
             ]} =
              TerminalColumn.list(client, 1)
   end
+
+  test "list/2 answers [] when the service declares no fields", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/column/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":[]})}
+    end)
+
+    assert {:ok, []} = TerminalColumn.list(client, 1)
+  end
+
+  test "list/2 reports a single-row array as an unexpected response, not an empty list", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/column/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":[{"column":"plate","type":"string"}]})}
+    end)
+
+    assert {:error, error} = TerminalColumn.list(client, 1)
+    assert error.reason == :unexpected_response
+    assert error.response == %{body: %{"column" => "plate", "type" => "string"}}
+  end
 end

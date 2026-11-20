@@ -131,6 +131,44 @@ defmodule Amap.Falcon.ServiceTest do
              Service.list(client)
   end
 
+  test "list/1 answers [] when Amap reports an empty account as data: []", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":[]})}
+    end)
+
+    assert {:ok, []} = Service.list(client)
+  end
+
+  test "list/1 answers [] when the envelope carries no data at all", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
+      {200, ~s({"errcode":0,"errmsg":"OK"})}
+    end)
+
+    assert {:ok, []} = Service.list(client)
+  end
+
+  test "list/1 reports a single-row array as an unexpected response, not an empty list", %{
+    server: server,
+    client: client
+  } do
+    # `Amap.Response` reads a one-element `data` array as a wrapper around an object,
+    # which is what the analysis endpoints answer. A list endpoint cannot tell that
+    # apart from one row, so it refuses the shape rather than report a false empty.
+    TestServer.expect_once(server, "GET", "/v1/track/service/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":[{"sid":9,"name":"only"}]})}
+    end)
+
+    assert {:error, error} = Service.list(client)
+    assert error.reason == :unexpected_response
+    assert error.response == %{body: %{"sid" => 9, "name" => "only"}}
+  end
+
   test "an Amap error comes back as the error struct", %{server: server, client: client} do
     TestServer.expect_once(server, "POST", "/v1/track/service/add", fn _req ->
       {200, ~s({"errcode":20000,"errmsg":"INVALID_PARAMS"})}

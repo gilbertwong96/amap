@@ -51,6 +51,22 @@ defmodule Amap.Falcon.TrackAnalysisTest do
       refute Map.has_key?(params, "speedLimitThres")
     end
 
+    test "answers a nil section when Amap writes the absent one as []", %{
+      server: server,
+      client: client
+    } do
+      arm(
+        server,
+        "/v1/track/analysis/drivingbehavior",
+        ~s({"errcode":10000,"errmsg":"OK","data":{"distance":12000,"harshAcceleration":[],"harshDeceleration":{"points":[]},"harshSteering":{"points":[]},"speedLimit":{"points":[]}}})
+      )
+
+      assert {:ok, %DrivingBehaviour{harsh_acceleration: nil} = behaviour} =
+               TrackAnalysis.driving_behavior(client, 1, 456, 20)
+
+      assert %Section{points: []} = behaviour.harsh_deceleration
+    end
+
     test "sends a window and the thresholds, camelCased", %{server: server, client: client} do
       arm(server, "/v1/track/analysis/drivingbehavior", @behaviour_body)
 

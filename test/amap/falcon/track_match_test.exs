@@ -79,6 +79,19 @@ defmodule Amap.Falcon.TrackMatchTest do
     assert %Track{points: nil, distance: 15_000} = match.target
   end
 
+  test "answers a nil track when Amap writes the absent one as []", %{
+    server: server,
+    client: client
+  } do
+    arm(
+      server,
+      ~s({"errcode":10000,"errmsg":"OK","data":{"matchRatio":"84.7","baseline":[],"target":[]}})
+    )
+
+    assert {:ok, %Match{baseline: nil, target: nil}} =
+             TrackMatch.match(client, {1, 456, 20}, {1, 457, 21})
+  end
+
   test "reads a flat comma-separated coordinate list too, since Amap documents it that way", %{
     server: server,
     client: client

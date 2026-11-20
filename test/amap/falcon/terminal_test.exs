@@ -153,6 +153,27 @@ defmodule Amap.Falcon.TerminalTest do
     assert second.locatetime == 1_469_817_532
   end
 
+  test "list/2 reports a single-row array as an unexpected response, not an empty page", %{
+    server: server,
+    client: client
+  } do
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":[{"tid":1,"name":"A"}]})}
+    end)
+
+    assert {:error, error} = Terminal.list(client, 1)
+    assert error.reason == :unexpected_response
+    assert error.response == %{body: %{"tid" => 1, "name" => "A"}}
+  end
+
+  test "list/2 answers an empty page when Amap sends no data", %{server: server, client: client} do
+    TestServer.expect_once(server, "GET", "/v1/track/terminal/list", fn _req ->
+      {200, ~s({"errcode":10000,"errmsg":"OK","data":[]})}
+    end)
+
+    assert {:ok, %Page{items: [], count: nil}} = Terminal.list(client, 1)
+  end
+
   test "list/2 coerces a string tid, since the docs claim it is one there", %{
     server: server,
     client: client

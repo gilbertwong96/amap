@@ -106,6 +106,20 @@ defmodule Amap.Falcon.TerminalSearchTest do
                result.location
     end
 
+    test "answers a nil location when Amap writes the absent one as []", %{
+      server: server,
+      client: client
+    } do
+      arm(
+        server,
+        "/v1/track/terminal/search",
+        ~s({"errcode":0,"errmsg":"OK","data":{"count":1,"results":[{"tid":7,"name":"A","location":[]}]}})
+      )
+
+      assert {:ok, %Page{items: [result]}} = TerminalSearch.search(client, 1, "A")
+      assert result.location == nil
+    end
+
     test "rejects an unencodable filter before any request is built", %{client: client} do
       assert_raise ArgumentError, ~r/unsupported filter value for lastloctime/, fn ->
         TerminalSearch.search(client, 1, "王", filter: [lastloctime: "yesterday"])

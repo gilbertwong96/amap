@@ -15,8 +15,8 @@ defmodule Amap.Falcon.Paging do
   module depend on them while they depend on it.
   """
 
-  @typedoc "A request result: Amap's payload object, or the failure it answered with."
-  @type result :: {:ok, Amap.JSON.object()} | {:error, Amap.Error.t()}
+  @typedoc "A request result: whatever payload Amap answered with, or the failure it reported."
+  @type result :: {:ok, Amap.Response.payload()} | {:error, Amap.Error.t()}
 
   defmacro __using__(opts) do
     page = Keyword.fetch!(opts, :page)
@@ -26,14 +26,23 @@ defmodule Amap.Falcon.Paging do
       @spec to_page(Amap.Falcon.Paging.result()) ::
               {:ok, unquote(page).t()} | {:error, Amap.Error.t()}
       defp to_page({:ok, payload}) do
-        {:ok,
-         %unquote(page){
-           items: Enum.map(payload["results"] || [], &unquote(mapper)(&1)),
-           count: Amap.Numeric.to_integer(payload["count"])
-         }}
+        case Amap.Falcon.Wire.rows(payload) do
+          {:ok, rows} ->
+            {:ok,
+             %unquote(page){
+               items: Enum.map(rows, &unquote(mapper)(&1)),
+               count: page_count(payload)
+             }}
+
+          {:error, _} = error ->
+            error
+        end
       end
 
       defp to_page({:error, _} = error), do: error
+
+      defp page_count(%{} = payload), do: Amap.Numeric.to_integer(payload["count"])
+      defp page_count(_no_data), do: nil
     end
   end
 end

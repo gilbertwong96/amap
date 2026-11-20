@@ -223,6 +223,10 @@ defmodule Amap.Falcon.TrackAnalysis do
     %Section{points: points}
   end
 
+  # Amap writes an absent section as `[]` — the same convention that makes an
+  # absent value an array rather than a missing key.
+  defp to_section(_other), do: nil
+
   defp to_event(payload) do
     %Event{
       location: Amap.Coord.parse_location(payload["location"]),

@@ -120,9 +120,9 @@ defmodule Amap.Falcon.Service do
   @doc "Lists every service under the key. Amap returns no count, only the rows."
   @spec list(Amap.Client.t()) :: {:ok, [t()]} | {:error, Amap.Error.t()}
   def list(client) do
-    case Amap.request(client, :tsapi, :get, @base <> "/list", []) do
-      {:ok, payload} -> {:ok, Enum.map(Map.get(payload, "results", []), &to_service_struct/1)}
-      {:error, _} = error -> error
+    with {:ok, payload} <- Amap.request(client, :tsapi, :get, @base <> "/list", []),
+         {:ok, rows} <- Amap.Falcon.Wire.rows(payload) do
+      {:ok, Enum.map(rows, &to_service_struct/1)}
     end
   end
 

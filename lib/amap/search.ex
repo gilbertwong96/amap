@@ -170,8 +170,12 @@ defmodule Amap.Search do
   Every endpoint in this batch is a `GET` on `restapi` whose endpoints differ only in the
   path, the parameters and which structs the answer becomes; the mapper is the last of
   those. A refusal is returned as an error, as every other module does.
+
+  The mapper takes an object rather than `Amap.Response.payload()`: the flat envelope
+  always leaves a map behind, since `Amap.Response` drops the envelope keys from one —
+  only the Falcon envelope can answer with nothing at all.
   """
-  @spec fetch(Amap.Client.t(), String.t(), keyword(), (Amap.Response.payload() -> result)) ::
+  @spec fetch(Amap.Client.t(), String.t(), keyword(), (Amap.JSON.object() -> result)) ::
           {:ok, result} | {:error, Amap.Error.t()}
         when result: var
   def fetch(client, path, params, mapper) do

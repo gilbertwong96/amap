@@ -52,7 +52,7 @@ defmodule Amap.Falcon.Column do
           {:ok, [row()]} | {:error, Amap.Error.t()}
   def list(client, base, sid) do
     case Amap.request(client, :tsapi, :get, base <> "/list", sid: sid) do
-      {:ok, payload} -> {:ok, Map.get(payload, "results") || []}
+      {:ok, payload} -> Amap.Falcon.Wire.rows(payload)
       {:error, _} = error -> error
     end
   end

@@ -33,6 +33,10 @@ defmodule Amap.Falcon.WireTest do
       assert Wire.decode_ids(nil) == []
       assert Wire.decode_ids([]) == []
     end
+
+    test "keeps an id Amap wrote as a non-numeric string" do
+      assert Wire.decode_ids(["abc", "2"]) == ["abc", 2]
+    end
   end
 
   describe "flag!/1 and decode_flag/1" do

@@ -48,14 +48,38 @@ defmodule Amap.Falcon.Wire do
   Decodes a list of ids Amap answered with.
 
   Amap omits the list entirely for the `#all` case, so `nil` and an empty list
-  both come back empty, and ids arriving as strings become integers.
+  both come back empty, and ids arriving as strings of digits become integers. An
+  id that is not numeric is kept as the string Amap sent rather than dropped.
   """
-  @spec decode_ids(Amap.JSON.value()) :: [integer()]
+  @spec decode_ids(Amap.JSON.value()) :: [integer() | String.t()]
   def decode_ids(ids) do
     ids
     |> List.wrap()
     |> Enum.map(&to_id/1)
   end
+
+  @doc """
+  Reads the rows a list or page endpoint answers with.
+
+  A key with nothing in it answers without a `data` body at all — sometimes
+  `"data": []` — which `Amap.Response` reports as nil, and that is no rows rather
+  than a failure.
+
+  A map carrying no `results` key is a shape these endpoints do not document:
+  `Amap.Response` reads a single-element `data` array as a wrapper around an object,
+  the way the analysis endpoints answer, so one wrapped row reaches here as a bare
+  row. Reading it as no rows would report a false empty — the reason this is an
+  error instead. An entry that is not an object is dropped rather than handed to a
+  mapper, the rule `Amap.Search.rows/4` states for its own rows.
+  """
+  @spec rows(Amap.JSON.value()) :: {:ok, [Amap.JSON.object()]} | {:error, Amap.Error.t()}
+  def rows(nil), do: {:ok, []}
+  def rows(%{"results" => nil}), do: {:ok, []}
+
+  def rows(%{"results" => rows}) when is_list(rows),
+    do: {:ok, Enum.filter(rows, &is_map/1)}
+
+  def rows(other), do: {:error, Amap.Error.unexpected_response(nil, other)}
 
   @doc """
   Encodes an optional boolean the way Amap writes flags.
