@@ -91,6 +91,7 @@ defmodule Amap.MixProject do
         "cmd mix hex.audit",
         "xref graph --label compile-connected --fail-above 5",
         "dialyzer",
+        "spec_lint --warnings-as-errors",
         "ex_dna",
         "reach.check --dead-code --smells",
         "test --warnings-as-errors"
@@ -143,6 +144,7 @@ defmodule Amap.MixProject do
       {:ex_dna, "~> 1.5", only: [:dev, :test], runtime: false},
       {:ex_slop, "~> 0.4", only: [:dev, :test], runtime: false},
       {:reach, "~> 2.8", only: [:dev, :test], runtime: false},
+      {:spec_lint, "~> 0.1", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.34", only: :dev, runtime: false},
       {:excoveralls, "~> 0.18", only: [:dev, :test], runtime: false}
     ]

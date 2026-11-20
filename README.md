@@ -419,6 +419,7 @@ deps.unlock --check-unused
 hex.audit
 xref graph --label compile-connected --fail-above 5
 dialyzer
+spec_lint --warnings-as-errors  # @spec against the compiler's inferred signatures
 ex_dna                  # duplicate code
 reach.check --dead-code --smells
 test --warnings-as-errors
@@ -429,8 +430,8 @@ CI's test job runs `mix compile`, `mix format` and `mix test` on Elixir
 
 `mix ci.fast` is the inner loop: the list above without
 `deps.unlock --check-unused`, `hex.audit`,
-`xref graph --label compile-connected --fail-above 5`, `dialyzer`, `ex_dna` and
-`reach.check --dead-code --smells`.
+`xref graph --label compile-connected --fail-above 5`, `dialyzer`,
+`spec_lint --warnings-as-errors`, `ex_dna` and `reach.check --dead-code --smells`.
 All of the tooling is `dev`/`test` scoped, so none of it reaches consumers of the
 package.
 
